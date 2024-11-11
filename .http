@@ -1,0 +1,39 @@
+### POST /records
+POST http://localhost:3000/records
+Content-Type: application/json
+
+{
+  "farmer": "בושי",
+  "shipmentDate": "11/11/2024",
+  "cardId": 1,
+  "harvestDate": "07/08",
+  "palletNumber": 1,
+  "kind": "שלי",
+  "size": 18,
+  "boxes": 94,
+  "weight": 501,
+  "destination": "אמון חיפה"
+}
+
+### GET /farmers/:גבי/records
+GET http://localhost:3000/farmers/בושי/records
+
+### GET /farmers/גבי/records/pallet/14
+GET http://localhost:3000/farmers/גבי/records/pallet/14
+
+### PUT /farmers/גבי/records/15
+PUT http://localhost:3000/farmers/גבי/records/21
+Content-Type: application/json
+
+{
+  "farmer": "גבי",
+  "shipmentDate": "07/06/2024",
+  "cardId": 50012,
+  "harvestDate": "3/6",
+  "palletNumber": 22,
+  "kind": "שלי",
+  "size": 15,
+  "boxes": 96,
+  "weight": 540,
+  "destination": "אסף שיווק מצליח"
+}
