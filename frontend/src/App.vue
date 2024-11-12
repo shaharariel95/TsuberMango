@@ -1,41 +1,85 @@
+<template>
+  <div class="min-h-screen w-full bg-gradient-to-b from-gray-300 to-gray-500 flex">
+    <!-- Left Sidebar -->
+    <nav
+      class="bg-amber-50 border-r border-amber-50 p-4 flex flex-col space-y-4 fixed left-0 top-0 bottom-0 w-56 transition-all duration-300 z-50">
+      <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-black">Tsuberi Mango's</h1>
+      </div>
+      <ul class="flex flex-col space-y-2">
+        <li>
+          <router-link
+            :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/') }]"
+            to="/">
+            Farmers
+          </router-link>
+        </li>
+        <li>
+          <router-link
+            :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/page1') }]"
+            to="/page1">
+            About
+          </router-link>
+        </li>
+        <li>
+          <router-link
+            :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/page2') }]"
+            to="/page2">
+            Contact
+          </router-link>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-4 sm:p-8 ml-64 transition-all duration-300 h-screen">
+      <div class=" h-full w-full bg-amber-50 rounded-lg shadow-lg overflow-hidden flex flex-col">
+        <div class="flex-grow overflow-auto p-4 text-black">
+          <router-view />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="showError"
+    class="fixed inset-0 m-4 sm:m-40 w-auto h-fit bg-amber-300 border border-amber-500 text-amber-800 px-4 py-3 rounded mb-4 flex justify-center items-center"
+    role="alert">
+    <div>
+      <strong class="font-bold">Error:</strong>
+      <span class="block sm:inline">{{ error }}</span>
+    </div>
+    <button class="absolute top-2 right-2 w-14 text-center" @click="error = null">x</button>
+  </div>
+</template>
+
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import router from './router'
 
 export default {
   setup() {
-    const message = ref("Loading...");
+    const message = ref("Loading...")
+    const showError = ref(false)
+    const error = ref(null)
+    const route = useRoute()
+
+    const isActiveLink = (path) => {
+      return route.path === path
+    }
 
     onMounted(async () => {
-      const res = await fetch('http://localhost:3000/farmers/גבי/records');
-      const data = await res.json();
-      message.value = data.data;
-    });
- 
-    return { message };
-  }
-};
-</script>
+      try {
+        const res = await fetch('http://localhost:3000/farmers/גבי/records')
+        const data = await res.json()
+        message.value = data.data
+      } catch (err) {
+        showError.value = true
+        error.value = err.message
+      }
+    })
 
-<template>
-  <div class="min-h-screen bg-gray-100 flex items-center justify-center">
-    <div class="text-center p-6 bg-white rounded shadow-lg">
-      <h1 class="text-4xl font-bold text-blue-600">Tsuberi's Mango</h1>
-      <p class="mt-4 text-xl text-gray-700">{{ message }}</p>
-    </div>
-  </div>
-</template>
- 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+    return { message, showError, error, router, isActiveLink }
+  }
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
-}
-</style>
+</script>
