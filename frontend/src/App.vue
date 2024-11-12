@@ -6,26 +6,39 @@
       <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold text-black">Tsuberi Mango's</h1>
       </div>
+
+      <div class="relative">
+        <select v-model="selectedFarmer" class="w-full p-2 bg-white border border-gray-300 rounded-md shadow-sm 
+           focus:outline-none focus:ring-2 focus:ring-amber-500 
+           text-gray-700 cursor-pointer hover:border-amber-500 
+           transition-colors duration-200">
+          <option value="" disabled>Select a farmer</option>
+          <option v-for="farmer in farmers" :key="farmer" :value="farmer">
+            {{ farmer }}
+          </option>
+        </select>
+      </div>
+
       <ul class="flex flex-col space-y-2">
         <li>
           <router-link
             :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/') }]"
             to="/">
-            Farmers
+            קליטה
           </router-link>
         </li>
         <li>
           <router-link
             :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/page1') }]"
             to="/page1">
-            About
+            שקילה ויעד
           </router-link>
         </li>
         <li>
           <router-link
             :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/page2') }]"
             to="/page2">
-            Contact
+            תעודות משלוח
           </router-link>
         </li>
       </ul>
@@ -35,7 +48,8 @@
     <div class="flex-1 p-4 sm:p-8 ml-64 transition-all duration-300 h-screen">
       <div class=" h-full w-full bg-amber-50 rounded-lg shadow-lg overflow-hidden flex flex-col">
         <div class="flex-grow overflow-auto p-4 text-black">
-          <router-view />
+          <router-view v-if="selectedFarmer" :selected-farmer="selectedFarmer" />
+          <div v-else>Please select a farmer</div>
         </div>
       </div>
     </div>
@@ -53,33 +67,27 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import router from './router'
 
+
+
 export default {
   setup() {
-    const message = ref("Loading...")
     const showError = ref(false)
     const error = ref(null)
     const route = useRoute()
+    const farmers = ref(["צוברי", "שחק", "גדעון", "עופר", "גמליאל", "אבנר"])
+    const selectedFarmer = ref(farmers.value[0])
+    provide('selectedFarmer', selectedFarmer)
+
 
     const isActiveLink = (path) => {
       return route.path === path
     }
 
-    onMounted(async () => {
-      try {
-        const res = await fetch('http://localhost:3000/farmers/גבי/records')
-        const data = await res.json()
-        message.value = data.data
-      } catch (err) {
-        showError.value = true
-        error.value = err.message
-      }
-    })
-
-    return { message, showError, error, router, isActiveLink }
+    return { showError, error, router, isActiveLink, selectedFarmer, farmers }
   }
 }
 </script>

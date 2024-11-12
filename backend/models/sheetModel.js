@@ -1,10 +1,10 @@
 // sheetModel.js
 class SheetModel {
     constructor(shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination) {
-        this.validate(shipmentDate, cardId, harvestDate, palletNumber, kind, size);
+        this.validate(shipmentDate, harvestDate, palletNumber, kind, size);
         
         this.shipmentDate = shipmentDate;
-        this.cardId = cardId;
+        this.cardId = cardId || '';
         this.harvestDate = harvestDate;
         this.palletNumber = palletNumber;
         this.kind = kind;
@@ -14,8 +14,8 @@ class SheetModel {
         this.destination = destination || '';
     }
 
-    validate(shipmentDate, cardId, harvestDate, palletNumber, kind, size) {
-        const required = { shipmentDate, cardId, harvestDate, palletNumber, kind, size };
+    validate(shipmentDate,  harvestDate, palletNumber, kind, size) {
+        const required = { shipmentDate, harvestDate, palletNumber, kind, size };
         const missing = Object.entries(required)
             .filter(([_, value]) => !value)
             .map(([key]) => key);

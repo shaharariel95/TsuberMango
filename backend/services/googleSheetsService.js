@@ -98,15 +98,31 @@ class GoogleSheetsService {
         }
     }
 
-    async getRowsByPallet(sheetName, palletNumber) {
+    async getLastPallet(sheetName) {
         await this.initialize();
         await this.validateSheetName(sheetName);
         
         try {
             const records = await this.getAllRecords(sheetName);
-            return records.filter(record => record.palletNumber === palletNumber);
+            
+            if (records.length === 0) {
+                return 0; // Return 0 if no records exist
+            }
+            
+            // Filter out any records where palletNumber is empty or not a number
+            const validPalletNumbers = records
+                .map(record => parseInt(record.palletNumber))
+                .filter(num => !isNaN(num));
+                
+            if (validPalletNumbers.length === 0) {
+                return 0; // Return 0 if no valid pallet numbers found
+            }
+            
+            // Return the highest pallet number
+            return Math.max(...validPalletNumbers);
+            
         } catch (error) {
-            throw new Error(`Failed to fetch rows: ${error.message}`);
+            throw new Error(`Failed to get last pallet number: ${error.message}`);
         }
     }
 

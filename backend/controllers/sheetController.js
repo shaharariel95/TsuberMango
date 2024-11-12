@@ -91,6 +91,19 @@ class SheetController {
         }
     }
 
+    async getLastPallet(req, res){
+        const { farmer } = req.params;
+        if (!farmer) {
+            return res.status(400).json({ error: 'Farmer name required' });
+        }
+
+        const result = await sheetsService.getLastPallet(farmer)
+        res.json({ 
+            message: 'Record updated successfully',
+            data: result 
+        });
+    }
+
     async updateRecord(req, res) {
         try {
             const { farmer, id } = req.params;

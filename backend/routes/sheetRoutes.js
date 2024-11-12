@@ -32,6 +32,11 @@ router.get('/farmers/:farmer/records/pallet/:palletNumber',
     sheetController.getRecordsByPallet.bind(sheetController)
 );
 
+router.get('/farmers/:farmer/records/lastPallet', 
+    validateFarmer,
+    sheetController.getLastPallet.bind(sheetController)
+);
+
 // Update record
 router.put('/farmers/:farmer/records/:id',
     validateFarmer,
