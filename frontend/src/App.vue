@@ -30,7 +30,7 @@
         <li>
           <router-link
             :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/page1') }]"
-            to="/page1">
+            to="/Weight">
             שקילה ויעד
           </router-link>
         </li>

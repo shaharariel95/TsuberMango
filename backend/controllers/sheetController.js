@@ -6,7 +6,7 @@ class SheetController {
     async createRecord(req, res) {
         try {
             const { farmer, shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination } = req.body;
-            
+                         
             if (!farmer) {
                 return res.status(400).json({ error: 'Farmer name is required' });
             }
