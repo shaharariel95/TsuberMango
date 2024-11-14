@@ -103,7 +103,10 @@
             <!-- Fourth Row: Destination -->
             <div class="form-group text-xl">
                 <label class="block text-right">יעד</label>
-                <input type="text" v-model="formData.destination" class="w-full p-2 border rounded-md" />
+                <select v-model="formData.destination" class="w-full p-2 border rounded-md bg-white">
+                    <option v-for="destination in destinations" :value="destination" :key="destination">{{ destination
+                        }}</option>
+                </select>
             </div>
 
             <!-- Submit Button and Status Messages Row -->
@@ -188,6 +191,34 @@ export default {
         // Initialize all reactive references first
         const kinds = ['שלי', 'טומי', 'מאיה', 'היידן']
         const sizes = [12, 15, 18, 21, 24, 28, 32]
+        const destinations = ["",
+            "אזולאי- קרית גת",
+            "אחים שבע- צריפין",
+            "אמון- חיפה",
+            "אמצע השוק- צריפין",
+            "אסף שיווק- מצליח",
+            "בוקרה- נתניה",
+            "ד.ד- נתיבות",
+            "חצי חינם- הוד השרון",
+            "חצי חינם- לחי",
+            "חצי חינם- מרכבה",
+            "חצי חינם- שוק",
+            "טל פרי- צריפין",
+            "יוחננוף",
+            "ירק הגליל- חיפה",
+            "מ.מ- רחובות",
+            "מירב ירק- חיפה",
+            "נווה יהושוע- צריפין",
+            "נווה ירק- צריפין",
+            "סלוקי 11- צריפין",
+            "פרשמרקט",
+            "צדוק לוי- ירושלים",
+            "ציון שלי- נתניה",
+            "קטיף",
+            "שיווק האיחוד- פתח תקווה",
+            "שיווק המאה",
+            "שימי- צריפין"
+        ];
         const isSubmitting = ref(false)
         const submitStatus = ref('')
         const statusMessage = ref('')
@@ -296,6 +327,7 @@ export default {
             statusMessage,
             isLoading,
             message,
+            destinations,
             lastFormData  // Make sure to return lastFormData
         }
     }
