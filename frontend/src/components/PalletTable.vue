@@ -1,82 +1,102 @@
 <template>
-    <div>
+    <div class="h-full">
         <div class="mb-4">
             <button @click="sendSelectedPallets" :disabled="selectedPallets.length === 0"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
                 Send Selected Pallets
             </button>
         </div>
-        <table class="w-full bg-gray-200 border-collapse rtl">
+
+        <table class="w-full h-full bg-white border-collapse rtl">
             <thead>
                 <tr>
-                    <th class="border border-black px-4 py-2 w-[6%]">
-                        <button @click="sortBy('palletNumber')" class="flex items-center">
-                            מספר משטח
-                            <span v-if="sortField === 'palletNumber'"
-                                :class="sortDirection === 'asc' ? '▲' : '▼'"></span>
-                        </button>
-                    </th>
-                    <th class="border border-black px-4 py-2 w-[8%]">
-                        <button @click="sortBy('shipmentDate')" class="flex items-center">
-                            תאריך משלוח
-                            <span v-if="sortField === 'shipmentDate'"
-                                :class="sortDirection === 'asc' ? '▲' : '▼'"></span>
-                        </button>
-                    </th>
-                    <th class="border border-black px-4 py-2 w-[6%]">מספר תעודה</th>
-                    <th class="border border-black px-4 py-2 w-[8%]">תאריך קטיף</th>
-                    <th class="border border-black px-4 py-2 w-[8%]"> זן:
-                        <select v-model="filterBy.kind" class="ml-2 bg-gray-300">
-                            <option value="">הכל</option>
-                            <option v-for="option in kindOptions" :value="option" :key="option">{{ option }}</option>
-                        </select>
-                    </th>
-                    <th class="border border-black px-4 py-2 w-[6%]"> גודל:
-                        <select v-model="filterBy.size" class="ml-2 bg-gray-300">
-                            <option value="">הכל</option>
-                            <option v-for="size in sizeOptions" :value="size" :key="size">{{ size }}</option>
-                        </select>
-                    </th>
-                    <th class="border border-black px-4 py-2 w-[6%]">ארגזים</th>
-                    <th class="border border-black px-4 py-2 w-[8%]">משקל</th>
-                    <th class="border border-black px-4 py-2 w-[20%]"> יעד:
-                        <select v-model="filterBy.destination" class="ml-2 bg-gray-300">
-                            <option value="">הכל</option>
-                            <option v-for="option in destinationOptions" :value="option" :key="option">{{ option }}
-                            </option>
-                        </select>
-                    </th>
-                    <th class="border border-black px-4 py-2 w-[6%]">
-                        בחירה לתעודת משלוח
-                        <input type="checkbox" v-model="selectedPallets" @change="toggleSelectAll" />
+                    <th v-for="col in columns" :key="col.key" :class="col.class">
+                        <div class="flex items-center">
+                            {{ col.label }}
+                            <select v-if="col.filter" v-model="filterBy[col.key]" class="ml-2 bg-gray-300">
+                                <option value="">הכל</option>
+                                <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option">
+                                    {{ option }}
+                                </option>
+                            </select>
+                            <span v-if="col.sortable" @click="sortBy(col.key)" class="cursor-pointer">
+                                {{ sortField === col.key ? (sortDirection === 'asc' ? '▲' : '▼') : '' }}
+                            </span>
+                            <input v-if="col.key === 'selected'" type="checkbox" @change="toggleSelectAll"
+                                :checked="selectedPallets.length === filteredPallets.length" />
+                        </div>
                     </th>
                     <th class="border border-black px-4 py-2 w-[6%]">עריכה</th>
                 </tr>
             </thead>
             <tbody>
                 <tr v-for="pallet in sortedPallets" :key="pallet.id" class="border-b text-center">
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.palletNumber }}</td>
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.shipmentDate }}</td>
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.cardId }}</td>
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.harvestDate }}</td>
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.kind }}</td>
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.size }}</td>
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.boxes }}</td>
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.weight }}</td>
-                    <td class="border-b border-r border-black px-4 py-2">{{ pallet.destination }}</td>
-                    <td class="border border-b border-black px-4 py-2">
-                        <input type="checkbox" v-model="selectedPallets" :value="pallet.id" />
-                    </td>
-                    <td class="border border-b border-black px-4 py-2">
-                        <button @click="editPallet(pallet)">Edit</button>
-                    </td>
+                    <template v-if="editingId === pallet.id">
+                        <td v-for="col in columns" :key="col.key" class="border-b border-r border-black px-4 py-2">
+                            <template v-if="col.editable">
+                                <div v-if="col.key === 'kind'">
+                                    <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
+                                        <option v-for="kind in kinds" :key="kind" :value="kind">{{ kind }}</option>
+                                    </select>
+                                </div>
+                                <div v-else-if="col.key === 'size'">
+                                    <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
+                                        <option v-for="size in sizes" :key="size" :value="size">{{ size }}</option>
+                                    </select>
+                                </div>
+                                <div v-else-if="col.key === 'destination'">
+                                    <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
+                                        <option v-for="destination in destinations" :key="destination"
+                                            :value="destination">{{ destination }}</option>
+                                    </select>
+                                </div>
+                                <div v-else>
+                                    <input v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1"
+                                        style="width: 100%;" :class="{ 'w-20': !col.key.includes('date') }" />
+                                </div>
+                            </template>
+                            <template v-else-if="col.key === 'selected'">
+                                <input type="checkbox" v-model="selectedPallets" :value="pallet.id" />
+                            </template>
+                            <template v-else>{{ pallet[col.key] }}</template>
+                        </td>
+                        <td class="border border-b border-black px-4 py-2">
+                            <button @click="savePallet"
+                                class="p-1 border-2 border-black rounded w-full hover:bg-green-100 text-green-600 mb-1">Save</button>
+                            <button @click="closeEditing"
+                                class="p-1 border-2 border-black rounded w-full hover:bg-red-100 text-red-600">Cancel</button>
+                        </td>
+                    </template>
+                    <template v-else>
+                        <td v-for="col in columns" :key="col.key" class="border-b border-r border-black px-4 py-2">
+                            <template v-if="col.key === 'selected'">
+                                <input type="checkbox" v-model="selectedPallets" :value="pallet.id" />
+                            </template>
+                            <template v-else>{{ pallet[col.key] }}</template>
+                        </td>
+                        <td class="border border-b border-black px-4 py-2">
+                            <button @click="startEditing(pallet)" class="text-blue-600">Edit</button>
+                        </td>
+                    </template>
                 </tr>
             </tbody>
         </table>
+
+        <div v-if="error"
+            class="fixed inset-0 m-4 sm:m-40 w-auto h-fit bg-amber-300 border border-amber-500 text-amber-800 px-4 py-3 rounded mb-4 flex justify-center items-center"
+            role="alert">
+            <div>
+                <strong class="font-bold">Error:</strong>
+                <span class="block sm:inline">{{ error }}</span>
+            </div>
+            <button class="absolute top-2 right-2 w-14 text-center" @click="error = null">x</button>
+        </div>
     </div>
 </template>
 
 <script>
+import { kinds, sizes, destinations } from '../data/data.js';
+
 export default {
     props: {
         pallets: {
@@ -88,8 +108,24 @@ export default {
             required: true
         }
     },
+
     data() {
         return {
+            kinds,
+            sizes,
+            destinations,
+            columns: [
+                { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: false, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+                { key: 'cardId', label: 'מספר תעודה', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'harvestDate', label: 'תאריך קטיף', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+                { key: 'kind', label: 'זן', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+                { key: 'size', label: 'גודל', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'boxes', label: 'ארגזים', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'weight', label: 'משקל', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+                { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[20%]' },
+                { key: 'selected', label: 'בחירה לתעודת משלוח', class: 'border border-black px-4 py-2 w-[6%]' }
+            ],
             filterBy: {
                 kind: '',
                 size: '',
@@ -97,65 +133,139 @@ export default {
             },
             selectedPallets: [],
             sortField: 'palletNumber',
-            sortDirection: 'asc'
+            sortDirection: 'asc',
+            editingId: null,
+            editingPallet: null,
+            error: null
         }
     },
+
     computed: {
         filteredPallets() {
             return this.pallets.filter(pallet => {
-                return (
-                    (this.filterBy.kind === '' || pallet.kind === this.filterBy.kind) &&
-                    (this.filterBy.size === '' || pallet.size === this.filterBy.size) &&
-                    (this.filterBy.destination === '' || pallet.destination === this.filterBy.destination)
+                return Object.entries(this.filterBy).every(([key, value]) =>
+                    !value || pallet[key] === value
                 );
             });
         },
+
         sortedPallets() {
-            return this.filteredPallets.sort((a, b) => {
-                // Sort by pallet number first, then by the current sort field
-                return this.sortField === 'palletNumber'
-                    ? this.sortPalletNumbers(a, b)
-                    : this.sortByField(a, b);
+            return [...this.filteredPallets].sort((a, b) => {
+                const aVal = a[this.sortField];
+                const bVal = b[this.sortField];
+
+                if (this.sortField === 'palletNumber') {
+                    return this.sortDirection === 'asc'
+                        ? parseInt(aVal) - parseInt(bVal)
+                        : parseInt(bVal) - parseInt(aVal);
+                }
+
+                return this.sortDirection === 'asc'
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
             });
-        },
-        kindOptions() {
-            return [...new Set(this.pallets.map(p => p.kind))];
-        },
-        sizeOptions() {
-            return [...new Set(this.pallets.map(p => p.size))];
-        },
-        destinationOptions() {
-            return [...new Set(this.pallets.map(p => p.destination))];
         }
     },
+
     methods: {
-        toggleSelectAll() {
-            this.selectedPallets = this.selectedPallets.length === this.filteredPallets.length ? [] : this.filteredPallets.map(p => p.id);
+        getFilterOptions(key) {
+            return [...new Set(this.pallets.map(p => p[key]))];
         },
-        editPallet(pallet) {
-            this.$router.push(`/edit-pallet/${pallet.id}`, pallet);
+
+        startEditing(pallet) {
+            console.log(this.data)
+            this.editingId = pallet.id;
+            this.editingPallet = { ...pallet };
         },
-        sendSelectedPallets() {
-            const selectedPalletsData = this.filteredPallets.filter(p => this.selectedPallets.includes(p.id));
-            console.log('Sending selected pallets:', selectedPalletsData);
-            this.selectedPallets = [];
+        closeEditing() {
+            this.editingId = null;
+            this.editingPallet = null;
+        },
+        async savePallet() {
+            const originalPallet = { ...this.pallets.find(p => p.id === this.editingId) };
+
+            try {
+                const response = await fetch(`http://localhost:3000/farmers/${encodeURIComponent(this.farmer)}/records/${this.editingId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(this.editingPallet)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update pallet');
+                }
+
+                const updatedPallet = await response.json();
+                const index = this.pallets.findIndex(pallet => pallet.id === this.editingId);
+
+                if (index !== -1) {
+                    // Create a new array to trigger reactivity
+                    const newPallets = [...this.pallets];
+                    console.log(`oldPallet: `, originalPallet, "new pallet: ", this.editingPallet)
+                    newPallets[index] = { ...originalPallet, ...this.editingPallet };
+                    this.$emit('update:pallets', newPallets);
+                }
+
+                this.editingId = null;
+                this.editingPallet = null;
+            } catch (err) {
+                this.error = err.message;
+                const index = this.pallets.findIndex(pallet => pallet.id === this.editingId);
+
+                if (index !== -1) {
+                    const newPallets = [...this.pallets];
+                    newPallets[index] = originalPallet;
+                    this.$emit('update:pallets', newPallets);
+                }
+
+                setTimeout(() => {
+                    this.error = null;
+                }, 5000);
+
+                this.editingId = null;
+                this.editingPallet = null;
+            }
         },
         sortBy(field) {
+            this.sortDirection = this.sortField === field && this.sortDirection === 'asc'
+                ? 'desc'
+                : 'asc';
             this.sortField = field;
-            this.sortDirection = this.sortField === field && this.sortDirection === 'asc' ? 'desc' : 'asc';
         },
-        sortPalletNumbers(a, b) {
-            // Convert the pallet numbers to numbers and sort numerically
-            const aNum = parseInt(a.palletNumber);
-            const bNum = parseInt(b.palletNumber);
-            if (aNum < bNum) return this.sortDirection === 'asc' ? -1 : 1;
-            if (aNum > bNum) return this.sortDirection === 'asc' ? 1 : -1;
-            return 0;
+
+        toggleSelectAll() {
+            this.selectedPallets = this.selectedPallets.length === this.filteredPallets.length
+                ? []
+                : this.filteredPallets.map(p => p.id);
         },
-        sortByField(a, b) {
-            if (a[this.sortField] < b[this.sortField]) return this.sortDirection === 'asc' ? -1 : 1;
-            if (a[this.sortField] > b[this.sortField]) return this.sortDirection === 'asc' ? 1 : -1;
-            return 0;
+
+        async sendSelectedPallets() {
+            const selectedPalletsData = this.filteredPallets.filter(p =>
+                this.selectedPallets.includes(p.id)
+            );
+
+            try {
+                const response = await fetch('/api/send-pallets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(selectedPalletsData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to send pallets');
+                }
+
+                this.selectedPallets = [];
+            } catch (err) {
+                this.error = err.message;
+                setTimeout(() => {
+                    this.error = null;
+                }, 5000);
+            }
         }
     }
 }

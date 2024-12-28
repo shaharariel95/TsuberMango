@@ -2,7 +2,7 @@
     <div class="">
         <div class="  border-black border-spacing-1 rounded-md">
             <p v-if="isLoading" class="border-b-2 p-3 border-gray-700">Loading...</p>
-            <PalletTable v-else :pallets="message" :farmer="farmerName" />
+            <PalletTable v-else v-model:pallets="message" :farmer="farmerName" />
         </div>
     </div>
 </template>
@@ -32,7 +32,6 @@ export default {
             if (!farmer) return;
 
             isLoading.value = true
-            const showError = ref(false)
             try {
                 const hebrewName = encodeURIComponent(farmer)
                 const URL = `http://localhost:3000/farmers/${hebrewName}/records`
@@ -57,7 +56,7 @@ export default {
             }
         }, { immediate: true })
 
-        return { message, showError, error, isLoading }
+        return { message, showError, error, isLoading, farmerName }
     }
 }
 </script>
