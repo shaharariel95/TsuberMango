@@ -228,7 +228,6 @@ export default {
                 if (index !== -1) {
                     // Create a new array to trigger reactivity
                     const newPallets = [...this.pallets];
-                    console.log(`oldPallet: `, originalPallet, "new pallet: ", this.editingPallet)
                     newPallets[index] = { ...originalPallet, ...this.editingPallet };
                     this.$emit('update:pallets', newPallets);
                 }
