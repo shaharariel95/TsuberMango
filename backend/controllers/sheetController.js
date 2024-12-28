@@ -12,7 +12,7 @@ class SheetController {
             }
 
             const sheetRecord = new SheetModel(
-                shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination
+                shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, false /*sent*/
             );
             
             const result = await sheetsService.appendRow(farmer, sheetRecord.toArray());
@@ -111,10 +111,11 @@ class SheetController {
                 return res.status(400).json({ error: 'Farmer name and record ID are required' });
             }
 
-            const { shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination } = req.body;
+            const { shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent } = req.body;
             
+            const isSent = sent ? "TRUE" : "FALSE"
             const sheetRecord = new SheetModel(
-                shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination
+                shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent
             );
 
             const result = await sheetsService.updateRowById(farmer, parseInt(id), sheetRecord.toArray());

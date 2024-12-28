@@ -38,7 +38,7 @@ class GoogleSheetsService {
         });
 
         const rows = response.data.values || [];
-        if (rows.length <= 1) return 1; // Assuming first row is header
+        if (rows.length <= 1) return 1;
         
         const ids = rows.slice(1).map(row => parseInt(row[0])).filter(id => !isNaN(id));
         return ids.length > 0 ? Math.max(...ids) + 1 : 1;
@@ -54,7 +54,7 @@ class GoogleSheetsService {
             
             const response = await this.sheets.spreadsheets.values.append({
                 spreadsheetId: this.SPREADSHEET_ID,
-                range: `${sheetName}!A:J`,
+                range: `${sheetName}!A:K`,
                 valueInputOption: 'RAW',
                 requestBody: {
                     values: [rowWithId],
@@ -74,14 +74,17 @@ class GoogleSheetsService {
         try {
             const response = await this.sheets.spreadsheets.values.get({
                 spreadsheetId: this.SPREADSHEET_ID,
-                range: `${sheetName}!A:J`,
+                range: `${sheetName}!A:K`,
+                
             });
 
             const rows = response.data.values || [];
             if (rows.length <= 1) return []; // Empty if only header row exists
 
             // First row is header, so start from index 1
-            return rows.slice(1).map(row => ({
+            return rows.slice(1)
+            .filter(row => row[0] !== undefined && row[0] !== null && row[0] !== '')
+            .map(row => ({
                 id: parseInt(row[0]),
                 shipmentDate: row[1],
                 cardId: row[2],
@@ -91,7 +94,8 @@ class GoogleSheetsService {
                 size: row[6],
                 boxes: row[7],
                 weight: row[8],
-                destination: row[9]
+                destination: row[9],
+                sent: row[10] == 'TRUE' ? true : false
             }));
         } catch (error) {
             throw new Error(`Failed to fetch records: ${error.message}`);
@@ -133,7 +137,7 @@ class GoogleSheetsService {
         try {
             const response = await this.sheets.spreadsheets.values.get({
                 spreadsheetId: this.SPREADSHEET_ID,
-                range: `${sheetName}!A:J`,
+                range: `${sheetName}!A:K`,
             });
 
             const rows = response.data.values || [];
@@ -143,7 +147,7 @@ class GoogleSheetsService {
                 throw new Error(`Row with ID ${id} not found in sheet ${sheetName}`);
             }
 
-            const range = `${sheetName}!A${rowIndex + 1}:J${rowIndex + 1}`;
+            const range = `${sheetName}!A${rowIndex + 1}:K${rowIndex + 1}`;
             const rowWithId = [id, ...updatedData];
 
             await this.sheets.spreadsheets.values.update({

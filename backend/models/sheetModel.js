@@ -1,7 +1,7 @@
 // sheetModel.js
 class SheetModel {
-    constructor(shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination) {
-        this.validate(harvestDate, palletNumber, boxes, kind,  size);
+    constructor(shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent) {
+        this.validate(harvestDate, palletNumber, boxes, kind, size);
         
         this.shipmentDate = shipmentDate || '';
         this.cardId = cardId || '';
@@ -12,6 +12,7 @@ class SheetModel {
         this.boxes = boxes;
         this.weight = weight || '';
         this.destination = destination || '';
+        this.sent = sent || false;
     }
 
     validate( harvestDate, palletNumber, boxes, kind, size) {
@@ -36,6 +37,7 @@ class SheetModel {
             this.boxes,
             this.weight,
             this.destination,
+            this.sent,
         ];
     }
 }
