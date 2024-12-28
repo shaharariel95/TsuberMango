@@ -115,7 +115,7 @@ export default {
             sizes,
             destinations,
             columns: [
-                { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: false, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
                 { key: 'cardId', label: 'מספר תעודה', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'harvestDate', label: 'תאריך קטיף', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
