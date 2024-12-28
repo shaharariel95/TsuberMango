@@ -22,21 +22,21 @@
       <ul class="flex flex-col space-y-2">
         <li>
           <router-link
-            :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/') }]"
+            :class="[' block p-2 rounded border-2 border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/') }]"
             to="/">
             קליטה
           </router-link>
         </li>
         <li>
           <router-link
-            :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/page1') }]"
+            :class="['block p-2 rounded border-2 border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/Weight') }]"
             to="/Weight">
             שקילה ויעד
           </router-link>
         </li>
         <li>
           <router-link
-            :class="['block p-2 rounded hover:border-2 hover:border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/page2') }]"
+            :class="['block p-2  rounded border-2 border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/page2') }]"
             to="/page2">
             תעודות משלוח
           </router-link>
