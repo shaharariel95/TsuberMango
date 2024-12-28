@@ -8,7 +8,8 @@
 
             <button @click="toggleSentView"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
-                Show/Hide sent pallets
+                <span v-if="sentView">Show sent Pallets</span>
+                <span v-else>Hide sent Pallets</span>
             </button>
         </div>
 
@@ -58,6 +59,10 @@
                                 <div v-else-if="col.key == 'sent'">
                                     <input type="checkbox" v-model="editingPallet[col.key]"
                                         class="w-full h-5 border rounded px-2 py-1" />
+                                </div>
+                                <div v-else-if="col.key == 'shipmentDate'">
+                                    <input type="date" v-model="editingPallet[col.key]"
+                                        class="w-full border rounded px-2 py-1" />
                                 </div>
                                 <div v-else>
                                     <input v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1"
@@ -132,14 +137,14 @@ export default {
             columns: [
                 { key: 'sent', label: 'נשלח', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+                { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[11%]' },
                 { key: 'cardId', label: 'מספר תעודה', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'harvestDate', label: 'תאריך קטיף', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
                 { key: 'kind', label: 'זן', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
                 { key: 'size', label: 'גודל', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'boxes', label: 'ארגזים', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'weight', label: 'משקל', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
-                { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[20%]' },
+                { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[15%]' },
                 { key: 'selected', label: 'בחירה לתעודת משלוח', class: 'border border-black px-4 py-2 w-[6%]' }
             ],
             filterBy: {
