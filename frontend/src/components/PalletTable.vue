@@ -6,7 +6,7 @@
                 Send Selected Pallets
             </button>
 
-            <button
+            <button @click="toggleSentView"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
                 Show/Hide sent pallets
             </button>
@@ -153,16 +153,19 @@ export default {
             editingId: null,
             editingPallet: null,
             error: null,
-            isLoading: false
+            isLoading: false,
+            sentView: false,
         }
     },
 
     computed: {
         filteredPallets() {
             return this.pallets.filter(pallet => {
-                return Object.entries(this.filterBy).every(([key, value]) =>
+                const matchesSent = this.sentView ? pallet.sent === false : true;
+                const matchesFilters = Object.entries(this.filterBy).every(([key, value]) =>
                     !value || pallet[key] === value
                 );
+                return matchesSent && matchesFilters;
             });
         },
 
@@ -196,10 +199,12 @@ export default {
                 sent: !!pallet.sent
             };
         },
+
         closeEditing() {
             this.editingId = null;
             this.editingPallet = null;
         },
+
         async savePallet() {
             const originalPallet = { ...this.pallets.find(p => p.id === this.editingId) };
             this.isLoading = true
@@ -250,6 +255,7 @@ export default {
                 this.isLoading = false;
             }
         },
+
         sortBy(field) {
             this.sortDirection = this.sortField === field && this.sortDirection === 'asc'
                 ? 'desc'
@@ -261,6 +267,10 @@ export default {
             this.selectedPallets = this.selectedPallets.length === this.filteredPallets.length
                 ? []
                 : this.filteredPallets.map(p => p.id);
+        },
+
+        toggleSentView() {
+            this.sentView = !this.sentView;
         },
 
         async sendSelectedPallets() {
