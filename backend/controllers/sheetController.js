@@ -139,6 +139,24 @@ class SheetController {
             }
         }
     }
+
+    async resetSentStatus(req, res) {
+        try {
+            const { farmer } = req.params;
+            const { palletIds } = req.body; // Extract pallet IDs
+            if (!Array.isArray(palletIds) || !palletIds.length) {
+                return res.status(400).json({ error: 'Invalid pallet IDs' });
+            }
+            // Bulk update logic
+            const results = await sheetsService.updateSentStatusForPallets(farmer, palletIds, false);
+    
+            res.json({ message: 'Pallets updated successfully', updated: results });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to reset pallets', details: error.message });
+        }
+    }    
+
+    
 }
 
 module.exports = new SheetController();

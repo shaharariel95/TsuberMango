@@ -41,6 +41,13 @@
             תעודות משלוח
           </router-link>
         </li>
+        <li>
+          <router-link
+            :class="['block p-2  rounded border-2 border-gray-700 text-black', { 'bg-amber-200': isActiveLink('/SentPallets') }]"
+            to="/SentPallets">
+            משטחים שנשלחו
+          </router-link>
+        </li>
       </ul>
     </nav>
 

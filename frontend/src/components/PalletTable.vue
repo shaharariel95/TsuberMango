@@ -2,11 +2,17 @@
     <div class="h-full">
         <div class="mb-4 flex flex-row justify-between">
             <button @click="sendSelectedPallets" :disabled="selectedPallets.length === 0"
-                class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                :class="[(selectedPallets.length === 0) ? 'bg-gray-400' : '']" v-if="isEditable">
                 Send Selected Pallets
             </button>
+            <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
+                class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                :class="[(selectedPallets.length === 0) ? 'bg-gray-400 hover:bg-gray-400' : '']" v-else>
+                Return Sent Pallets
+            </button>
 
-            <button @click="toggleSentView"
+            <button v-if="isEditable" @click="toggleSentView"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
                 <span v-if="sentView">Show sent Pallets</span>
                 <span v-else>Hide sent Pallets</span>
@@ -18,7 +24,7 @@
                 <tr>
                     <th v-for="col in columns" :key="col.key" :class="col.class">
                         <div class="flex items-center">
-                            {{ col.label }}
+                            {{ col.key === 'selected' && isEditable ? col.label : 'ביטוח סטטוס נשלח' }}
                             <select v-if="col.filter" v-model="filterBy[col.key]" class="ml-2 bg-gray-300">
                                 <option value="">הכל</option>
                                 <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option">
@@ -32,7 +38,7 @@
                                 :checked="selectedPallets.length === filteredPallets.length" />
                         </div>
                     </th>
-                    <th class="border border-black px-4 py-2 w-[6%]">עריכה</th>
+                    <th class="border border-black px-4 py-2 w-[6%]" v-if="isEditable">עריכה</th>
                 </tr>
             </thead>
             <tbody>
@@ -84,7 +90,8 @@
                         </td>
                     </template>
                     <template v-else>
-                        <td v-for="col in columns" :key="col.key" class="border-b border-r border-black px-4 py-2">
+                        <td v-for="col in columns" :key="col.key" class="border-b border-r border-black px-4 py-2"
+                            :class="!isEditable ? 'border-l' : ''">
                             <template v-if="col.key === 'selected'">
                                 <input type="checkbox" v-model="selectedPallets" :value="pallet.id" />
                             </template>
@@ -94,7 +101,7 @@
                             </template>
                             <template v-else>{{ pallet[col.key] }}</template>
                         </td>
-                        <td class="border border-b border-black px-4 py-2">
+                        <td class="border border-b border-black px-4 py-2" v-if="isEditable">
                             <button @click="startEditing(pallet)" class="text-blue-600">Edit</button>
                         </td>
                     </template>
@@ -126,6 +133,11 @@ export default {
         farmer: {
             type: String,
             required: true
+        },
+        isEditable: {
+            type: Boolean,
+            required: false,
+            default: true
         }
     },
 
@@ -302,7 +314,37 @@ export default {
                     this.error = null;
                 }, 5000);
             }
+        },
+
+        async returnSentPallets() {
+            const selectedPalletIds = this.filteredPallets
+                .filter(p => this.selectedPallets.includes(p.id))
+                .map(p => p.id); // Extract only the IDs
+
+            try {
+                const response = await fetch(`http://localhost:3000/farmers/${encodeURIComponent(this.farmer)}/records/resetPallets`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ palletIds: selectedPalletIds }) // Send only IDs
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to send pallets');
+                }
+
+                // Clear selected pallets upon success
+                this.selectedPallets = [];
+                window.location.reload();
+            } catch (err) {
+                this.error = err.message;
+                setTimeout(() => {
+                    this.error = null;
+                }, 5000);
+            }
         }
+
     }
 }
 </script>

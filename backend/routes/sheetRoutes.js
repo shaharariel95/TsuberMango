@@ -37,10 +37,18 @@ router.get('/farmers/:farmer/records/lastPallet',
     sheetController.getLastPallet.bind(sheetController)
 );
 
+// reset bulk sent
+router.put('/farmers/:farmer/records/resetPallets',
+    validateFarmer,
+    sheetController.resetSentStatus.bind(sheetController)
+);
+
 // Update record
 router.put('/farmers/:farmer/records/:id',
     validateFarmer,
     sheetController.updateRecord.bind(sheetController)
 );
+
+
 
 module.exports = router;

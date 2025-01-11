@@ -164,6 +164,57 @@ class GoogleSheetsService {
             throw new Error(`Failed to update row: ${error.message}`);
         }
     }
+
+    async updateSentStatusForPallets(sheetName, palletIds, newStatus) {
+        await this.initialize();
+        await this.validateSheetName(sheetName);
+
+        try {
+            // Fetch the entire sheet
+            const response = await this.sheets.spreadsheets.values.get({
+                spreadsheetId: this.SPREADSHEET_ID,
+                range: `${sheetName}!A:K`,
+            });
+            
+            const rows = response.data.values || [];
+            const updates = [];
+    
+            // Prepare updated rows
+            palletIds.forEach(palletId => {
+                const rowIndex = rows.findIndex(row => parseInt(row[0]) === palletId); // Assuming ID is in column A
+                if (rowIndex !== -1) {
+                    rows[rowIndex][10] = newStatus;
+                    updates.push({
+                        range: `${sheetName}!A${rowIndex + 1}:K${rowIndex + 1}`,
+                        values: [rows[rowIndex]],
+                    });
+                }
+            });
+            
+            if (!updates.length) {
+                throw new Error('No matching pallet IDs found for update');
+            }
+    
+            // Batch update
+            const batchUpdateRequest = {
+                data: updates,
+                valueInputOption: 'RAW',
+            };
+    
+            await this.sheets.spreadsheets.values.batchUpdate({
+                spreadsheetId: this.SPREADSHEET_ID,
+                requestBody: batchUpdateRequest,
+            });
+    
+            return updates.map(update => ({
+                id: update.values[0][0],
+                sent: update.values[0][10],
+            })); // Return updated rows with their IDs and new status
+        } catch (error) {
+            throw new Error(`Failed to update pallets: ${error.message}`);
+        }
+    }    
+    
 }
 
 module.exports = new GoogleSheetsService();
