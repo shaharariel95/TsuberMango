@@ -24,7 +24,7 @@
                 <tr>
                     <th v-for="col in columns" :key="col.key" :class="col.class">
                         <div class="flex items-center">
-                            {{ col.key === 'selected' && isEditable ? col.label : 'ביטוח סטטוס נשלח' }}
+                            {{ (col.key === 'selected' && !isEditable) ? 'הורדת סטטוס נשלח' : col.label }}
                             <select v-if="col.filter" v-model="filterBy[col.key]" class="ml-2 bg-gray-300">
                                 <option value="">הכל</option>
                                 <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option">
