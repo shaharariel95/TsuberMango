@@ -130,6 +130,67 @@ class GoogleSheetsService {
         }
     }
 
+    async updateRowsByIds(sheetName, ids, updatedDataArray) {
+        await this.initialize();
+        await this.validateSheetName(sheetName);
+    
+        const requests = [];
+    
+        // Fetch all rows once
+        const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId: this.SPREADSHEET_ID,
+            range: `${sheetName}!A:K`,
+        });
+    
+        const rows = response.data.values || [];
+    
+        // Prepare the batch update requests
+        for (let i = 0; i < ids.length; i++) {
+            const id = ids[i];
+            const updatedData = updatedDataArray[i];
+    
+            // Find the row to update
+            const rowIndex = rows.findIndex(row => parseInt(row[0]) === id);
+    
+            if (rowIndex === -1) {
+                throw new Error(`Row with ID ${id} not found in sheet ${sheetName}`);
+            }
+    
+            const rowWithId = [id, ...updatedData];
+    
+            // Prepare the update request for this row
+            requests.push({
+                updateCells: {
+                    rows: [
+                        {
+                            values: rowWithId.map(value => ({
+                                userEnteredValue: typeof value === 'boolean' 
+                                    ? { boolValue: value }
+                                    : { stringValue: String(value) }
+                            }))
+                        }
+                    ],
+                    fields: "userEnteredValue",
+                    start: {
+                        rowIndex: rowIndex,
+                        columnIndex: 0
+                    }
+                }
+            });
+        }
+    
+        // Perform the batch update for all rows
+        if (requests.length > 0) {
+            await this.sheets.spreadsheets.batchUpdate({
+                spreadsheetId: this.SPREADSHEET_ID,
+                requestBody: { requests },
+            });
+        }
+    
+        return { success: true, message: 'Rows updated successfully' };
+    }
+    
+
     async updateRowById(sheetName, id, updatedData) {
         await this.initialize();
         await this.validateSheetName(sheetName);

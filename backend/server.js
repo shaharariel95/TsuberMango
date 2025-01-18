@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.use('/', sheetRoutes);
+app.use('/',(req,res,next) => {console.log(`got req = `, req.url); next();} ,sheetRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

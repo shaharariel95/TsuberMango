@@ -104,6 +104,59 @@ class SheetController {
         });
     }
 
+
+    async updateMultipleRecords(req, res) {
+        try {
+            const { farmer } = req.params;
+            if (!farmer) {
+                return res.status(400).json({ error: 'Farmer name is required' });
+            }
+    
+            const palletsData = req.body;  // Array of pallets data
+            if (!Array.isArray(palletsData) || palletsData.length === 0) {
+                return res.status(400).json({ error: 'Pallets data is required and must be an array' });
+            }
+    
+            const ids = palletsData.map(pallet => pallet.id);
+            const updatedDataArray = palletsData.map(pallet => {
+                const {id, shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent } = pallet;
+    
+                if (!id || !shipmentDate || !harvestDate || !palletNumber || !kind || !size || !boxes || !weight || !destination) {
+                    return res.status(400).json({ error: 'Missing required fields in one of the pallets' });
+                }
+                // const isSent = sent ? "TRUE" : "FALSE"
+                const sheetRecord = new SheetModel(
+                    shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent
+                );
+    
+                return sheetRecord.toArray();
+            });
+    
+            // Now call the batch update function
+            const result = await sheetsService.updateRowsByIds(farmer, ids, updatedDataArray);
+    
+            res.json({
+                message: 'Records updated successfully',
+                data: result.data
+            });
+        } catch (error) {
+            if (error.message.includes('Invalid farmer sheet')) {
+                res.status(400).json({ error: error.message });
+            } else if (error.message.includes('Row with ID') && error.message.includes('not found')) {
+                res.status(404).json({ error: error.message });
+            } else if (error.message.includes('Missing required fields')) {
+                res.status(400).json({ error: error.message });
+            } else {
+                res.status(500).json({
+                    error: 'Failed to update records',
+                    details: error.message
+                });
+            }
+        }
+    }
+    
+    
+
     async updateRecord(req, res) {
         try {
             const { farmer, id } = req.params;

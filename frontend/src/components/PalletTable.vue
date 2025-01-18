@@ -1,10 +1,14 @@
 <template>
     <div class="h-full">
         <div class="mb-4 flex flex-row justify-between">
-            <button @click="sendSelectedPallets" :disabled="selectedPallets.length === 0"
+            <button @click="sendSelectedPallets" :disabled="selectedPallets.length === 0 || isCreatingLabel"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                :class="[(selectedPallets.length === 0) ? 'bg-gray-400 hover:bg-gray-400' : '']" v-if="isEditable">
-                Send Selected Pallets
+                :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                v-if="isEditable">
+                <span v-if="isCreatingLabel == false">
+                    לייצר תעודת משלוח
+                </span>
+                <div v-else class="loading-circle"></div>
             </button>
             <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
@@ -171,6 +175,7 @@ export default {
             editingPallet: null,
             error: null,
             isLoading: false,
+            isCreatingLabel: false,
             sentView: false,
         }
     },
@@ -290,12 +295,13 @@ export default {
         },
 
         async sendSelectedPallets() {
+            this.isCreatingLabel = true
             const selectedPalletsData = this.filteredPallets.filter(p =>
                 this.selectedPallets.includes(p.id)
             );
-
+            console.log(JSON.stringify(selectedPalletsData))
             try {
-                const response = await fetch('/api/send-pallets', {
+                const response = await fetch('http://localhost:3000/shipping/newlabel', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -306,8 +312,39 @@ export default {
                 if (!response.ok) {
                     throw new Error('Failed to send pallets');
                 }
+                // console.log(response.json())
+                const res = await response.json();  // or just handle this if you have a response
+                console.log(res)
+                // Update selected pallets with the new label name and sent status
+                const palletsToUpdate = selectedPalletsData.map(pallet => ({
+                    ...pallet,               // Spread the original pallet
+                    cardId: Number(res['result'].name), // Assign the new cardId
+                    sent: true                // Set sent to true
+                }));
+                console.log(palletsToUpdate)
+                const response2 = await fetch(`http://localhost:3000/farmers/${encodeURIComponent(this.farmer)}/records/updatemany`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(palletsToUpdate)
+                });
+                console.log(response2)
+                const updatedPallets = [...this.pallets];
+                selectedPalletsData.forEach((selectedPallet) => {
+                    const index = this.pallets.findIndex(pallet => pallet.id === selectedPallet.id);
+                    if (index !== -1) {
+                        updatedPallets[index] = {
+                            ...updatedPallets[index],
+                            cardId: Number(res['result'].name),  // Update the label name (as number)
+                            sent: true                    // Set the sent flag to true
+                        };
+                    }
+                });
 
+                this.$emit('update:pallets', updatedPallets);
                 this.selectedPallets = [];
+                this.isCreatingLabel = false
             } catch (err) {
                 this.error = err.message;
                 setTimeout(() => {
@@ -369,5 +406,24 @@ tbody tr {
 
 .rtl {
     direction: rtl;
+}
+
+.loading-circle {
+    width: 25px;
+    height: 25px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #34db8d;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>
