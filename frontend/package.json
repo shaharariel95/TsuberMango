@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "pdfmake": "^0.2.18",
     "vue": "^3.5.12",
     "vue-router": "^4.0.13"
   },
