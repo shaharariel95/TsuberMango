@@ -1,6 +1,7 @@
 // sheetController.js
 const SheetModel = require('../models/sheetModel');
 const sheetsService = require('../services/googleSheetsService');
+const logger = require('../utils/logger');
 
 class SheetController {
     async createRecord(req, res) {
@@ -107,53 +108,75 @@ class SheetController {
 
     async updateMultipleRecords(req, res) {
         try {
+            logger.info(`Received request to update multiple records. Params: ${JSON.stringify(req.params)}`);
+    
             const { farmer } = req.params;
             if (!farmer) {
+                logger.warn('Missing farmer name in request.');
                 return res.status(400).json({ error: 'Farmer name is required' });
             }
     
-            const palletsData = req.body;  // Array of pallets data
+            const palletsData = req.body; // Array of pallets data
             if (!Array.isArray(palletsData) || palletsData.length === 0) {
+                logger.warn('Invalid or missing pallets data.');
                 return res.status(400).json({ error: 'Pallets data is required and must be an array' });
             }
     
-            const ids = palletsData.map(pallet => pallet.id);
-            const updatedDataArray = palletsData.map(pallet => {
-                const {id, shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent } = pallet;
+            const ids = [];
+            const updatedDataArray = [];
+    
+            for (const pallet of palletsData) {
+                const { id, shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent } = pallet;
     
                 if (!id || !shipmentDate || !harvestDate || !palletNumber || !kind || !size || !boxes || !weight || !destination) {
+                    logger.warn(`Pallet validation failed: ${JSON.stringify(pallet)}`);
                     return res.status(400).json({ error: 'Missing required fields in one of the pallets' });
                 }
-                // const isSent = sent ? "TRUE" : "FALSE"
+    
+                ids.push(id);
                 const sheetRecord = new SheetModel(
                     shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent
                 );
     
-                return sheetRecord.toArray();
-            });
+                updatedDataArray.push(sheetRecord.toArray());
+            }
     
-            // Now call the batch update function
+            logger.info(`Updating ${ids.length} records for farmer: ${farmer}`);
+            
+            // Call the batch update function
             const result = await sheetsService.updateRowsByIds(farmer, ids, updatedDataArray);
-    
-            res.json({
-                message: 'Records updated successfully',
-                data: result.data
+
+            if (!result || result.success !== true) {
+                logger.error(`Update function failed: ${JSON.stringify(result)}`);
+                return res.status(500).json({ error: 'Update function failed, response was invalid' });
+            }
+
+            logger.info(`Successfully updated records for farmer: ${farmer}`);
+
+            return res.json({
+                message: result.message // Use the correct message from the response
             });
+    
         } catch (error) {
-            if (error.message.includes('Invalid farmer sheet')) {
-                res.status(400).json({ error: error.message });
-            } else if (error.message.includes('Row with ID') && error.message.includes('not found')) {
-                res.status(404).json({ error: error.message });
-            } else if (error.message.includes('Missing required fields')) {
-                res.status(400).json({ error: error.message });
-            } else {
-                res.status(500).json({
-                    error: 'Failed to update records',
-                    details: error.message
-                });
+            logger.error(`Error updating records: ${error.message}`, { stack: error.stack });
+    
+            if (!res.headersSent) {  // ✅ Prevent multiple responses
+                if (error.message.includes('Invalid farmer sheet')) {
+                    return res.status(400).json({ error: error.message });
+                } else if (error.message.includes('Row with ID') && error.message.includes('not found')) {
+                    return res.status(404).json({ error: error.message });
+                } else if (error.message.includes('Missing required fields')) {
+                    return res.status(400).json({ error: error.message });
+                } else {
+                    return res.status(500).json({
+                        error: 'Failed to update records',
+                        details: error.message
+                    });
+                }
             }
         }
     }
+    
     
     
 

@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const sheetController = require('../controllers/sheetController');
 const labelController = require('../controllers/labelController');
+const logger = require('../utils/logger');
 
 // Middleware to validate farmer parameter
 const validateFarmer = (req, res, next) => {
@@ -47,7 +48,7 @@ router.put('/farmers/:farmer/records/resetPallets',
 // Update records
 router.put('/farmers/:farmer/records/updatemany',
     validateFarmer,
-    (req,res,next)=> {console.log(`in farmers/:farmer/records/updatemany`); next()},
+    (req,res,next)=> {logger.info(`in farmers/:farmer/records/updatemany`); next()},
     sheetController.updateMultipleRecords.bind(sheetController)
 );
 
@@ -58,7 +59,7 @@ router.put('/farmers/:farmer/records/:id',
 );
 
 router.post('/shipping/newlabel/',
-    (req,res,next)=> {console.log(`in /shipping/newlabel`); next()},
+    (req,res,next)=> {logger.info(`in /shipping/newlabel`); next()},
     labelController.createNewShippingLabel.bind(labelController)
 );
 

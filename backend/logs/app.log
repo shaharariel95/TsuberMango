@@ -1,0 +1,83 @@
+2025-03-01T18:46:12.106Z [INFO]: in /shipping/newlabel
+2025-03-01T18:46:12.107Z [INFO]: ShippingLabelsService initialized: , this.SPREADSHEET_ID)
+2025-03-01T18:46:12.108Z [INFO]: Initializing Google Sheets client...
+2025-03-01T18:46:12.110Z [INFO]: Google Sheets client initialized.
+2025-03-01T18:46:12.111Z [INFO]: Fetching current highest ID from cell DE7...
+2025-03-01T18:46:13.132Z [INFO]: Current ID from base sheet: 9
+2025-03-01T18:46:13.133Z [INFO]: Incremented ID: 10
+2025-03-01T18:46:13.985Z [INFO]: ID updated successfully in base sheet.
+2025-03-01T18:46:13.987Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-03-01T18:46:14.735Z [INFO]: Found sheet "base", starting duplication process...
+2025-03-01T18:46:16.946Z [INFO]: Writing data to sheet "10"...
+2025-03-01T18:46:16.947Z [INFO]: [object Object],[object Object],[object Object],[object Object]
+2025-03-01T18:46:16.947Z [INFO]: ,,,520,96,,,21,מאיה,20,,,,,,552,120,,,15,טומי,21,,,,,,,120,,,18,טומי,24,,,,,,520,120,,,18,מאיה,25,,
+2025-03-01T18:46:17.816Z [INFO]: Shipping data written successfully.
+2025-03-01T18:46:17.827Z [INFO]: in farmers/:farmer/records/updatemany
+2025-03-01T18:48:08.727Z [INFO]: in /shipping/newlabel
+2025-03-01T18:48:08.729Z [INFO]: ShippingLabelsService initialized: , this.SPREADSHEET_ID)
+2025-03-01T18:48:08.730Z [INFO]: Initializing Google Sheets client...
+2025-03-01T18:48:08.733Z [INFO]: Google Sheets client initialized.
+2025-03-01T18:48:08.733Z [INFO]: Fetching current highest ID from cell DE7...
+2025-03-01T18:48:09.830Z [INFO]: Current ID from base sheet: 10
+2025-03-01T18:48:09.831Z [INFO]: Incremented ID: 11
+2025-03-01T18:48:10.638Z [INFO]: ID updated successfully in base sheet.
+2025-03-01T18:48:10.639Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-03-01T18:48:11.380Z [INFO]: Found sheet "base", starting duplication process...
+2025-03-01T18:48:13.583Z [INFO]: Writing data to sheet "11"...
+2025-03-01T18:48:13.583Z [INFO]: [object Object],[object Object],[object Object],[object Object]
+2025-03-01T18:48:13.584Z [INFO]: ,,,520,96,,,21,מאיה,20,,,,,,552,120,,,15,טומי,21,,,,,,,120,,,18,טומי,24,,,,,,520,120,,,18,מאיה,25,,
+2025-03-01T18:48:14.519Z [INFO]: Shipping data written successfully.
+2025-03-01T18:48:14.528Z [INFO]: in farmers/:farmer/records/updatemany
+2025-03-01T18:48:14.529Z [INFO]: Received request to update multiple records. Params: {"farmer":"צוברי"}
+2025-03-01T18:48:14.530Z [WARN]: Pallet validation failed: {"id":21,"shipmentDate":"","cardId":11,"harvestDate":"14/11","palletNumber":"20","kind":"מאיה","size":"21","boxes":"96","weight":"520","destination":"שיווק המאה","sent":true}
+2025-03-01T18:50:34.199Z [INFO]: in /shipping/newlabel
+2025-03-01T18:50:34.199Z [INFO]: Fetching current highest ID from cell DE7...
+2025-03-01T18:50:34.931Z [INFO]: Current ID from base sheet: 11
+2025-03-01T18:50:34.932Z [INFO]: Incremented ID: 12
+2025-03-01T18:50:35.772Z [INFO]: ID updated successfully in base sheet.
+2025-03-01T18:50:35.773Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-03-01T18:50:36.576Z [INFO]: Found sheet "base", starting duplication process...
+2025-03-01T18:50:38.927Z [INFO]: Writing data to sheet "12"...
+2025-03-01T18:50:38.927Z [INFO]: [object Object]
+2025-03-01T18:50:38.928Z [INFO]: ,,,550,100,,,12,שלי,23,,
+2025-03-01T18:50:39.878Z [INFO]: Shipping data written successfully.
+2025-03-01T18:50:39.892Z [INFO]: in farmers/:farmer/records/updatemany
+2025-03-01T18:50:39.892Z [INFO]: Received request to update multiple records. Params: {"farmer":"צוברי"}
+2025-03-01T18:50:39.893Z [INFO]: Updating 1 records for farmer: צוברי
+2025-03-01T18:50:41.751Z [ERROR]: Error updating records: Cannot read properties of undefined (reading 'length')
+2025-03-01T18:54:19.656Z [INFO]: in /shipping/newlabel
+2025-03-01T18:54:19.658Z [INFO]: ShippingLabelsService initialized: , this.SPREADSHEET_ID)
+2025-03-01T18:54:19.658Z [INFO]: Initializing Google Sheets client...
+2025-03-01T18:54:19.664Z [INFO]: Google Sheets client initialized.
+2025-03-01T18:54:19.666Z [INFO]: Fetching current highest ID from cell DE7...
+2025-03-01T18:54:21.196Z [INFO]: Current ID from base sheet: 12
+2025-03-01T18:54:21.197Z [INFO]: Incremented ID: 13
+2025-03-01T18:54:21.585Z [INFO]: ID updated successfully in base sheet.
+2025-03-01T18:54:21.585Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-03-01T18:54:22.382Z [INFO]: Found sheet "base", starting duplication process...
+2025-03-01T18:54:24.739Z [INFO]: Writing data to sheet "13"...
+2025-03-01T18:54:24.740Z [INFO]: [object Object]
+2025-03-01T18:54:24.740Z [INFO]: ,,,550,100,,,12,שלי,23,,
+2025-03-01T18:54:25.650Z [INFO]: Shipping data written successfully.
+2025-03-01T18:54:25.664Z [INFO]: in farmers/:farmer/records/updatemany
+2025-03-01T18:54:25.666Z [INFO]: Received request to update multiple records. Params: {"farmer":"צוברי"}
+2025-03-01T18:54:25.666Z [INFO]: Updating 1 records for farmer: צוברי
+2025-03-01T18:54:28.389Z [ERROR]: Update function returned an unexpected response: {"success":true,"message":"Rows updated successfully"}
+2025-03-01T18:55:42.582Z [INFO]: in /shipping/newlabel
+2025-03-01T18:55:42.584Z [INFO]: ShippingLabelsService initialized: , this.SPREADSHEET_ID)
+2025-03-01T18:55:42.584Z [INFO]: Initializing Google Sheets client...
+2025-03-01T18:55:42.588Z [INFO]: Google Sheets client initialized.
+2025-03-01T18:55:42.588Z [INFO]: Fetching current highest ID from cell DE7...
+2025-03-01T18:55:43.815Z [INFO]: Current ID from base sheet: 13
+2025-03-01T18:55:43.816Z [INFO]: Incremented ID: 14
+2025-03-01T18:55:44.752Z [INFO]: ID updated successfully in base sheet.
+2025-03-01T18:55:44.753Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-03-01T18:55:45.583Z [INFO]: Found sheet "base", starting duplication process...
+2025-03-01T18:55:47.335Z [INFO]: Writing data to sheet "14"...
+2025-03-01T18:55:47.335Z [INFO]: [object Object]
+2025-03-01T18:55:47.336Z [INFO]: ,,,550,100,,,12,שלי,23,,
+2025-03-01T18:55:48.451Z [INFO]: Shipping data written successfully.
+2025-03-01T18:55:48.465Z [INFO]: in farmers/:farmer/records/updatemany
+2025-03-01T18:55:48.466Z [INFO]: Received request to update multiple records. Params: {"farmer":"צוברי"}
+2025-03-01T18:55:48.467Z [INFO]: Updating 1 records for farmer: צוברי
+2025-03-01T18:55:50.681Z [INFO]: Successfully updated records for farmer: צוברי

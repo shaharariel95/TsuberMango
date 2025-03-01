@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 const path = require('path');
+const logger = require('../utils/logger');
 
 class ShippingLabelsService {
     constructor() {
@@ -11,13 +12,13 @@ class ShippingLabelsService {
         this.sheets = null;
         this.SPREADSHEET_ID = process.env.SHIPPING_LABELS_ID; // New spreadsheet ID
     }
-
     async initialize() {
         if (!this.sheets) {
-            console.log('Initializing Google Sheets client...');
+            logger.info('ShippingLabelsService initialized: , this.SPREADSHEET_ID)', this.SPREADSHEET_ID);
+            logger.info('Initializing Google Sheets client...');
             const auth = await this.auth.getClient();
             this.sheets = google.sheets({ version: 'v4', auth });
-            console.log('Google Sheets client initialized.');
+            logger.info('Google Sheets client initialized.');
         }
     }
 
@@ -25,7 +26,7 @@ class ShippingLabelsService {
         await this.initialize();
 
         try {
-            console.log('Fetching current highest ID from cell DE7...');
+            logger.info('Fetching current highest ID from cell DE7...');
             // Fetch the current highest ID from cell DE7 on the "base" sheet
             const response = await this.sheets.spreadsheets.values.get({
                 spreadsheetId: this.SPREADSHEET_ID,
@@ -34,7 +35,7 @@ class ShippingLabelsService {
 
             const value = response.data.values?.[0]?.[0];
             let currentId = parseInt(value, 10);
-            console.log(`Current ID from base sheet: ${currentId}`);
+            logger.info(`Current ID from base sheet: ${currentId}`);
 
             if (isNaN(currentId)) {
                 throw new Error(`Invalid ID in cell DE7 of sheet "base"`);
@@ -42,7 +43,7 @@ class ShippingLabelsService {
 
             // Increment the ID
             currentId += 1;
-            console.log(`Incremented ID: ${currentId}`);
+            logger.info(`Incremented ID: ${currentId}`);
 
             // Update the new ID back to cell DE7 in the "base" sheet
             await this.sheets.spreadsheets.values.update({
@@ -54,7 +55,7 @@ class ShippingLabelsService {
                 },
             });
 
-            console.log('ID updated successfully in base sheet.');
+            logger.info('ID updated successfully in base sheet.');
             return currentId; // Return the new ID
         } catch (error) {
             console.error(`Failed to retrieve or update ID in cell DE7: ${error.message}`);
@@ -66,7 +67,7 @@ class ShippingLabelsService {
         await this.initialize();
 
         try {
-            console.log(`Fetching spreadsheet details to copy sheet "${baseSheetName}"...`);
+            logger.info(`Fetching spreadsheet details to copy sheet "${baseSheetName}"...`);
             // Fetch the spreadsheet details
             const response = await this.sheets.spreadsheets.get({
                 spreadsheetId: this.SPREADSHEET_ID,
@@ -79,7 +80,7 @@ class ShippingLabelsService {
                 throw new Error(`Sheet "${baseSheetName}" not found.`);
             }
 
-            console.log(`Found sheet "${baseSheetName}", starting duplication process...`);
+            logger.info(`Found sheet "${baseSheetName}", starting duplication process...`);
             // Duplicate the "base" sheet and assign it the new name
             await this.sheets.spreadsheets.batchUpdate({
                 spreadsheetId: this.SPREADSHEET_ID,
@@ -117,7 +118,7 @@ class ShippingLabelsService {
         await this.initialize();
     
         try {
-            console.log(`Writing data to sheet "${newSheetName}"...`);
+            logger.info(`Writing data to sheet "${newSheetName}"...`);
             
             // Check if all pallets have the same destination
             const allDestinations = palletData.map(item => item.destination);
@@ -129,7 +130,7 @@ class ShippingLabelsService {
             }
     
             const destination = uniqueDestinations[0]; // Destination for B8
-            console.log(palletData)
+            logger.info(palletData)
             // Prepare data for each pallet, starting from row 11
             const rows = palletData.map((item, index) => [
                 '', // Column A (if necessary, otherwise remove this)
@@ -145,7 +146,7 @@ class ShippingLabelsService {
                 '',           // Column K (if necessary, otherwise remove this)
                 '',           // Column L (if necessary, otherwise remove this)
             ]);
-            console.log(rows)
+            logger.info(rows)
             // Create the batch update request
             const requests = [
                 // Update the destination in B8
@@ -192,7 +193,7 @@ class ShippingLabelsService {
                 }
             });
     
-            console.log('Shipping data written successfully.');
+            logger.info('Shipping data written successfully.');
     
             return true; // Returning true after successful operation
         } catch (error) {
