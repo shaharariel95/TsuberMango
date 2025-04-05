@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen w-full bg-gradient-to-b from-gray-300 to-gray-500 flex">
+  <div class="min-h-screen w-full bg-gradient-to-b from-emerald-50 to-emerald-800 flex">
     <!-- Left Sidebar -->
     <nav
-      class="bg-amber-50 border-r border-amber-50 p-4 flex flex-col space-y-4 fixed left-0 top-0 bottom-0 w-56 transition-all duration-300 z-50">
+      class="bg-gray-300 border-r border-amber-50 p-4 flex flex-col space-y-4 fixed left-0 top-0 bottom-0 w-56 transition-all duration-300 z-50">
       <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold text-black">Tsuberi Mango's</h1>
       </div>
@@ -11,7 +11,7 @@
         <select v-model="selectedFarmer" class="w-full p-2 bg-white border border-gray-300 rounded-md shadow-sm 
            focus:outline-none focus:ring-2 focus:ring-amber-500 
            text-gray-700 cursor-pointer hover:border-amber-500 
-           transition-colors duration-200">
+           transition-colors duration-200 text-center text-2xl">
           <option value="" disabled>Select a farmer</option>
           <option v-for="farmer in farmers" :key="farmer" :value="farmer">
             {{ farmer }}
@@ -22,28 +22,28 @@
       <ul class="flex flex-col space-y-2">
         <li>
           <router-link
-            :class="[' block p-2 rounded border-2 border-gray-700 text-black text-end', { 'bg-amber-200': isActiveLink('/') }]"
+            :class="[' block p-2 rounded border-2 bg-white border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/') }]"
             to="/">
             קליטה
           </router-link>
         </li>
         <li>
           <router-link
-            :class="['block p-2 rounded border-2 border-gray-700 text-black text-end', { 'bg-amber-200': isActiveLink('/Weight') }]"
+            :class="['block p-2 rounded border-2 bg-white border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/Weight') }]"
             to="/Weight">
             שקילה ויעד
           </router-link>
         </li>
         <li>
           <router-link
-            :class="['block p-2  rounded border-2 border-gray-700 text-black text-end', { 'bg-amber-200': isActiveLink('/page2') }]"
+            :class="['block p-2  rounded border-2 bg-white border-gray-700 text-wh text-end font-bold', { 'bg-blue-400': isActiveLink('/page2') }]"
             to="/page2">
             תעודות משלוח
           </router-link>
         </li>
         <li>
           <router-link
-            :class="['block p-2  rounded border-2 border-gray-700 text-black text-end', { 'bg-amber-200': isActiveLink('/SentPallets') }]"
+            :class="['block p-2  rounded border-2 bg-white border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/SentPallets') }]"
             to="/SentPallets">
             משטחים שנשלחו
           </router-link>
@@ -52,8 +52,8 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="flex-1 p-4 sm:p-8 ml-64 transition-all duration-300 h-screen">
-      <div class=" h-full w-full bg-amber-50 rounded-lg shadow-lg overflow-hidden flex flex-col">
+    <div class="flex-1 p-4 sm:p-1 ml-64 transition-all duration-300 h-screen">
+      <div class=" h-full w-full bg-natural-200 rounded-lg shadow-lg overflow-hidden flex flex-col">
         <div class="flex-grow overflow-auto p-4 text-black">
           <router-view v-if="selectedFarmer" :selected-farmer="selectedFarmer" />
           <div v-else>Please select a farmer</div>

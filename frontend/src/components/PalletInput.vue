@@ -6,7 +6,7 @@
             <!-- Farmer -->
             <div class="form-group text-2xl mt-4">
                 <label class="block text-right">מגדל:
-                    <label class="text-bold border border-black rounded-lg p-2 ">{{ selectedFarmer }}</label>
+                    <label class="text-bold border border-black rounded-lg p-2 bg-white ">{{ selectedFarmer }}</label>
                 </label>
             </div>
         </div>
@@ -79,6 +79,19 @@
                         </template>
                     </div>
                 </div>
+                <div>
+                    <label class="block text-right pb-2">
+                        הערה  
+                    </label>
+                    <label class="relative">
+                        <input type="checkbox" v-model="formData.gidon"
+                            class="absolute opacity-0 w-0 h-0" />
+                        <span class="px-4 py-2 border rounded-md cursor-pointer block text-center min-w-[60px]"
+                            :class="formData.gidon ? 'bg-blue-500 text-white border-blue-500' : 'bg-white hover:bg-gray-100 border-gray-300'">
+                            גדעון
+                        </span>
+                    </label>
+                </div>
             </div>
 
             <!-- Seperation line from requirent to not required-->
@@ -114,8 +127,8 @@
                 <div class="flex-1 text-xl">
                     <!-- Success/Error Messages -->
                     <div v-if="submitStatus"
-                        :class="{ 'text-green-500': submitStatus === 'success', 'text-red-500': submitStatus === 'error' }"
-                        class="text-right">
+                        :class="'font-bold text-2xl', {'text-yellow-300': submitStatus === 'success', 'text-red-500': submitStatus === 'error' }"
+                        class="text-left">
                         {{ statusMessage }}
                     </div>
                 </div>
@@ -158,6 +171,10 @@
                 <div>
                     <span class="font-bold">גודל: </span>
                     <span>{{ lastFormData.size }}</span>
+                </div>
+                <div>
+                    <span class="font-bold">גדעון: </span>
+                    <span>{{ lastFormData.gidon ? 'כן' : 'לא' }}</span>
                 </div>
                 <div>
                     <span class="font-bold">ארגזים: </span>
@@ -209,7 +226,8 @@ export default {
             size: null,
             boxes: null,
             weight: null,
-            destination: ''
+            destination: '',
+            gidon: false,
         })
 
         // Define fetchLastPallet before using it in watch
@@ -248,6 +266,7 @@ export default {
             formData.destination = ''
             formData.shipmentDate = ''
             formData.harvestDate = new Date().toISOString().split('T')[0]
+            formData.gidon = false
         }
 
         const submitForm = async () => {
@@ -263,7 +282,7 @@ export default {
                     harvestDate: new Date(formData.harvestDate)
                         .toLocaleDateString('en-GB').slice(0, 5),
                 }
-
+                console.log('Formatted Data:', formattedData)
                 const response = await fetch('http://localhost:3000/records', {
                     method: 'POST',
                     headers: {

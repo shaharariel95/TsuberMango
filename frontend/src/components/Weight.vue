@@ -40,6 +40,7 @@ export default {
                 if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`)
 
                 const data = await res.json()
+                console.log(`data: `, data)
                 message.value = data.data
             } catch (err) {
                 showError.value = true

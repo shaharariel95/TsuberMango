@@ -6,14 +6,14 @@ const logger = require('../utils/logger');
 class SheetController {
     async createRecord(req, res) {
         try {
-            const { farmer, shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination } = req.body;
+            const { farmer, shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, gidon } = req.body;
                          
             if (!farmer) {
                 return res.status(400).json({ error: 'Farmer name is required' });
             }
 
             const sheetRecord = new SheetModel(
-                shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, false /*sent*/
+                shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, false /*sent*/, gidon
             );
             
             const result = await sheetsService.appendRow(farmer, sheetRecord.toArray());
@@ -126,7 +126,7 @@ class SheetController {
             const updatedDataArray = [];
     
             for (const pallet of palletsData) {
-                const { id, shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent } = pallet;
+                const { id, shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent, gidon } = pallet;
     
                 if (!id || !shipmentDate || !harvestDate || !palletNumber || !kind || !size || !boxes || !weight || !destination) {
                     logger.warn(`Pallet validation failed: ${JSON.stringify(pallet)}`);
@@ -135,7 +135,7 @@ class SheetController {
     
                 ids.push(id);
                 const sheetRecord = new SheetModel(
-                    shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent
+                    shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent, gidon
                 );
     
                 updatedDataArray.push(sheetRecord.toArray());
@@ -187,11 +187,11 @@ class SheetController {
                 return res.status(400).json({ error: 'Farmer name and record ID are required' });
             }
 
-            const { shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent } = req.body;
+            const { shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent, gidon } = req.body;
             
             const isSent = sent ? "TRUE" : "FALSE"
             const sheetRecord = new SheetModel(
-                shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent
+                shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent, gidon
             );
 
             const result = await sheetsService.updateRowById(farmer, parseInt(id), sheetRecord.toArray());

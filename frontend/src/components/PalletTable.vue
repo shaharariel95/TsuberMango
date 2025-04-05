@@ -66,6 +66,10 @@
                                             :value="destination">{{ destination }}</option>
                                     </select>
                                 </div>
+                                <div v-else-if="col.key == 'gidon'">
+                                    <input type="checkbox" v-model="editingPallet[col.key]"
+                                        class="w-full h-5 border rounded px-2 py-1" />
+                                </div>
                                 <div v-else-if="col.key == 'sent'">
                                     <input type="checkbox" v-model="editingPallet[col.key]"
                                         class="w-full h-5 border rounded px-2 py-1" />
@@ -99,6 +103,10 @@
                             <template v-if="col.key === 'selected'">
                                 <input type="checkbox" v-model="selectedPallets" :value="pallet.id" />
                             </template>
+                            <!-- <template v-if="col.key === 'gidon'">
+                                <span :class="pallet[col.key] ? 'bg-green-500' : ''"
+                                    class="inline-block w-3 h-3 rounded-full mr-2"></span>
+                            </template> -->
                             <template v-if="col.key === 'sent'">
                                 <span :class="pallet[col.key] ? 'bg-green-500' : 'bg-gray-400'"
                                     class="inline-block w-3 h-3 rounded-full mr-2"></span>
@@ -160,6 +168,7 @@ export default {
                 { key: 'size', label: 'גודל', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'boxes', label: 'ארגזים', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'weight', label: 'משקל', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+                { key: 'gidon', label: 'הערה', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[15%]' },
                 { key: 'selected', label: 'בחירה לתעודת משלוח', class: 'border border-black px-4 py-2 w-[6%]' }
             ],
@@ -182,14 +191,17 @@ export default {
 
     computed: {
         filteredPallets() {
-            return this.pallets.filter(pallet => {
-                const matchesSent = this.sentView ? pallet.sent === false : true;
-                const matchesFilters = Object.entries(this.filterBy).every(([key, value]) =>
-                    !value || pallet[key] === value
-                );
-                return matchesSent && matchesFilters;
-            });
-        },
+    return this.pallets.filter(pallet => {
+        const matchesSent = this.sentView ? pallet.sent === false : true;
+        const matchesFilters = Object.entries(this.filterBy).every(([key, value]) =>
+            !value || pallet[key] === value
+        );
+        const gidonText = pallet.gidon ? "גדעון" : "";
+        pallet.gidon = gidonText;
+        
+        return matchesSent && matchesFilters;
+    });
+},
 
         sortedPallets() {
             return [...this.filteredPallets].sort((a, b) => {
@@ -218,7 +230,8 @@ export default {
             this.editingId = pallet.id;
             this.editingPallet = {
                 ...pallet,
-                sent: !!pallet.sent
+                sent: !!pallet.sent,
+                gidon: !!pallet.gidon
             };
         },
 
