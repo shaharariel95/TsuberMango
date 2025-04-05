@@ -6,20 +6,20 @@
                 :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                 v-if="isEditable">
                 <span v-if="isCreatingLabel == false">
-                    לייצר תעודת משלוח
+                    צור תעודת משלוח
                 </span>
                 <div v-else class="loading-circle"></div>
             </button>
             <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
                 :class="[(selectedPallets.length === 0) ? 'bg-gray-400 hover:bg-gray-400' : '']" v-else>
-                Return Sent Pallets
+                החזר משטחים נשלחו
             </button>
 
             <button v-if="isEditable" @click="toggleSentView"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
-                <span v-if="sentView">Show sent Pallets</span>
-                <span v-else>Hide sent Pallets</span>
+                <span v-if="sentView">הצג משטחים שנשלחו</span>
+                <span v-else>הסתר משטחים שנשלחו</span>
             </button>
         </div>
 
