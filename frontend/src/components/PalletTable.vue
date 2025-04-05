@@ -27,11 +27,11 @@
             <thead>
                 <tr>
                     <th v-for="col in columns" :key="col.key" :class="col.class">
-                        <div class="flex items-center">
+                        <div class="flex items-center flex-col">
                             {{ (col.key === 'selected' && !isEditable) ? 'הורדת סטטוס נשלח' : col.label }}
-                            <select v-if="col.filter" v-model="filterBy[col.key]" class="ml-2 bg-gray-300">
-                                <option value="">הכל</option>
-                                <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option">
+                            <select v-if="col.filter" v-model="filterBy[col.key]" class="ml-2 border border-black rounded-md mx-2 bg-neutral-50 text-center text-ellipsis overflow-hidden max-w-[150px] ">
+                                <option value="" >הכל</option>
+                                <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option" class="text-ellipsis overflow-hidden max-w-[150px]">
                                     {{ option }}
                                 </option>
                             </select>
