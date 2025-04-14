@@ -1,5 +1,5 @@
 import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "../../public/fonts/vfs_fonts.js"; // Adjust path if needed
+import pdfFonts from "../../fonts/vfs_fonts.js"; // Adjust path if needed
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 

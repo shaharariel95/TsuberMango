@@ -10,6 +10,7 @@
 <script>
 import { ref, watch } from 'vue'
 import PalletTable from './PalletTable.vue'
+const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
 export default {
     components: {
@@ -34,7 +35,7 @@ export default {
             isLoading.value = true
             try {
                 const hebrewName = encodeURIComponent(farmer)
-                const URL = `http://localhost:3000/farmers/${hebrewName}/records`
+                const URL = `${baseUrl}/farmers/${hebrewName}/records`
                 const res = await fetch(URL)
 
                 if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`)

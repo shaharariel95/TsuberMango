@@ -1,21 +1,31 @@
 <template>
     <div class="h-full">
         <div class="mb-4 flex flex-row justify-between">
-            <button @click="sendSelectedPallets" :disabled="selectedPallets.length === 0 || isCreatingLabel"
-                class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+            <div>
+                <button @click="sendSelectedPallets" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                    class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                    :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    v-if="isEditable">
+                    <span v-if="isCreatingLabel == false">
+                        צור תעודת משלוח
+                    </span>
+                    <div v-else class="loading-circle"></div>
+                </button>
+                <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
+                    class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                    :class="[(selectedPallets.length === 0) ? 'bg-gray-400 hover:bg-gray-400' : '']" v-else>
+                    החזר משטחים נשלחו
+                </button>
+                <button @click="printPDF" :disabled="selectedPallets.length !== 1 || isCreatingLabel"
+                class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors mx-3"
+                :class="[(selectedPallets.length !== 1 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                 v-if="isEditable">
                 <span v-if="isCreatingLabel == false">
-                    צור תעודת משלוח
+                    הפק מדבקה
                 </span>
                 <div v-else class="loading-circle"></div>
             </button>
-            <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
-                class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                :class="[(selectedPallets.length === 0) ? 'bg-gray-400 hover:bg-gray-400' : '']" v-else>
-                החזר משטחים נשלחו
-            </button>
-
+            </div>
             <button v-if="isEditable" @click="toggleSentView"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
                 <span v-if="sentView">הצג משטחים שנשלחו</span>
@@ -135,6 +145,8 @@
 
 <script>
 import { kinds, sizes, destinations } from '../data/data.js';
+import createStickerPDF from '../data/printData.js';
+const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
 export default {
     props: {
@@ -170,7 +182,7 @@ export default {
                 { key: 'weight', label: 'משקל', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
                 { key: 'gidon', label: 'הערה', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[15%]' },
-                { key: 'selected', label: 'בחירה לתעודת משלוח', class: 'border border-black px-4 py-2 w-[6%]' }
+                { key: 'selected', label: 'בחירת משטח', class: 'border border-black px-4 py-2 w-[6%]' }
             ],
             filterBy: {
                 kind: '',
@@ -191,18 +203,17 @@ export default {
 
     computed: {
         filteredPallets() {
-    return this.pallets.filter(pallet => {
-        const matchesSent = this.sentView ? pallet.sent === false : true;
-        const matchesFilters = Object.entries(this.filterBy).every(([key, value]) =>
-            !value || pallet[key] === value
-        );
-        const gidonText = pallet.gidon ? "גדעון" : "";
-        pallet.gidon = gidonText;
-        
-        return matchesSent && matchesFilters;
-    });
-},
-
+            return this.pallets.filter(pallet => {
+                const matchesSent = this.sentView ? pallet.sent === false : true;
+                const matchesFilters = Object.entries(this.filterBy).every(([key, value]) =>
+                    !value || pallet[key] === value
+                );
+                const gidonText = pallet.gidon ? "גדעון" : "";
+                pallet.gidon = gidonText;
+                
+                return matchesSent && matchesFilters;
+            });
+        },
         sortedPallets() {
             return [...this.filteredPallets].sort((a, b) => {
                 const aVal = a[this.sortField];
@@ -245,7 +256,7 @@ export default {
             this.isLoading = true
 
             try {
-                const response = await fetch(`http://localhost:3000/farmers/${encodeURIComponent(this.farmer)}/records/${this.editingId}`, {
+                const response = await fetch(`${baseUrl}/farmers/${encodeURIComponent(this.farmer)}/records/${this.editingId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -314,7 +325,7 @@ export default {
             );
             console.log(JSON.stringify(selectedPalletsData))
             try {
-                const response = await fetch('http://localhost:3000/shipping/newlabel', {
+                const response = await fetch(`${baseUrl}/shipping/newlabel`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -335,7 +346,7 @@ export default {
                     sent: true                // Set sent to true
                 }));
                 console.log(palletsToUpdate)
-                const response2 = await fetch(`http://localhost:3000/farmers/${encodeURIComponent(this.farmer)}/records/updatemany`, {
+                const response2 = await fetch(`${baseUrl}/farmers/${encodeURIComponent(this.farmer)}/records/updatemany`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -372,7 +383,7 @@ export default {
                 .map(p => p.id); // Extract only the IDs
 
             try {
-                const response = await fetch(`http://localhost:3000/farmers/${encodeURIComponent(this.farmer)}/records/resetPallets`, {
+                const response = await fetch(`${baseUrl}/farmers/${encodeURIComponent(this.farmer)}/records/resetPallets`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -393,8 +404,24 @@ export default {
                     this.error = null;
                 }, 5000);
             }
-        }
+        },
 
+        printPDF() {
+            const originalPallet = { ...this.pallets.find(p => p.id === this.selectedPallets[0]) };
+            console.log(`this.editingId: ${this.selectedPallets}, orginalPallet: `, originalPallet)
+            // Sample Data
+            const sampleData = {
+                platformNumber: originalPallet.palletNumber || "",
+                farmer: originalPallet.farmer || "",
+                variety: originalPallet.kind || "",
+                size: originalPallet.size || "",
+                quantity: originalPallet.boxes || "",
+                weight: originalPallet.weight || "",
+
+            };
+
+            createStickerPDF(sampleData);
+        }
     }
 }
 </script>

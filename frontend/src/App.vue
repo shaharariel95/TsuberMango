@@ -23,28 +23,28 @@
       <ul class="flex flex-col space-y-2">
         <li>
           <router-link
-            :class="['block p-2 rounded border-2 bg-white border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/') }]"
+            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/'), 'bg-white': !isActiveLink('/') }]"
             to="/">
             {{ collapsed ? '1' : 'קליטה' }}
           </router-link>
         </li>
         <li>
           <router-link
-            :class="['block p-2 rounded border-2 bg-white border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/Weight') }]"
+            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/Weight'), 'bg-white': !isActiveLink('/Weight') }]"
             to="/Weight">
             {{ collapsed ? '2' : 'שקילה ויעד' }}
           </router-link>
         </li>
-        <li>
+        <!-- <li>
           <router-link
-            :class="['block p-2 rounded border-2 bg-white border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/page2') }]"
+            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/page2'), 'bg-white': !isActiveLink('/page2') }]"
             to="/page2">
             {{ collapsed ? '3' : 'מדבקות משטח' }}
           </router-link>
-        </li>
+        </li> -->
         <li>
           <router-link
-            :class="['block p-2 rounded border-2 bg-white border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/SentPallets') }]"
+            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/SentPallets'), 'bg-white': !isActiveLink('/SentPallets') }]"
             to="/SentPallets">
             {{ collapsed ? '4' : 'משטחים שנשלחו' }}
           </router-link>
@@ -86,13 +86,14 @@ export default {
     const showError = ref(false)
     const error = ref(null)
     const route = useRoute()
-    const farmers = ref(["צוברי", "שחק", "עופר", "גמליאל", "אבנר"])
+    const farmers = ref(["צוברי", "שחק", "קופלר", "גמליאל", "אבנר"])
     const selectedFarmer = ref(farmers.value[0])
     const collapsed = ref(false)
     provide('selectedFarmer', selectedFarmer)
 
 
     const isActiveLink = (path) => {
+      console.log(`route.path === path`, route.path === path)
       return route.path === path
     }
 

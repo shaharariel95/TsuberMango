@@ -1,15 +1,16 @@
 <template>
     <div class="flex flex-col space-y-4 p-4">
         <!-- Loading state and last pallet number -->
-        <div class="mb-4 rtl">
-            <h2 class="text-5xl mb-4 font-bold ">קליטה - רישום משטח חדש</h2>
+        <div class="mb-4 rtl flex items-center justify-between">
+            <h2 class="text-5xl font-bold">קליטה - רישום משטח חדש</h2>
+
             <!-- Farmer -->
-            <div class="form-group text-2xl mt-4">
-                <label class="block text-right">מגדל:
-                    <label class="text-bold border border-black rounded-lg p-2 bg-white ">{{ selectedFarmer }}</label>
-                </label>
+            <div class="form-group text-2xl flex items-center space-x-2 space-x-reverse">
+                <span class="text-right">מגדל:</span>
+                <span class="font-bold border border-black rounded-lg p-2 bg-white">{{ selectedFarmer }}</span>
             </div>
         </div>
+
 
 
         <form @submit.prevent="submitForm" class="space-y-4 rtl">
@@ -79,7 +80,7 @@
                         </template>
                     </div>
                 </div>
-                <div>
+                <div v-if="selectedFarmer == 'צוברי'">
                     <label class="block text-right pb-2">
                         הערה  
                     </label>
@@ -172,7 +173,7 @@
                     <span class="font-bold">גודל: </span>
                     <span>{{ lastFormData.size }}</span>
                 </div>
-                <div>
+                <div  v-if="selectedFarmer == 'צוברי'">
                     <span class="font-bold">גדעון: </span>
                     <span>{{ lastFormData.gidon ? 'כן' : 'לא' }}</span>
                 </div>
@@ -189,6 +190,14 @@
                     <span>{{ lastFormData.destination || 'לא צוין' }}</span>
                 </div>
             </div>
+            <div
+            class="mt-6 flex justify-end">
+                <button
+                    @click="printPDF"
+                    class="text-2xl p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                    הפק מדבקה
+                </button>
+            </div>
         </div>
     </div>
 </template>
@@ -196,6 +205,8 @@
 <script>
 import { kinds, sizes, destinations } from "../data/data.js"
 import { ref, reactive, watch } from 'vue'
+import createStickerPDF from '../data/printData.js';
+const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
 export default {
     props: {
@@ -237,7 +248,8 @@ export default {
             isLoading.value = true
             try {
                 const encodedFarmer = encodeURIComponent(farmer)
-                const URL = `http://localhost:3000/farmers/${encodedFarmer}/records/lastPallet`
+                const URL = `${baseUrl}/farmers/${encodedFarmer}/records/lastPallet`
+                console.log(`URL = ${URL}`)
                 const res = await fetch(URL)
                 const data = await res.json()
                 message.value = data.data
@@ -283,7 +295,7 @@ export default {
                         .toLocaleDateString('en-GB').slice(0, 5),
                 }
                 console.log('Formatted Data:', formattedData)
-                const response = await fetch('http://localhost:3000/records', {
+                const response = await fetch(`${baseUrl}/records`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -321,6 +333,22 @@ export default {
             message,
             destinations,
             lastFormData  // Make sure to return lastFormData
+        }
+    },
+    methods: {
+        printPDF() {
+            // Sample Data
+            const sampleData = {
+                platformNumber: this.lastFormData.palletNumber || "",
+                farmer: this.lastFormData.farmer || "",
+                variety: this.lastFormData.kind || "",
+                size: this.lastFormData.size || "",
+                quantity: this.lastFormData.boxes || "",
+                weight: this.lastFormData.weight || "",
+
+            };
+
+            createStickerPDF(sampleData);
         }
     }
 }
