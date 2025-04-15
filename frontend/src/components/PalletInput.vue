@@ -82,11 +82,10 @@
                 </div>
                 <div v-if="selectedFarmer == 'צוברי'">
                     <label class="block text-right pb-2">
-                        הערה  
+                        הערה
                     </label>
                     <label class="relative">
-                        <input type="checkbox" v-model="formData.gidon"
-                            class="absolute opacity-0 w-0 h-0" />
+                        <input type="checkbox" v-model="formData.gidon" class="absolute opacity-0 w-0 h-0" />
                         <span class="px-4 py-2 border rounded-md cursor-pointer block text-center min-w-[60px]"
                             :class="formData.gidon ? 'bg-blue-500 text-white border-blue-500' : 'bg-white hover:bg-gray-100 border-gray-300'">
                             גדעון
@@ -128,7 +127,7 @@
                 <div class="flex-1 text-xl">
                     <!-- Success/Error Messages -->
                     <div v-if="submitStatus"
-                        :class="'font-bold text-2xl', {'text-yellow-300': submitStatus === 'success', 'text-red-500': submitStatus === 'error' }"
+                        :class="'font-bold text-2xl', { 'text-yellow-300': submitStatus === 'success', 'text-red-500': submitStatus === 'error' }"
                         class="text-left">
                         {{ statusMessage }}
                     </div>
@@ -173,7 +172,7 @@
                     <span class="font-bold">גודל: </span>
                     <span>{{ lastFormData.size }}</span>
                 </div>
-                <div  v-if="selectedFarmer == 'צוברי'">
+                <div v-if="selectedFarmer == 'צוברי'">
                     <span class="font-bold">גדעון: </span>
                     <span>{{ lastFormData.gidon ? 'כן' : 'לא' }}</span>
                 </div>
@@ -190,10 +189,8 @@
                     <span>{{ lastFormData.destination || 'לא צוין' }}</span>
                 </div>
             </div>
-            <div
-            class="mt-6 flex justify-end">
-                <button
-                    @click="printPDF"
+            <div class="mt-6 flex justify-end">
+                <button @click="printPDF"
                     class="text-2xl p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
                     הפק מדבקה
                 </button>
@@ -206,7 +203,7 @@
 import { kinds, sizes, destinations } from "../data/data.js"
 import { ref, reactive, watch } from 'vue'
 import createStickerPDF from '../data/printData.js';
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
+const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
     props: {
@@ -248,9 +245,9 @@ export default {
             isLoading.value = true
             try {
                 const encodedFarmer = encodeURIComponent(farmer)
-                const URL = `${baseUrl}/farmers/${encodedFarmer}/records/lastPallet`
+                const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`
                 console.log(`URL = ${URL}`)
-                const res = await fetch(URL)
+                const res = await fetch(URL, { credentials: 'include' })
                 const data = await res.json()
                 message.value = data.data
             } catch (err) {
@@ -295,12 +292,13 @@ export default {
                         .toLocaleDateString('en-GB').slice(0, 5),
                 }
                 console.log('Formatted Data:', formattedData)
-                const response = await fetch(`${baseUrl}/records`, {
+                const response = await fetch(`${baseUrl}/api/records`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(formattedData)
+                    body: JSON.stringify(formattedData),
+                    credentials: 'include'
                 })
 
                 if (!response.ok) {

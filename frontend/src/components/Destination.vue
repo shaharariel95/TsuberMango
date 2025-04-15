@@ -2,7 +2,7 @@
     <div class="">
         <div class="  border-black border-spacing-1 rounded-md">
             <p v-if="isLoading" class="border-b-2 p-3 border-gray-700">Loading...</p>
-            <PalletTable v-else v-model:pallets="message" :farmer="farmerName" />
+            <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="true" />
         </div>
     </div>
 </template>
@@ -23,7 +23,7 @@ export default {
         }
     },
     setup(props) {
-        const message = ref([])
+        const pallets = ref([])
         const showError = ref(false)
         const error = ref(null)
         const isLoading = ref(false)
@@ -41,8 +41,7 @@ export default {
                 if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`)
 
                 const data = await res.json()
-                console.log(`data: `, data)
-                message.value = data.data
+                pallets.value = data.data.filter(item => item.sent === true);
             } catch (err) {
                 showError.value = true
                 error.value = err.message
@@ -58,7 +57,7 @@ export default {
             }
         }, { immediate: true })
 
-        return { message, showError, error, isLoading, farmerName }
+        return { pallets, showError, error, isLoading, farmerName }
     }
 }
 </script>

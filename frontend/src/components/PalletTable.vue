@@ -17,14 +17,14 @@
                     החזר משטחים נשלחו
                 </button>
                 <button @click="printPDF" :disabled="selectedPallets.length !== 1 || isCreatingLabel"
-                class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors mx-3"
-                :class="[(selectedPallets.length !== 1 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
-                v-if="isEditable">
-                <span v-if="isCreatingLabel == false">
-                    הפק מדבקה
-                </span>
-                <div v-else class="loading-circle"></div>
-            </button>
+                    class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors mx-3"
+                    :class="[(selectedPallets.length !== 1 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    v-if="isEditable">
+                    <span v-if="isCreatingLabel == false">
+                        הפק מדבקה
+                    </span>
+                    <div v-else class="loading-circle"></div>
+                </button>
             </div>
             <button v-if="isEditable" @click="toggleSentView"
                 class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
@@ -39,9 +39,11 @@
                     <th v-for="col in columns" :key="col.key" :class="col.class">
                         <div class="flex items-center flex-col">
                             {{ (col.key === 'selected' && !isEditable) ? 'הורדת סטטוס נשלח' : col.label }}
-                            <select v-if="col.filter" v-model="filterBy[col.key]" class="ml-2 border border-black rounded-md mx-2 bg-neutral-50 text-center text-ellipsis overflow-hidden max-w-[150px] ">
-                                <option value="" >הכל</option>
-                                <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option" class="text-ellipsis overflow-hidden max-w-[150px]">
+                            <select v-if="col.filter" v-model="filterBy[col.key]"
+                                class="ml-2 border border-black rounded-md mx-2 bg-neutral-50 text-center text-ellipsis overflow-hidden max-w-[150px] ">
+                                <option value="">הכל</option>
+                                <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option"
+                                    class="text-ellipsis overflow-hidden max-w-[150px]">
                                     {{ option }}
                                 </option>
                             </select>
@@ -146,7 +148,7 @@
 <script>
 import { kinds, sizes, destinations } from '../data/data.js';
 import createStickerPDF from '../data/printData.js';
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
+const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
     props: {
@@ -210,7 +212,7 @@ export default {
                 );
                 const gidonText = pallet.gidon ? "גדעון" : "";
                 pallet.gidon = gidonText;
-                
+
                 return matchesSent && matchesFilters;
             });
         },
@@ -256,12 +258,13 @@ export default {
             this.isLoading = true
 
             try {
-                const response = await fetch(`${baseUrl}/farmers/${encodeURIComponent(this.farmer)}/records/${this.editingId}`, {
+                const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/${this.editingId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(this.editingPallet)
+                    body: JSON.stringify(this.editingPallet),
+                    credentials: 'include',
                 });
 
                 if (!response.ok) {
@@ -325,12 +328,13 @@ export default {
             );
             console.log(JSON.stringify(selectedPalletsData))
             try {
-                const response = await fetch(`${baseUrl}/shipping/newlabel`, {
+                const response = await fetch(`${baseUrl}/api/shipping/newlabel`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(selectedPalletsData)
+                    body: JSON.stringify(selectedPalletsData),
+                    credentials: 'include',
                 });
 
                 if (!response.ok) {
@@ -346,12 +350,13 @@ export default {
                     sent: true                // Set sent to true
                 }));
                 console.log(palletsToUpdate)
-                const response2 = await fetch(`${baseUrl}/farmers/${encodeURIComponent(this.farmer)}/records/updatemany`, {
+                const response2 = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/updatemany`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(palletsToUpdate)
+                    body: JSON.stringify(palletsToUpdate),
+                    credentials: 'include',
                 });
                 console.log(response2)
                 const updatedPallets = [...this.pallets];
@@ -383,12 +388,13 @@ export default {
                 .map(p => p.id); // Extract only the IDs
 
             try {
-                const response = await fetch(`${baseUrl}/farmers/${encodeURIComponent(this.farmer)}/records/resetPallets`, {
+                const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/resetPallets`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ palletIds: selectedPalletIds }) // Send only IDs
+                    body: JSON.stringify({ palletIds: selectedPalletIds }), // Send only IDs
+                    credentials: 'include',
                 });
 
                 if (!response.ok) {
@@ -421,6 +427,29 @@ export default {
             };
 
             createStickerPDF(sampleData);
+        },
+
+        async fetchLastPallet(farmer) {
+            try {
+                const encodedFarmer = encodeURIComponent(farmer);
+                const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`;
+                console.log(`Fetching last pallet from URL: ${URL}`);
+                const response = await fetch(URL, {
+                    method: 'GET',
+                    credentials: 'include', // Include cookies for authentication
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch last pallet: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log(`Last pallet data:`, data);
+                return data;
+            } catch (error) {
+                console.error(`Error fetching last pallet:`, error);
+                throw error;
+            }
         }
     }
 }
