@@ -116,3 +116,38 @@
 2025-04-14T17:36:10.202Z [INFO]: Received request to update multiple records. Params: {"farmer":"צוברי"}
 2025-04-14T17:36:10.202Z [INFO]: Updating 2 records for farmer: צוברי
 2025-04-14T17:36:12.896Z [INFO]: Successfully updated records for farmer: צוברי
+2025-04-15T18:18:18.918Z [INFO]: in /shipping/newlabel
+2025-04-15T18:18:18.919Z [INFO]: ShippingLabelsService initialized: , this.SPREADSHEET_ID)
+2025-04-15T18:18:18.920Z [INFO]: Initializing Google Sheets client...
+2025-04-15T18:18:18.921Z [INFO]: Google Sheets client initialized.
+2025-04-15T18:18:18.921Z [INFO]: Fetching current highest ID from cell DE7...
+2025-04-15T18:18:46.431Z [INFO]: Current ID from base sheet: 16
+2025-04-15T18:18:46.431Z [INFO]: Incremented ID: 17
+2025-04-15T18:18:47.404Z [INFO]: ID updated successfully in base sheet.
+2025-04-15T18:18:47.405Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-04-15T18:18:47.716Z [INFO]: Found sheet "base", starting duplication process...
+2025-04-15T18:18:50.505Z [INFO]: Writing data to sheet "17"...
+2025-04-15T18:18:50.506Z [INFO]: [object Object]
+2025-04-15T18:18:50.506Z [INFO]: ,,,511,96,,,18,שלי,1,,
+2025-04-15T18:18:51.402Z [INFO]: Shipping data written successfully.
+2025-04-15T18:18:51.410Z [INFO]: in farmers/:farmer/records/updatemany
+2025-04-15T18:18:51.411Z [INFO]: Received request to update multiple records. Params: {"farmer":"צוברי"}
+2025-04-15T18:18:51.411Z [INFO]: Updating 1 records for farmer: צוברי
+2025-04-15T18:18:53.960Z [INFO]: Successfully updated records for farmer: צוברי
+2025-04-15T19:02:28.708Z [INFO]: in /shipping/newlabel
+2025-04-15T19:02:28.709Z [INFO]: ShippingLabelsService initialized: , this.SPREADSHEET_ID)
+2025-04-15T19:02:28.709Z [INFO]: Initializing Google Sheets client...
+2025-04-15T19:02:28.711Z [INFO]: Google Sheets client initialized.
+2025-04-15T19:02:28.711Z [INFO]: Fetching current highest ID from cell DE7...
+2025-04-15T19:02:30.247Z [INFO]: Current ID from base sheet: 17
+2025-04-15T19:02:30.247Z [INFO]: Incremented ID: 18
+2025-04-15T19:02:31.061Z [INFO]: ID updated successfully in base sheet.
+2025-04-15T19:02:31.061Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-04-15T19:02:31.874Z [INFO]: Found sheet "base", starting duplication process...
+2025-04-15T19:02:34.106Z [INFO]: Writing data to sheet "18"...
+2025-04-15T19:02:34.107Z [INFO]: [object Object],[object Object],[object Object],[object Object]
+2025-04-15T19:02:34.107Z [INFO]: ,,,520,96,,,21,מאיה,20,,,,,,552,120,,,15,טומי,21,,,,,,,120,,,18,טומי,24,,,,,,520,120,,,18,מאיה,25,,
+2025-04-15T19:02:34.928Z [INFO]: Shipping data written successfully.
+2025-04-15T19:02:34.934Z [INFO]: in farmers/:farmer/records/updatemany
+2025-04-15T19:02:34.934Z [INFO]: Received request to update multiple records. Params: {"farmer":"צוברי"}
+2025-04-15T19:02:34.934Z [WARN]: Pallet validation failed: {"id":30,"shipmentDate":"2025-03-01","cardId":18,"harvestDate":"01/03","palletNumber":"24","kind":"טומי","size":"18","boxes":"120","weight":"","destination":"שיווק המאה","sent":true,"gidon":""}

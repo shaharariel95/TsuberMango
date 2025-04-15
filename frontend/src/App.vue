@@ -1,13 +1,11 @@
 <template>
   <div class="min-h-screen w-full bg-gradient-to-b from-emerald-50 to-emerald-800 flex">
-    <!-- Left Sidebar -->
-    <nav
+    <nav v-if="!isLoginPage"
       :class="['bg-gray-300 border-r border-amber-50 p-4 flex flex-col space-y-4 fixed left-0 top-0 bottom-0 transition-all duration-300 z-50', collapsed ? 'w-16' : 'w-56']">
       <div class="flex justify-between items-center">
         <h1 v-if="!collapsed" class="text-2xl font-bold text-black">Tsuberi Mango's</h1>
         <button @click="collapsed = !collapsed" class="text-black text-xl font-bold">
-          {{ collapsed ? '>' : '<' }}
-        </button>
+          {{ collapsed ? '>' : '<' }} </button>
       </div>
 
       <div class="relative">
@@ -20,44 +18,27 @@
         </select>
       </div>
 
-      <ul class="flex flex-col space-y-2">
-        <li>
+      <ul class="flex flex-col space-y-2 flex-grow">
+        <li v-for="route in accessibleRoutes" :key="route.path">
           <router-link
-            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/'), 'bg-white': !isActiveLink('/') }]"
-            to="/">
-            {{ collapsed ? '1' : 'קליטה' }}
-          </router-link>
-        </li>
-        <li>
-          <router-link
-            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/Weight'), 'bg-white': !isActiveLink('/Weight') }]"
-            to="/Weight">
-            {{ collapsed ? '2' : 'שקילה ויעד' }}
-          </router-link>
-        </li>
-        <!-- <li>
-          <router-link
-            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/page2'), 'bg-white': !isActiveLink('/page2') }]"
-            to="/page2">
-            {{ collapsed ? '3' : 'מדבקות משטח' }}
-          </router-link>
-        </li> -->
-        <li>
-          <router-link
-            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink('/SentPallets'), 'bg-white': !isActiveLink('/SentPallets') }]"
-            to="/SentPallets">
-            {{ collapsed ? '4' : 'משטחים שנשלחו' }}
+            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink(route.path), 'bg-white': !isActiveLink(route.path) }]"
+            :to="route.path">
+            {{ collapsed ? route.label[0] : route.label }}
           </router-link>
         </li>
       </ul>
+
+      <div class="mt-auto">
+        <button @click="logout" class="p-2 bg-red-500 text-white rounded w-full">יציאה</button>
+      </div>
     </nav>
 
-    <!-- Main Content -->
-    <div :class="['flex-1 p-4 sm:p-1 transition-all duration-300 h-screen', collapsed ? 'ml-20' : 'ml-64']">
+    <div
+      :class="['flex-1 p-4 sm:p-1 transition-all duration-300 h-screen', !isLoginPage ? (collapsed ? 'ml-20' : 'ml-64') : 'ml-0']">
       <div class="h-full w-full bg-natural-200 rounded-lg shadow-lg overflow-hidden flex flex-col">
         <div class="flex-grow overflow-auto p-4 text-black">
-          <router-view v-if="selectedFarmer" :selected-farmer="selectedFarmer" />
-          <div v-else>Please select a farmer</div>
+          <router-view v-if="!isLoginPage" :selected-farmer="selectedFarmer" />
+          <router-view v-else />
         </div>
       </div>
     </div>
@@ -75,29 +56,109 @@
 </template>
 
 <script>
-import { ref, provide } from 'vue'
-import { useRoute } from 'vue-router'
-import router from './router'
-
-
+import { ref, provide, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 export default {
   setup() {
-    const showError = ref(false)
-    const error = ref(null)
-    const route = useRoute()
-    const farmers = ref(["צוברי", "שחק", "קופלר", "גמליאל", "אבנר"])
-    const selectedFarmer = ref(farmers.value[0])
-    const collapsed = ref(false)
-    provide('selectedFarmer', selectedFarmer)
-
+    const showError = ref(false);
+    const error = ref(null);
+    const route = useRoute();
+    const router = useRouter();
+    const farmers = ref(['צוברי', 'שחק', 'קופלר', 'גמליאל', 'אבנר']);
+    const selectedFarmer = ref(farmers.value[0]);
+    const collapsed = ref(false);
+    const user = ref({ role: 'admin' }); // Set a default user or fetch from API
+    provide('selectedFarmer', selectedFarmer);
 
     const isActiveLink = (path) => {
-      console.log(`route.path === path`, route.path === path)
-      return route.path === path
-    }
+      return route.path === path;
+    };
 
-    return { showError, error, router, isActiveLink, selectedFarmer, farmers, collapsed }
-  }
-}
+    const isLoginPage = computed(() => {
+      return route.path === '/login';
+    });
+
+    watch(() => route.path, (newPath) => {
+      // Update login page status when route changes
+      if (newPath === '/login') {
+        // Clear user data when logging out
+        user.value = null;
+      }
+    });
+
+    const logout = async () => {
+      try {
+        await fetch('/api/auth/logout', { credentials: 'include' });
+        user.value = null;
+        router.push('/login');
+      } catch (err) {
+        error.value = "Failed to logout. Please try again.";
+        showError.value = true;
+        setTimeout(() => {
+          showError.value = false;
+        }, 3000);
+      }
+    };
+
+    const routes = ref([
+      { path: '/', label: 'קליטה', role: 'admin' },
+      { path: '/Weight', label: 'שקילה ויעד', role: 'admin' },
+      { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
+      { path: '/Destination', label: 'הצבת יעדים', role: 'user' },
+    ]);
+
+    const accessibleRoutes = computed(() => {
+      if (!user.value) return [];
+      return routes.value.filter(route =>
+        user.value.role === 'admin' || route.role === user.value.role || route.role === 'all'
+      );
+    });
+
+    // Function to check authentication status on mount
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        if (response.ok) {
+          const userData = await response.json();
+          user.value = userData;
+        } else if (!isLoginPage.value) {
+          // Redirect to login if not authenticated and not already on login page
+          router.push('/login');
+        }
+      } catch (err) {
+        if (!isLoginPage.value) {
+          router.push('/login');
+        }
+      }
+    };
+
+    onMounted(() => {
+      checkAuth();
+    });
+
+    // Watch for error changes to show/hide error message
+    watch(error, (newError) => {
+      showError.value = !!newError;
+      if (newError) {
+        setTimeout(() => {
+          error.value = null;
+        }, 5000);
+      }
+    });
+
+    return {
+      showError,
+      error,
+      isActiveLink,
+      selectedFarmer,
+      farmers,
+      collapsed,
+      isLoginPage,
+      user,
+      logout,
+      accessibleRoutes
+    };
+  },
+};
 </script>

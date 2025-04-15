@@ -1,18 +1,71 @@
-// src/router.js
-import { createRouter, createWebHistory } from 'vue-router';
-import PalletInput from './components/PalletInput.vue';
-import Weight from './components/Weight.vue';
-import SentPallets from './components/SentPallets.vue';
+import { createRouter, createWebHistory } from "vue-router";
+import axios from "axios";
+
+import PalletInput from "./components/PalletInput.vue";
+import Weight from "./components/Weight.vue";
+import SentPallets from "./components/SentPallets.vue";
+import Destination from "./components/Destination.vue";
+import Login from "./components/Login.vue";
 
 const routes = [
-  { path: '/', name: 'palletInfo', component: PalletInput },
-  { path: '/Weight', name: 'Weight', component: Weight },
-  { path: '/SentPallets', name: 'SentPallets', component: SentPallets}
+  { path: "/login", name: "Login", component: Login },
+  {
+    path: "/",
+    name: "PalletInfo",
+    component: PalletInput,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/Weight",
+    name: "Weight",
+    component: Weight,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/SentPallets",
+    name: "SentPallets",
+    component: SentPallets,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/Destination",
+    name: "Destination",
+    component: Destination,
+    meta: { requiresAuth: true },
+  },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+router.beforeEach(async (to, from, next) => {
+  try {
+    const res = await axios.get("/api/auth/me", { withCredentials: true });
+    const user = res.data;
+
+    if (to.meta.requiresAuth && !user) {
+      return next("/login");
+    }
+
+    if (to.meta.requiresAdmin && user.role !== "admin") {
+      return next("/Destination"); // fallback for non-admins
+    }
+
+    next(); // allow navigation
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      console.warn("Unauthorized: Redirecting to login.");
+    } else {
+      console.error("Error during authentication check:", error);
+    }
+
+    if (to.meta.requiresAuth) {
+      return next("/login"); // not logged in
+    }
+    next(); // public route (e.g., /login)
+  }
 });
 
 export default router;
