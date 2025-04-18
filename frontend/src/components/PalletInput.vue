@@ -104,7 +104,7 @@
                     <input type="date" v-model="formData.shipmentDate" class="w-full p-2 border rounded-md" />
                 </div>
                 <div class="flex-1">
-                    <label class="block text-right">מספר כרטיס</label>
+                    <label class="block text-right">מספר תעודה</label>
                     <input type="number" v-model="formData.cardId" class="w-full p-2 border rounded-md" />
                 </div>
                 <div class="flex-1">

@@ -28,6 +28,11 @@ router.get('/farmers/:farmer/records',
     sheetController.getAllRecords.bind(sheetController)
 );
 
+router.get('/farmers/:farmer/records/destinations',
+    validateFarmer,
+    sheetController.getAllRecordsforDestinations.bind(sheetController)
+);
+
 // Get records by pallet number
 router.get('/farmers/:farmer/records/pallet/:palletNumber',
     validateFarmer,
@@ -61,6 +66,16 @@ router.put('/farmers/:farmer/records/:id',
 router.post('/shipping/newlabel/',
     (req,res,next)=> {logger.info(`in /shipping/newlabel`); next()},
     labelController.createNewShippingLabel.bind(labelController)
+);
+
+router.post('/farmers/:farmer/destinations/toSend',
+    (req,res,next)=> {logger.info(`in /farmer/:farmer/destinations/toSend`); next()},
+    sheetController.sendToDestination.bind(sheetController)
+);
+
+router.post('/farmers/:farmer/destinations/Sent',
+    (req,res,next)=> {logger.info(`in /shipping/destinations/Sent`); next()},
+    sheetController.removeFromDestination.bind(sheetController)
 );
 
 module.exports = router;

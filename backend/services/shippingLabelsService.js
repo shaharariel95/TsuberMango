@@ -130,12 +130,12 @@ class ShippingLabelsService {
             }
     
             const destination = uniqueDestinations[0]; // Destination for B8
-            logger.info(palletData)
             // Prepare data for each pallet, starting from row 11
+            const seenPalletNumbers = new Set();
             const rows = palletData.map((item, index) => [
                 '', // Column A (if necessary, otherwise remove this)
                 '', // Column B (if necessary, otherwise remove this)
-                '', // Column C (if necessary, otherwise remove this)
+                seenPalletNumbers.has(item.palletNumber) ? '' : (seenPalletNumbers.add(item.palletNumber), 1), // Column C (1 for the first instance of a unique pallet number)
                 item.weight,  // Column D
                 item.boxes,   // Column E
                 '',           // Column F (if necessary, otherwise remove this)
@@ -146,9 +146,29 @@ class ShippingLabelsService {
                 '',           // Column K (if necessary, otherwise remove this)
                 '',           // Column L (if necessary, otherwise remove this)
             ]);
-            logger.info(rows)
-            // Create the batch update request
+
+            const shipmentDate = palletData[0]?.shipmentDate ? palletData[0]?.shipmentDate : '';
+
+            // Update the shipment date in B6
             const requests = [
+                // Update the shipment date in B6
+                {
+                    updateCells: {
+                        rows: [
+                            {
+                                values: [
+                                    { userEnteredValue: { stringValue: shipmentDate } }
+                                ]
+                            }
+                        ],
+                        fields: 'userEnteredValue',
+                        start: {
+                            sheetId: newSheetId,
+                            rowIndex: 5,  // Row B6 (0-indexed, so 5 is B6)
+                            columnIndex: 1  // Column B (0-indexed, so 1 is B)
+                        }
+                    }
+                },
                 // Update the destination in B8
                 {
                     updateCells: {
@@ -180,6 +200,24 @@ class ShippingLabelsService {
                             sheetId: newSheetId,
                             rowIndex: 10, // Row 11 (0-indexed, so 10 is row 11)
                             columnIndex: 0  // Column A
+                        }
+                    }
+                },
+                // Update the total unique wooden pallets in C24
+                {
+                    updateCells: {
+                        rows: [
+                            {
+                                values: [
+                                    { userEnteredValue: { formulaValue: `=COUNTA(UNIQUE(J11:J${10 + rows.length}))` } }
+                                ]
+                            }
+                        ],
+                        fields: 'userEnteredValue',
+                        start: {
+                            sheetId: newSheetId,
+                            rowIndex: 23, // Row 24 (0-indexed, so 23 is row 24)
+                            columnIndex: 2  // Column C
                         }
                     }
                 }

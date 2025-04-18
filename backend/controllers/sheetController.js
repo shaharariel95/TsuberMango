@@ -85,6 +85,31 @@ class SheetController {
     }
   }
 
+  async getAllRecordsforDestinations(req, res) {
+    try {
+      const { farmer } = req.params;
+      if (!farmer) {
+        return res.status(400).json({ error: "Farmer name is required" });
+      }
+
+      const records = await sheetsService.getAllRecords(farmer);
+      // get all records where column 12 is true
+      const filteredRecords = records.filter(record => record['mark'] === true);
+      console.log(`records`, records, `filteredRecords`, filteredRecords);
+
+      res.json({
+        message: "Records retrieved successfully",
+        count: filteredRecords.length,
+        data: filteredRecords,
+      })
+    } catch(e) {
+      res.status(500).json({
+        error: "Failed to fetch records",
+        details: error.message,
+      });
+    }
+  }
+
   async getRecordsByPallet(req, res) {
     try {
       const { farmer, palletNumber } = req.params;
@@ -190,6 +215,7 @@ class SheetController {
           destination,
           sent,
           gidon,
+          mark = mark || false,
         } = pallet;
 
         if (
@@ -221,7 +247,8 @@ class SheetController {
           weight,
           destination,
           sent,
-          gidon
+          gidon,
+          mark
         );
 
         updatedDataArray.push(sheetRecord.toArray());
@@ -362,6 +389,70 @@ class SheetController {
         .json({ error: "Failed to reset pallets", details: error.message });
     }
   }
+
+  async removeFromDestination(req, res) {
+    try {
+      const { farmer } = req.params;
+      if (!farmer) {
+        logger.warn("Missing farmer name in request.");
+        return res.status(400).json({ error: "Farmer name is required" });
+      }
+
+      const palletsData = req.body; // Array of pallets data
+      if (!Array.isArray(palletsData) || palletsData.length === 0) {
+        logger.warn("Invalid or missing pallets data.");
+        return res
+          .status(400)
+          .json({ error: "Pallets data is required and must be an array" });
+      }
+      const palletIds = palletsData.map(pallet => pallet.id); // Extract the 'id' field from each pallet
+      // Bulk update logic
+      const results = await sheetsService.updateSendToDestinationPallets(
+        farmer,
+        palletIds,
+        false
+      );
+
+      res.json({ message: "Pallets updated successfully", updated: results });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Failed to reset pallets", details: error.message });
+    }
+  }
+
+  async sendToDestination(req, res) {
+    try {
+      const { farmer } = req.params;
+      if (!farmer) {
+        logger.warn("Missing farmer name in request.");
+        return res.status(400).json({ error: "Farmer name is required" });
+      }
+
+      const palletsData = req.body; // Array of pallets data
+      if (!Array.isArray(palletsData) || palletsData.length === 0) {
+        logger.warn("Invalid or missing pallets data.");
+        return res
+          .status(400)
+          .json({ error: "Pallets data is required and must be an array" });
+      }
+      const palletIds = palletsData.map(pallet => pallet.id); // Extract the 'id' field from each pallet
+      // Bulk update logic
+      const results = await sheetsService.updateSendToDestinationPallets(
+        farmer,
+        palletIds,
+        true
+      );
+
+      res.json({ message: "Pallets updated successfully", updated: results });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Failed to reset pallets", details: error.message });
+    }
+  }
 }
+
+
 
 module.exports = new SheetController();

@@ -2,9 +2,9 @@
     <div class="h-full">
         <div class="mb-4 flex flex-row justify-between">
             <div>
-                <button @click="sendSelectedPallets" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                <button @click="sendSelectedPallets" :disabled="isCreateLabelAllowed || isCreatingLabel"
                     class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                    :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    :class="[(isCreateLabelAllowed || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                     v-if="isEditable">
                     <span v-if="isCreatingLabel == false">
                         צור תעודת משלוח
@@ -22,6 +22,15 @@
                     v-if="isEditable">
                     <span v-if="isCreatingLabel == false">
                         הפק מדבקה
+                    </span>
+                    <div v-else class="loading-circle"></div>
+                </button>
+                <button @click="sendToDestinations" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                    class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors "
+                    :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    v-if="isEditable">
+                    <span v-if="isCreatingLabel == false">
+                        העבר למארק
                     </span>
                     <div v-else class="loading-circle"></div>
                 </button>
@@ -48,7 +57,7 @@
                                 </option>
                             </select>
                             <span v-if="col.sortable" @click="sortBy(col.key)" class="cursor-pointer">
-                                {{ sortField === col.key ? (sortDirection === 'asc' ? '▲' : '▼') : '' }}
+                                {{ col.key === sortField ? (sortDirection === 'asc' ? '▲' : '▼') : '⇅' }}
                             </span>
                             <input v-if="col.key === 'selected'" type="checkbox" @change="toggleSelectAll"
                                 :checked="selectedPallets.length === filteredPallets.length" />
@@ -174,16 +183,16 @@ export default {
             destinations,
             columns: [
                 { key: 'sent', label: 'נשלח', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[11%]' },
-                { key: 'cardId', label: 'מספר תעודה', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'gidon', label: 'הערה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'harvestDate', label: 'תאריך קטיף', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
-                { key: 'kind', label: 'זן', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
-                { key: 'size', label: 'גודל', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'cardId', label: 'מספר תעודה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'boxes', label: 'ארגזים', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
                 { key: 'weight', label: 'משקל', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
-                { key: 'gidon', label: 'הערה', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'size', label: 'גודל', filter: true,sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'kind', label: 'זן', filter: true, sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
                 { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[15%]' },
+                { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+                { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[11%]' },
                 { key: 'selected', label: 'בחירת משטח', class: 'border border-black px-4 py-2 w-[6%]' }
             ],
             filterBy: {
@@ -204,16 +213,43 @@ export default {
     },
 
     computed: {
+        isCreateLabelAllowed() {
+            return this.selectedPallets.length === 0 || this.selectedPallets.length > 13
+        },
         filteredPallets() {
             return this.pallets.filter(pallet => {
                 const matchesSent = this.sentView ? pallet.sent === false : true;
-                const matchesFilters = Object.entries(this.filterBy).every(([key, value]) =>
-                    !value || pallet[key] === value
-                );
-                const gidonText = pallet.gidon ? "גדעון" : "";
-                pallet.gidon = gidonText;
 
-                return matchesSent && matchesFilters;
+                // Check each filter property
+                let allFiltersMatch = true;
+
+                // Special handling for gidon filter
+                if (this.filterBy.gidon !== undefined && this.filterBy.gidon !== null) {
+                    if (this.filterBy.gidon === "גדעון") {
+                        // When filter is "גדעון", show only true values
+                        if (!pallet.gidon) return false;
+                    } else if (this.filterBy.gidon === "אין הערה") {
+                        // When filter is empty string, show only false values
+                        if (pallet.gidon) return false;
+                    } 
+                }
+
+                // Handle other filters
+                for (const [key, value] of Object.entries(this.filterBy)) {
+                    if (key === 'gidon') continue; // Skip gidon, already handled
+
+                    if (value && pallet[key] !== value) {
+                        allFiltersMatch = false;
+                        break;
+                    }
+                }
+
+                return matchesSent && allFiltersMatch;
+            }).map(pallet => {
+                // Create a new object with modified gidon
+                const result = { ...pallet };
+                result.gidon = pallet.gidon ? "גדעון" : "";
+                return result;
             });
         },
         sortedPallets() {
@@ -236,6 +272,9 @@ export default {
 
     methods: {
         getFilterOptions(key) {
+            if (key === 'gidon') {
+                return [...new Set(this.pallets.map(p => p.gidon ? "גדעון" : "אין הערה"))];
+            }
             return [...new Set(this.pallets.map(p => p[key]))];
         },
 
@@ -252,7 +291,36 @@ export default {
             this.editingId = null;
             this.editingPallet = null;
         },
+        async sendToDestinations() {
+            this.isCreatingLabel = true
+            const selectedPalletsData = this.filteredPallets.filter(p =>
+                this.selectedPallets.includes(p.id)
+            );
+            console.log(JSON.stringify(selectedPalletsData))
+            try {
+                const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/destinations/toSend`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(selectedPalletsData),
+                    credentials: 'include',
+                });
 
+                if (!response.ok) {
+                    throw new Error('Failed to send pallets');
+                }
+                                
+                this.selectedPallets = [];
+                this.isCreatingLabel = false
+            } catch (err) {
+                this.isCreatingLabel = false
+                this.error = err.message;
+                setTimeout(() => {
+                    this.error = null;
+                }, 5000);
+            }
+        },
         async savePallet() {
             const originalPallet = { ...this.pallets.find(p => p.id === this.editingId) };
             this.isLoading = true
@@ -347,7 +415,8 @@ export default {
                 const palletsToUpdate = selectedPalletsData.map(pallet => ({
                     ...pallet,               // Spread the original pallet
                     cardId: Number(res['result'].name), // Assign the new cardId
-                    sent: true                // Set sent to true
+                    sent: true,               // Set sent to true
+                    mark: false,
                 }));
                 console.log(palletsToUpdate)
                 const response2 = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/updatemany`, {

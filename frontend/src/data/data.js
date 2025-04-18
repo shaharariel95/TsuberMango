@@ -4,7 +4,7 @@ export const kinds = ['שלי', 'טומי', 'מאיה', 'היידן'];
 export const sizes = [12, 15, 18, 21, 24, 28, 32];
 
 export const destinations = [
-//   "",
+  "",
   "אזולאי- קרית גת",
   "אחים שבע- צריפין",
   "אמון- חיפה",

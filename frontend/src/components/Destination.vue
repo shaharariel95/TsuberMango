@@ -35,13 +35,13 @@ export default {
             isLoading.value = true
             try {
                 const hebrewName = encodeURIComponent(farmer)
-                const URL = `${baseUrl}/api/farmers/${hebrewName}/records`
+                const URL = `${baseUrl}/api/farmers/${hebrewName}/records/destinations`
                 const res = await fetch(URL, { credentials: 'include' })
 
                 if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`)
 
                 const data = await res.json()
-                pallets.value = data.data.filter(item => item.sent === true);
+                pallets.value = data.data;
             } catch (err) {
                 showError.value = true
                 error.value = err.message
