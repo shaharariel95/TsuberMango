@@ -10,11 +10,11 @@ class ShippingLabelsService {
         });
 
         this.sheets = null;
-        this.SPREADSHEET_ID = process.env.SHIPPING_LABELS_ID; // New spreadsheet ID
+        this.SPREADSHEET_ID = process.env.SHIPPING_LABELS_ID_TSUBERI; // New spreadsheet ID
     }
     async initialize() {
         if (!this.sheets) {
-            logger.info('ShippingLabelsService initialized: , this.SPREADSHEET_ID)', this.SPREADSHEET_ID);
+            logger.info(`ShippingLabelsService initialized: , this.SPREADSHEET_ID : ${this.SPREADSHEET_ID}`);
             logger.info('Initializing Google Sheets client...');
             const auth = await this.auth.getClient();
             this.sheets = google.sheets({ version: 'v4', auth });
@@ -58,7 +58,6 @@ class ShippingLabelsService {
             logger.info('ID updated successfully in base sheet.');
             return currentId; // Return the new ID
         } catch (error) {
-            console.error(`Failed to retrieve or update ID in cell DE7: ${error.message}`);
             throw new Error(`Failed to retrieve or update ID in cell DE7: ${error.message}`);
         }
     }

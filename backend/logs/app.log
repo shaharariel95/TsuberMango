@@ -544,3 +544,66 @@
 2025-04-18T17:38:38.624Z [INFO]: Received request to update multiple records. Params: {"farmer":"צוברי"}
 2025-04-18T17:38:38.624Z [INFO]: Updating 1 records for farmer: צוברי
 2025-04-18T17:38:40.493Z [INFO]: Successfully updated records for farmer: צוברי
+2025-04-18T20:16:52.411Z [INFO]: in /farmer/:farmer/destinations/toSend
+2025-04-18T20:17:48.782Z [INFO]: in /shipping/newlabel
+2025-04-18T20:17:48.783Z [INFO]: ShippingLabelsService initialized: , this.SPREADSHEET_ID)
+2025-04-18T20:17:48.784Z [INFO]: Initializing Google Sheets client...
+2025-04-18T20:17:48.788Z [INFO]: Google Sheets client initialized.
+2025-04-18T20:17:48.788Z [INFO]: Fetching current highest ID from cell DE7...
+2025-04-18T20:19:03.574Z [INFO]: in /shipping/newlabel
+2025-04-18T20:19:03.575Z [INFO]: Fetching current highest ID from cell DE7...
+2025-04-18T20:24:08.970Z [INFO]: in /shipping/newlabel
+2025-04-18T20:24:08.973Z [INFO]: ShippingLabelsService initialized: , this.SPREADSHEET_ID : 1dwT3juCM7c-NQYsi7we7bqpgINv0jM69h0Od_6X-jOE
+2025-04-18T20:24:08.974Z [INFO]: Initializing Google Sheets client...
+2025-04-18T20:24:08.976Z [INFO]: Google Sheets client initialized.
+2025-04-18T20:24:08.976Z [INFO]: Fetching current highest ID from cell DE7...
+2025-04-18T20:24:09.704Z [INFO]: Current ID from base sheet: 0
+2025-04-18T20:24:09.705Z [INFO]: Incremented ID: 1
+2025-04-18T20:24:10.014Z [INFO]: ID updated successfully in base sheet.
+2025-04-18T20:24:10.014Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-04-18T20:24:10.269Z [INFO]: Found sheet "base", starting duplication process...
+2025-04-18T20:24:11.684Z [INFO]: Writing data to sheet "1"...
+2025-04-18T20:24:12.103Z [INFO]: Shipping data written successfully.
+2025-04-18T20:24:12.142Z [INFO]: in farmers/:farmer/records/updatemany
+2025-04-18T20:24:12.142Z [INFO]: Received request to update multiple records. Params: {"farmer":"גבי צוברי"}
+2025-04-18T20:24:12.142Z [WARN]: Pallet validation failed: {"id":1,"shipmentDate":"18/04/2025","cardId":1,"harvestDate":"18/04","palletNumber":"1","kind":"שלי","size":"12","boxes":"120","weight":"","destination":"שימי- צריפין","sent":true,"gidon":"גדעון","mark":false}
+2025-04-18T20:25:34.273Z [INFO]: in /shipping/newlabel
+2025-04-18T20:25:34.273Z [INFO]: Fetching current highest ID from cell DE7...
+2025-04-18T20:25:34.669Z [INFO]: Current ID from base sheet: 1
+2025-04-18T20:25:34.670Z [INFO]: Incremented ID: 2
+2025-04-18T20:25:34.957Z [INFO]: ID updated successfully in base sheet.
+2025-04-18T20:25:34.958Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-04-18T20:25:35.191Z [INFO]: Found sheet "base", starting duplication process...
+2025-04-18T20:25:36.165Z [INFO]: Writing data to sheet "2"...
+2025-04-18T20:25:36.524Z [INFO]: Shipping data written successfully.
+2025-04-18T20:25:36.532Z [INFO]: in farmers/:farmer/records/updatemany
+2025-04-18T20:25:36.532Z [INFO]: Received request to update multiple records. Params: {"farmer":"גבי צוברי"}
+2025-04-18T20:25:36.533Z [INFO]: Updating 1 records for farmer: גבי צוברי
+2025-04-18T20:25:37.381Z [INFO]: Successfully updated records for farmer: גבי צוברי
+2025-04-18T20:32:25.670Z [INFO]: in /shipping/newlabel
+2025-04-18T20:32:25.671Z [INFO]: Fetching current highest ID from cell DE7...
+2025-04-18T20:32:26.092Z [INFO]: Current ID from base sheet: 2
+2025-04-18T20:32:26.093Z [INFO]: Incremented ID: 3
+2025-04-18T20:32:26.378Z [INFO]: ID updated successfully in base sheet.
+2025-04-18T20:32:26.379Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-04-18T20:32:26.618Z [INFO]: Found sheet "base", starting duplication process...
+2025-04-18T20:32:27.526Z [INFO]: Writing data to sheet "3"...
+2025-04-18T20:32:27.856Z [INFO]: Shipping data written successfully.
+2025-04-18T20:32:27.863Z [INFO]: in farmers/:farmer/records/updatemany
+2025-04-18T20:32:27.864Z [INFO]: Received request to update multiple records. Params: {"farmer":"גבי צוברי"}
+2025-04-18T20:32:27.864Z [INFO]: Updating 1 records for farmer: גבי צוברי
+2025-04-18T20:32:29.587Z [INFO]: Successfully updated records for farmer: גבי צוברי
+2025-04-18T20:39:17.147Z [INFO]: in /farmer/:farmer/destinations/toSend
+2025-04-18T20:40:06.510Z [INFO]: in /shipping/newlabel
+2025-04-18T20:40:06.511Z [INFO]: Fetching current highest ID from cell DE7...
+2025-04-18T20:40:07.029Z [INFO]: Current ID from base sheet: 3
+2025-04-18T20:40:07.030Z [INFO]: Incremented ID: 4
+2025-04-18T20:40:07.315Z [INFO]: ID updated successfully in base sheet.
+2025-04-18T20:40:07.316Z [INFO]: Fetching spreadsheet details to copy sheet "base"...
+2025-04-18T20:40:07.573Z [INFO]: Found sheet "base", starting duplication process...
+2025-04-18T20:40:08.634Z [INFO]: Writing data to sheet "4"...
+2025-04-18T20:40:09.008Z [INFO]: Shipping data written successfully.
+2025-04-18T20:40:09.021Z [INFO]: in farmers/:farmer/records/updatemany
+2025-04-18T20:40:09.021Z [INFO]: Received request to update multiple records. Params: {"farmer":"גבי צוברי"}
+2025-04-18T20:40:09.021Z [INFO]: Updating 3 records for farmer: גבי צוברי
+2025-04-18T20:40:11.190Z [INFO]: Successfully updated records for farmer: גבי צוברי

@@ -6,7 +6,7 @@
                     class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
                     :class="[(isCreateLabelAllowed || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                     v-if="isEditable">
-                    <span v-if="isCreatingLabel == false">
+                    <span v-if="isSendingPalletLoading == false">
                         צור תעודת משלוח
                     </span>
                     <div v-else class="loading-circle"></div>
@@ -20,7 +20,7 @@
                     class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors mx-3"
                     :class="[(selectedPallets.length !== 1 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                     v-if="isEditable">
-                    <span v-if="isCreatingLabel == false">
+                    <span v-if="isSendingPalletLoading == false">
                         הפק מדבקה
                     </span>
                     <div v-else class="loading-circle"></div>
@@ -29,7 +29,7 @@
                     class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors "
                     :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                     v-if="isEditable">
-                    <span v-if="isCreatingLabel == false">
+                    <span v-if="isSendingPalletLoading == false">
                         העבר למארק
                     </span>
                     <div v-else class="loading-circle"></div>
@@ -273,6 +273,9 @@ export default {
                 return result;
             });
         },
+        isSendingPalletLoading(){
+            return this.isCreatingLabel
+        },
         sortedPallets() {
             return [...this.filteredPallets].sort((a, b) => {
                 const aVal = a[this.sortField];
@@ -409,14 +412,32 @@ export default {
         toggleSentView() {
             this.sentView = !this.sentView;
         },
-
+        validatePallet(pallet){
+            const requiredFields = ['boxes', 'weight', 'size', 'kind', 'destination', 'shipmentDate', 'harvestDate'];
+            for (const field of requiredFields) {
+                if (!pallet[field]) {
+                    this.error = `Missing field: ${field}`;
+                    setTimeout(() => {
+                        this.error = null;
+                    }, 5000);
+                    return false;
+                }
+            }
+            return true;
+        },
         async sendSelectedPallets() {
             this.isCreatingLabel = true
             const selectedPalletsData = this.filteredPallets.filter(p =>
                 this.selectedPallets.includes(p.id)
             );
+            
             console.log(JSON.stringify(selectedPalletsData))
             try {
+                selectedPalletsData.forEach(pallet => {
+                    if (!this.validatePallet(pallet)) {
+                        throw new Error('Missing required fields in pallet data');
+                    }
+                });
                 const response = await fetch(`${baseUrl}/api/shipping/newlabel`, {
                     method: 'POST',
                     headers: {
@@ -468,6 +489,8 @@ export default {
                 this.error = err.message;
                 setTimeout(() => {
                     this.error = null;
+                    this.selectedPallets = [];
+                    this.isCreatingLabel = false;
                 }, 5000);
             }
         },

@@ -80,7 +80,7 @@
                         </template>
                     </div>
                 </div>
-                <div v-if="selectedFarmer == 'צוברי'">
+                <div v-if="selectedFarmer == 'גבי צוברי'">
                     <label class="block text-right pb-2">
                         הערה
                     </label>
@@ -172,7 +172,7 @@
                     <span class="font-bold">גודל: </span>
                     <span>{{ lastFormData.size }}</span>
                 </div>
-                <div v-if="selectedFarmer == 'צוברי'">
+                <div v-if="selectedFarmer == 'גבי צוברי'">
                     <span class="font-bold">גדעון: </span>
                     <span>{{ lastFormData.gidon ? 'כן' : 'לא' }}</span>
                 </div>
