@@ -44,8 +44,13 @@ passport.use(
     },
     (accessToken, refreshToken, profile, done) => {
       const email = profile.emails[0].value;
-      const user = USERS[email] ? { email, role: USERS[email] } : null;
-      return done(null, user);
+      // Only allow login if user is in users.json
+      if (USERS[email]) {
+        return done(null, { email, role: USERS[email] });
+      } else {
+        // User not allowed
+        return done(null, false, { message: 'User not authorized' });
+      }
     }
   )
 );
@@ -75,10 +80,19 @@ app.get(
 app.get(
   "/api/auth/google/callback",
   passport.authenticate("google", {
-    failureRedirect: "/",
+    failureRedirect: "/api/auth/unauthorized",
     successRedirect: "http://localhost:5173", // your frontend URL
   })
 );
+
+// Unauthorized route: clear session and cookies, redirect to login
+app.get("/api/auth/unauthorized", (req, res) => {
+  req.logout(() => {
+    req.session = null;
+    res.clearCookie('connect.sid');
+    res.redirect("http://localhost:5173/login");
+  });
+});
 
 app.get("/api/auth/logout", (req, res) => {
   req.logout(() => {
