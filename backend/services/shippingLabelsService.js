@@ -2,6 +2,20 @@ const { google } = require('googleapis');
 const path = require('path');
 const logger = require('../utils/logger');
 
+const FARMER_SPREADSHEET_IDS = {
+    'גבי צוברי': process.env.SHIPPING_LABELS_ID_TSUBERI,
+    'אבנר לוי': process.env.SHIPPING_LABELS_ID_AVNER,
+    'עידן לוי': process.env.SHIPPING_LABELS_ID_IDAN,
+    'פסח גמליאל': process.env.SHIPPING_LABELS_ID_PESAH,
+    'איתי קופלר': process.env.SHIPPING_LABELS_ID_KOPLER,
+    'עטר שחק': process.env.SHIPPING_LABELS_ID_SHAHAK,
+};
+
+function getSpreadsheetIdByFarmer(farmer) {
+    if (!farmer) return process.env.SHIPPING_LABELS_ID_TSUBERI;
+    return FARMER_SPREADSHEET_IDS[farmer.trim()] || process.env.SHIPPING_LABELS_ID_TSUBERI;
+}
+
 class ShippingLabelsService {
     constructor() {
         this.auth = new google.auth.GoogleAuth({
@@ -10,11 +24,9 @@ class ShippingLabelsService {
         });
 
         this.sheets = null;
-        this.SPREADSHEET_ID = process.env.SHIPPING_LABELS_ID_TSUBERI; // New spreadsheet ID
     }
     async initialize() {
         if (!this.sheets) {
-            logger.info(`ShippingLabelsService initialized: , this.SPREADSHEET_ID : ${this.SPREADSHEET_ID}`);
             logger.info('Initializing Google Sheets client...');
             const auth = await this.auth.getClient();
             this.sheets = google.sheets({ version: 'v4', auth });
@@ -22,14 +34,15 @@ class ShippingLabelsService {
         }
     }
 
-    async getAndIncrementHighestId() {
+    async getAndIncrementHighestId(farmer) {
         await this.initialize();
+        const spreadsheetId = getSpreadsheetIdByFarmer(farmer);
 
         try {
             logger.info('Fetching current highest ID from cell DE7...');
             // Fetch the current highest ID from cell DE7 on the "base" sheet
             const response = await this.sheets.spreadsheets.values.get({
-                spreadsheetId: this.SPREADSHEET_ID,
+                spreadsheetId,
                 range: 'base!D7',
             });
 
@@ -47,7 +60,7 @@ class ShippingLabelsService {
 
             // Update the new ID back to cell DE7 in the "base" sheet
             await this.sheets.spreadsheets.values.update({
-                spreadsheetId: this.SPREADSHEET_ID,
+                spreadsheetId,
                 range: 'base!D7',
                 valueInputOption: 'RAW',
                 requestBody: {
@@ -62,14 +75,15 @@ class ShippingLabelsService {
         }
     }
 
-    async copyPageWithNewId(baseSheetName, newSheetName) {
+    async copyPageWithNewId(farmer, baseSheetName, newSheetName) {
         await this.initialize();
+        const spreadsheetId = getSpreadsheetIdByFarmer(farmer);
 
         try {
             logger.info(`Fetching spreadsheet details to copy sheet "${baseSheetName}"...`);
             // Fetch the spreadsheet details
             const response = await this.sheets.spreadsheets.get({
-                spreadsheetId: this.SPREADSHEET_ID,
+                spreadsheetId,
             });
 
             const sheets = response.data.sheets;
@@ -82,7 +96,7 @@ class ShippingLabelsService {
             logger.info(`Found sheet "${baseSheetName}", starting duplication process...`);
             // Duplicate the "base" sheet and assign it the new name
             await this.sheets.spreadsheets.batchUpdate({
-                spreadsheetId: this.SPREADSHEET_ID,
+                spreadsheetId,
                 requestBody: {
                     requests: [
                         {
@@ -97,7 +111,7 @@ class ShippingLabelsService {
 
 
             const res = await this.sheets.spreadsheets.get({
-                spreadsheetId: this.SPREADSHEET_ID
+                spreadsheetId
             });
 
             const newSheet = res.data.sheets.find(sheet => sheet.properties.title === newSheetName);
@@ -113,8 +127,9 @@ class ShippingLabelsService {
         }
     }
 
-    async writeShippingDataToSheet(newSheetName, newSheetId, palletData) {
+    async writeShippingDataToSheet(farmer, newSheetName, newSheetId, palletData) {
         await this.initialize();
+        const spreadsheetId = getSpreadsheetIdByFarmer(farmer);
     
         try {
             logger.info(`Writing data to sheet "${newSheetName}"...`);
@@ -224,7 +239,7 @@ class ShippingLabelsService {
     
             // Execute the batch update request
             await this.sheets.spreadsheets.batchUpdate({
-                spreadsheetId: this.SPREADSHEET_ID,
+                spreadsheetId,
                 requestBody: {
                     requests
                 }

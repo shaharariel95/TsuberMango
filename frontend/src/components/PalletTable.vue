@@ -211,6 +211,10 @@ export default {
         if (this.columnsFilter && this.columnsFilter.length > 0) {
             columns = columns.filter(col => !this.columnsFilter.includes(col.key));
         }
+        // Only show gidon column for farmer גבי צוברי
+        if (this.farmer !== 'גבי צוברי') {
+            columns = columns.filter(col => col.key !== 'gidon');
+        }
         return {
             kinds,
             sizes,
@@ -443,15 +447,15 @@ export default {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(selectedPalletsData),
+                    body: JSON.stringify({pallets: selectedPalletsData, farmer: this.farmer}),
                     credentials: 'include',
                 });
-
+                const res = await response.json();  // or just handle this if you have a response
+                console.log(`respose: `, res)
                 if (!response.ok) {
-                    throw new Error('Failed to send pallets');
+                    throw new Error(res['error'] || 'Failed to create label');
                 }
                 // console.log(response.json())
-                const res = await response.json();  // or just handle this if you have a response
                 console.log(res)
                 // Update selected pallets with the new label name and sent status
                 const palletsToUpdate = selectedPalletsData.map(pallet => ({
