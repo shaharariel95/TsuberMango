@@ -1,6 +1,6 @@
 <template>
     <div class="h-full">
-        <div class="mb-4 flex flex-row justify-between">
+        <div class="mb-4 flex flex-row justify-between" v-if="!destinationOnly && !columnsFilter.length">
             <div>
                 <button @click="sendSelectedPallets" :disabled="isCreateLabelAllowed || isCreatingLabel"
                     class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
@@ -173,28 +173,49 @@ export default {
             type: Boolean,
             required: false,
             default: true
+        },
+        destinationOnly: {
+            type: Boolean,
+            required: false,
+            default: false
+        },
+        columnsFilter: {
+            type: Array,
+            required: false,
+            default: () => []
         }
     },
 
     data() {
+        let columns = [
+            { key: 'sent', label: 'נשלח', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+            { key: 'gidon', label: 'הערה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+            { key: 'harvestDate', label: 'תאריך קטיף', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+            { key: 'cardId', label: 'מספר תעודה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+            { key: 'boxes', label: 'ארגזים', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+            { key: 'weight', label: 'משקל', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+            { key: 'size', label: 'גודל', filter: true,sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+            { key: 'kind', label: 'זן', filter: true, sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+            { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[15%]' },
+            { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+            { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[11%]' },
+            { key: 'selected', label: 'בחירת משטח', class: 'border border-black px-4 py-2 w-[6%]' }
+        ];
+        if (this.destinationOnly) {
+            columns = columns.filter(col => !['harvestDate', 'gidon', 'selected'].includes(col.key));
+            columns = columns.map(col => ({
+                ...col,
+                editable: col.key === 'destination'
+            }));
+        }
+        if (this.columnsFilter && this.columnsFilter.length > 0) {
+            columns = columns.filter(col => !this.columnsFilter.includes(col.key));
+        }
         return {
             kinds,
             sizes,
             destinations,
-            columns: [
-                { key: 'sent', label: 'נשלח', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'gidon', label: 'הערה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'harvestDate', label: 'תאריך קטיף', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
-                { key: 'cardId', label: 'מספר תעודה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'boxes', label: 'ארגזים', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'weight', label: 'משקל', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
-                { key: 'size', label: 'גודל', filter: true,sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'kind', label: 'זן', filter: true, sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
-                { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[15%]' },
-                { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-                { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[11%]' },
-                { key: 'selected', label: 'בחירת משטח', class: 'border border-black px-4 py-2 w-[6%]' }
-            ],
+            columns,
             filterBy: {
                 kind: '',
                 size: '',

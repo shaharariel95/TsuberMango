@@ -95,8 +95,7 @@ class SheetController {
       const records = await sheetsService.getAllRecords(farmer);
       // get all records where column 12 is true
       const filteredRecords = records.filter(record => record['mark'] === true);
-      console.log(`records`, records, `filteredRecords`, filteredRecords);
-
+      
       res.json({
         message: "Records retrieved successfully",
         count: filteredRecords.length,

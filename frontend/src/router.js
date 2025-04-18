@@ -4,6 +4,7 @@ import axios from "axios";
 import PalletInput from "./components/PalletInput.vue";
 import Weight from "./components/Weight.vue";
 import SentPallets from "./components/SentPallets.vue";
+import sentPalletsForMark from "./components/sentPalletsForMark.vue";
 import Destination from "./components/Destination.vue";
 import Login from "./components/Login.vue";
 
@@ -26,6 +27,12 @@ const routes = [
     name: "SentPallets",
     component: SentPallets,
     meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/sentPalletsForMark",
+    name: "sentPalletsForMark",
+    component: sentPalletsForMark,
+    meta: { requiresAuth: true},
   },
   {
     path: "/Destination",

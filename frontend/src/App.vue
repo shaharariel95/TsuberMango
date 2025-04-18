@@ -106,6 +106,7 @@ export default {
       { path: '/Weight', label: 'שקילה ויעד', role: 'admin' },
       { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
       { path: '/Destination', label: 'הצבת יעדים', role: 'user' },
+      { path: '/SentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
     ]);
 
     const accessibleRoutes = computed(() => {

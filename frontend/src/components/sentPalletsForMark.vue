@@ -2,7 +2,7 @@
     <div class="">
         <div class="  border-black border-spacing-1 rounded-md">
             <p v-if="isLoading" class="border-b-2 p-3 border-gray-700">Loading...</p>
-            <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="true" :destinationOnly="true" />
+            <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="false" :columnsFilter="['sent','gidon','harvestDate','selected']" />
         </div>
     </div>
 </template>
@@ -35,13 +35,13 @@ export default {
             isLoading.value = true
             try {
                 const hebrewName = encodeURIComponent(farmer)
-                const URL = `${baseUrl}/api/farmers/${hebrewName}/records/destinations`
+                const URL = `${baseUrl}/api/farmers/${hebrewName}/records`
                 const res = await fetch(URL, { credentials: 'include' })
 
                 if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`)
 
                 const data = await res.json()
-                pallets.value = data.data;
+                pallets.value = data.data.filter(item => item.sent === true);
             } catch (err) {
                 showError.value = true
                 error.value = err.message
