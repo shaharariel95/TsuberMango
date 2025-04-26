@@ -50,6 +50,10 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
+  // Allow direct navigation to /login without auth check
+  if (to.path === "/login") {
+    return next();
+  }
   try {
     const res = await axios.get(`${baseUrl}/api/auth/me`, { withCredentials: true });
     const user = res.data;

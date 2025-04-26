@@ -9,7 +9,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: process.env.FRONT.split(","), // Your Vue dev server
+    origin: process.env.FRONT_CORS.split(","), // Your Vue dev server
     credentials: true, // Allow cookies to be sent
   })
 );
