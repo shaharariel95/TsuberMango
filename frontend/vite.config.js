@@ -8,7 +8,7 @@ export default defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:3000", // Backend server
+        target: "https://backend-service-7akqk3wk3q-zf.a.run.app", // Backend server
         changeOrigin: true, // Ensure the origin of the host header matches the target
         secure: false, // Allow self-signed certificates if using HTTPS
         configure: (proxy) => {
@@ -19,4 +19,15 @@ export default defineConfig({
       },
     },
   },
+  build:{
+    rollupOptions:{
+      output:{
+        manualChunks(id){
+          if(id.includes('node_modules')){
+            return id.toString().split('node_modules/')[1].split('/')[0].toString()
+          }
+        }
+      }
+    }
+  }
 });

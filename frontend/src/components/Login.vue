@@ -9,8 +9,9 @@
 
 <script setup>
 import { ref } from 'vue';
+const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 const login = () => {
-    window.location.href = '/api/auth/google';
+    window.location.href = `${baseUrl}/api/auth/google`;
 };
 </script>

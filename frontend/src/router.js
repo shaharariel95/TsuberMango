@@ -8,6 +8,8 @@ import sentPalletsForMark from "./components/sentPalletsForMark.vue";
 import Destination from "./components/Destination.vue";
 import Login from "./components/Login.vue";
 
+const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
+
 const routes = [
   { path: "/login", name: "Login", component: Login },
   {
@@ -49,7 +51,7 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   try {
-    const res = await axios.get("/api/auth/me", { withCredentials: true });
+    const res = await axios.get(`${baseUrl}/api/auth/me`, { withCredentials: true });
     const user = res.data;
 
     if (to.meta.requiresAuth && !user) {

@@ -56,7 +56,7 @@
 </template>
 
 <script>
-import { ref, provide, computed, onMounted, watch } from 'vue';
+import { ref, provide, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 export default {
@@ -89,7 +89,7 @@ export default {
 
     const logout = async () => {
       try {
-        await fetch('/api/auth/logout', { credentials: 'include' });
+        await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, { credentials: 'include' });
         user.value = null;
         router.push('/login');
       } catch (err) {
@@ -114,28 +114,6 @@ export default {
       return routes.value.filter(route =>
         user.value.role === 'admin' || route.role === user.value.role || route.role === 'all'
       );
-    });
-
-    // Function to check authentication status on mount
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
-        if (response.ok) {
-          const userData = await response.json();
-          user.value = userData;
-        } else if (!isLoginPage.value) {
-          // Redirect to login if not authenticated and not already on login page
-          router.push('/login');
-        }
-      } catch (err) {
-        if (!isLoginPage.value) {
-          router.push('/login');
-        }
-      }
-    };
-
-    onMounted(() => {
-      checkAuth();
     });
 
     // Watch for error changes to show/hide error message

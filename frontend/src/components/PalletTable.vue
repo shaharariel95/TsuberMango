@@ -189,16 +189,16 @@ export default {
     data() {
         let columns = [
             { key: 'sent', label: 'נשלח', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-            { key: 'gidon', label: 'הערה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-            { key: 'harvestDate', label: 'תאריך קטיף', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+            { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[11%]' },
             { key: 'cardId', label: 'מספר תעודה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+            { key: 'harvestDate', label: 'תאריך קטיף', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+            { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
+            { key: 'kind', label: 'זן', filter: true, sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
+            { key: 'size', label: 'גודל', filter: true, sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
             { key: 'boxes', label: 'ארגזים', editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
             { key: 'weight', label: 'משקל', editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
-            { key: 'size', label: 'גודל', filter: true,sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-            { key: 'kind', label: 'זן', filter: true, sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[8%]' },
             { key: 'destination', label: 'יעד', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[15%]' },
-            { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
-            { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, class: 'border border-black px-4 py-2 w-[11%]' },
+            { key: 'gidon', label: 'הערה', filter: true, editable: true, class: 'border border-black px-4 py-2 w-[6%]' },
             { key: 'selected', label: 'בחירת משטח', class: 'border border-black px-4 py-2 w-[6%]' }
         ];
         if (this.destinationOnly) {
@@ -256,7 +256,7 @@ export default {
                     } else if (this.filterBy.gidon === "אין הערה") {
                         // When filter is empty string, show only false values
                         if (pallet.gidon) return false;
-                    } 
+                    }
                 }
 
                 // Handle other filters
@@ -277,7 +277,7 @@ export default {
                 return result;
             });
         },
-        isSendingPalletLoading(){
+        isSendingPalletLoading() {
             return this.isCreatingLabel
         },
         sortedPallets() {
@@ -338,7 +338,7 @@ export default {
                 if (!response.ok) {
                     throw new Error('Failed to send pallets');
                 }
-                                
+
                 this.selectedPallets = [];
                 this.isCreatingLabel = false
             } catch (err) {
@@ -416,7 +416,7 @@ export default {
         toggleSentView() {
             this.sentView = !this.sentView;
         },
-        validatePallet(pallet){
+        validatePallet(pallet) {
             const requiredFields = ['boxes', 'weight', 'size', 'kind', 'destination', 'shipmentDate', 'harvestDate'];
             for (const field of requiredFields) {
                 if (!pallet[field]) {
@@ -434,7 +434,7 @@ export default {
             const selectedPalletsData = this.filteredPallets.filter(p =>
                 this.selectedPallets.includes(p.id)
             );
-            
+
             console.log(JSON.stringify(selectedPalletsData))
             try {
                 selectedPalletsData.forEach(pallet => {
@@ -447,7 +447,7 @@ export default {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({pallets: selectedPalletsData, farmer: this.farmer}),
+                    body: JSON.stringify({ pallets: selectedPalletsData, farmer: this.farmer }),
                     credentials: 'include',
                 });
                 const res = await response.json();  // or just handle this if you have a response
