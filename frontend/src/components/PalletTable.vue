@@ -45,7 +45,7 @@
             </div>
         </div>
         <div class="overflow-auto h-[calc(100vh-50px)] sm:h-[calc(100vh-140px)] w-100%">
-            <table class="w-full h-full bg-white border-collapse rtl">
+            <table class="w-full bg-white border-collapse rtl">
                 <thead>
                     <tr>
                         <th v-for="col in columns" :key="col.key" :class="col.class">
@@ -593,7 +593,12 @@ table {
     border-collapse: collapse;
     width: 100%;
 }
-
+td, th {
+  height: 40px;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  vertical-align: middle;
+}
 tbody tr {
     background-color: white;
 }
