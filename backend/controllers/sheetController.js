@@ -321,6 +321,7 @@ class SheetController {
         destination,
         sent,
         gidon,
+        mark
       } = req.body;
 
       const isSent = sent ? "TRUE" : "FALSE";
@@ -335,7 +336,8 @@ class SheetController {
         weight,
         destination,
         sent,
-        gidon
+        gidon,
+        mark
       );
 
       const result = await sheetsService.updateRowById(

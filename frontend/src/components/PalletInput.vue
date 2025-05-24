@@ -246,7 +246,6 @@ export default {
             try {
                 const encodedFarmer = encodeURIComponent(farmer)
                 const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`
-                console.log(`URL = ${URL}`)
                 const res = await fetch(URL, { credentials: 'include' })
                 const data = await res.json()
                 message.value = data.data

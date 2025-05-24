@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <div class="mb-4 flex flex-row justify-between" v-if="!destinationOnly && !columnsFilter.length">
-            <div>
+        <div class="mb-4 flex flex-row justify-between" >
+            <div v-if="!destinationOnly && !columnsFilter.length">
                 <button @click="sendSelectedPallets" :disabled="isCreateLabelAllowed || isCreatingLabel"
                     class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
                     :class="[(isCreateLabelAllowed || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
@@ -35,73 +35,76 @@
                     <div v-else class="loading-circle"></div>
                 </button>
             </div>
-            <button v-if="isEditable" @click="toggleSentView"
-                class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
-                <span v-if="sentView">הצג משטחים שנשלחו</span>
-                <span v-else>הסתר משטחים שנשלחו</span>
-            </button>
+            <div>
+                <span class="font-bold text-lg p-2 m-4 rounded-lg border-2 border-gray-400">כמות משטחים: {{  AmountOfPallets }}</span>
+                <button v-if="isEditable && !destinationOnly && !columnsFilter.length" @click="toggleSentView"
+                        class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                    <span v-if="sentView">הצג משטחים שנשלחו</span>
+                    <span v-else>הסתר משטחים שנשלחו</span>
+                </button>
+            </div>
         </div>
-
-        <table class="w-full h-full bg-white border-collapse rtl">
-            <thead>
-                <tr>
-                    <th v-for="col in columns" :key="col.key" :class="col.class">
-                        <div class="flex items-center flex-col">
-                            {{ (col.key === 'selected' && !isEditable) ? 'הורדת סטטוס נשלח' : col.label }}
-                            <select v-if="col.filter" v-model="filterBy[col.key]"
+        <div class="overflow-auto h-[calc(100vh-50px)] sm:h-[calc(100vh-140px)] w-100%">
+            <table class="w-full h-full bg-white border-collapse rtl">
+                <thead>
+                    <tr>
+                        <th v-for="col in columns" :key="col.key" :class="col.class">
+                            <div class="flex items-center flex-col">
+                                {{ (col.key === 'selected' && !isEditable) ? 'הורדת סטטוס נשלח' : col.label }}
+                                <select v-if="col.filter" v-model="filterBy[col.key]"
                                 class="ml-2 border border-black rounded-md mx-2 bg-neutral-50 text-center text-ellipsis overflow-hidden max-w-[150px] ">
                                 <option value="">הכל</option>
                                 <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option"
-                                    class="text-ellipsis overflow-hidden max-w-[150px]">
-                                    {{ option }}
-                                </option>
-                            </select>
-                            <span v-if="col.sortable" @click="sortBy(col.key)" class="cursor-pointer">
-                                {{ col.key === sortField ? (sortDirection === 'asc' ? '▲' : '▼') : '⇅' }}
-                            </span>
+                                class="text-ellipsis overflow-hidden max-w-[150px]">
+                                {{ option }}
+                            </option>
+                        </select>
+                        <span v-if="col.sortable" @click="sortBy(col.key)" class="cursor-pointer">
+                            {{ col.key === sortField ? (sortDirection === 'asc' ? '▲' : '▼') : '⇅' }}
+                        </span>
                             <input v-if="col.key === 'selected'" type="checkbox" @change="toggleSelectAll"
                                 :checked="selectedPallets.length === filteredPallets.length" />
-                        </div>
-                    </th>
-                    <th class="border border-black px-4 py-2 w-[6%]" v-if="isEditable">עריכה</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="pallet in sortedPallets" :key="pallet.id" class="border-b text-center">
-                    <template v-if="editingId === pallet.id">
-                        <td v-for="col in columns" :key="col.key" class="border-b border-r border-black px-4 py-2">
-                            <template v-if="col.editable">
-                                <div v-if="col.key === 'kind'">
-                                    <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
-                                        <option v-for="kind in kinds" :key="kind" :value="kind">{{ kind }}</option>
-                                    </select>
-                                </div>
-                                <div v-else-if="col.key === 'size'">
-                                    <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
-                                        <option v-for="size in sizes" :key="size" :value="size">{{ size }}</option>
-                                    </select>
-                                </div>
-                                <div v-else-if="col.key === 'destination'">
-                                    <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
-                                        <option v-for="destination in destinations" :key="destination"
-                                            :value="destination">{{ destination }}</option>
-                                    </select>
-                                </div>
-                                <div v-else-if="col.key == 'gidon'">
-                                    <input type="checkbox" v-model="editingPallet[col.key]"
+                            </div>
+                        </th>
+                        <th class="border border-black px-4 py-2 w-[6%]" v-if="isEditable">עריכה</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="pallet in sortedPallets" :key="pallet.id" class="border-b text-center">
+                        <template v-if="editingId === pallet.id">
+                            <td v-for="col in columns" :key="col.key" class="border-b border-r border-black px-4 py-2">
+                                <template v-if="col.editable">
+                                    <div v-if="col.key === 'kind'">
+                                        <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
+                                            <option v-for="kind in kinds" :key="kind" :value="kind">{{ kind }}</option>
+                                        </select>
+                                    </div>
+                                    <div v-else-if="col.key === 'size'">
+                                        <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
+                                            <option v-for="size in sizes" :key="size" :value="size">{{ size }}</option>
+                                        </select>
+                                    </div>
+                                    <div v-else-if="col.key === 'destination'">
+                                        <input type="text" v-model="destinationFilterText" placeholder="סנן יעד..." class="w-full border rounded px-2 py-1 mb-1" />
+                                        <select v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1">
+                                            <option v-for="destination in filteredDestinations" :key="destination" :value="destination">{{ destination }}</option>
+                                        </select>
+                                    </div>
+                                    <div v-else-if="col.key == 'gidon'">
+                                        <input type="checkbox" v-model="editingPallet[col.key]"
                                         class="w-full h-5 border rounded px-2 py-1" />
                                 </div>
                                 <div v-else-if="col.key == 'sent'">
                                     <input type="checkbox" v-model="editingPallet[col.key]"
-                                        class="w-full h-5 border rounded px-2 py-1" />
+                                    class="w-full h-5 border rounded px-2 py-1" />
                                 </div>
                                 <div v-else-if="col.key == 'shipmentDate'">
                                     <input type="date" v-model="editingPallet[col.key]"
-                                        class="w-full border rounded px-2 py-1" />
+                                    class="w-full border rounded px-2 py-1" />
                                 </div>
                                 <div v-else>
                                     <input v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1"
-                                        style="width: 100%;" :class="{ 'w-20': !col.key.includes('date') }" />
+                                    style="width: 100%;" :class="{ 'w-20': !col.key.includes('date') }" />
                                 </div>
                             </template>
                             <template v-else-if="col.key === 'selected'">
@@ -111,36 +114,37 @@
                         </td>
                         <td class="border border-b border-black px-4 py-2">
                             <button v-if="!isLoading" @click="savePallet"
-                                class="p-1 border-2 border-black rounded w-full hover:bg-green-100 text-green-600 mb-1">Save</button>
+                            class="p-1 border-2 border-black rounded w-full hover:bg-green-100 text-green-600 mb-1">Save</button>
                             <button v-else
-                                class="p-1 border-2 border-black rounded w-full hover:bg-yellow-100 text-yellow-600 mb-1">Loading</button>
+                            class="p-1 border-2 border-black rounded w-full hover:bg-yellow-100 text-yellow-600 mb-1">Loading</button>
                             <button @click="closeEditing"
-                                class="p-1 border-2 border-black rounded w-full hover:bg-red-100 text-red-600">Cancel</button>
+                            class="p-1 border-2 border-black rounded w-full hover:bg-red-100 text-red-600">Cancel</button>
                         </td>
                     </template>
                     <template v-else>
                         <td v-for="col in columns" :key="col.key" class="border-b border-r border-black px-4 py-2"
-                            :class="!isEditable ? 'border-l' : ''">
-                            <template v-if="col.key === 'selected'">
-                                <input type="checkbox" v-model="selectedPallets" :value="pallet.id" />
-                            </template>
-                            <!-- <template v-if="col.key === 'gidon'">
-                                <span :class="pallet[col.key] ? 'bg-green-500' : ''"
-                                    class="inline-block w-3 h-3 rounded-full mr-2"></span>
-                            </template> -->
-                            <template v-if="col.key === 'sent'">
-                                <span :class="pallet[col.key] ? 'bg-green-500' : 'bg-gray-400'"
-                                    class="inline-block w-3 h-3 rounded-full mr-2"></span>
-                            </template>
-                            <template v-else>{{ pallet[col.key] }}</template>
-                        </td>
-                        <td class="border border-b border-black px-4 py-2" v-if="isEditable">
-                            <button @click="startEditing(pallet)" class="text-blue-600">Edit</button>
-                        </td>
-                    </template>
-                </tr>
-            </tbody>
-        </table>
+                        :class="!isEditable ? 'border-l' : ''">
+                        <template v-if="col.key === 'selected'">
+                            <input type="checkbox" v-model="selectedPallets" :value="pallet.id" />
+                        </template>
+                        <!-- <template v-if="col.key === 'gidon'">
+                            <span :class="pallet[col.key] ? 'bg-green-500' : ''"
+                            class="inline-block w-3 h-3 rounded-full mr-2"></span>
+                        </template> -->
+                        <template v-if="col.key === 'sent'">
+                            <span :class="pallet[col.key] ? 'bg-green-500' : 'bg-gray-400'"
+                            class="inline-block w-3 h-3 rounded-full mr-2"></span>
+                        </template>
+                        <template v-else>{{ pallet[col.key] }}</template>
+                            </td>
+                            <td class="border border-b border-black px-4 py-2" v-if="isEditable">
+                                <button @click="startEditing(pallet)" class="text-blue-600">Edit</button>
+                            </td>
+                        </template>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
         <div v-if="error"
             class="fixed inset-0 m-4 z-10 sm:m-40 w-auto h-fit bg-amber-300 border border-amber-500 text-amber-800 px-4 py-3 rounded mb-4 flex justify-center items-center"
@@ -234,6 +238,7 @@ export default {
             isLoading: false,
             isCreatingLabel: false,
             sentView: false,
+            destinationFilterText: '',
         }
     },
 
@@ -277,6 +282,11 @@ export default {
                 return result;
             });
         },
+        filteredDestinations() {
+            if (!this.destinationFilterText) return this.destinations;
+            const text = this.destinationFilterText.toLowerCase();
+            return this.destinations.filter(dest => dest.toLowerCase().includes(text));
+        },
         isSendingPalletLoading() {
             return this.isCreatingLabel
         },
@@ -295,6 +305,10 @@ export default {
                     ? aVal.localeCompare(bVal)
                     : bVal.localeCompare(aVal);
             });
+        },
+        AmountOfPallets() {
+            const uniquePalletNumbers = new Set(this.filteredPallets.map(pallet => pallet.palletNumber));
+            return uniquePalletNumbers.size;
         }
     },
 
@@ -324,7 +338,6 @@ export default {
             const selectedPalletsData = this.filteredPallets.filter(p =>
                 this.selectedPallets.includes(p.id)
             );
-            console.log(JSON.stringify(selectedPalletsData))
             try {
                 const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/destinations/toSend`, {
                     method: 'POST',
@@ -435,7 +448,6 @@ export default {
                 this.selectedPallets.includes(p.id)
             );
 
-            console.log(JSON.stringify(selectedPalletsData))
             try {
                 selectedPalletsData.forEach(pallet => {
                     if (!this.validatePallet(pallet)) {
@@ -455,8 +467,6 @@ export default {
                 if (!response.ok) {
                     throw new Error(res['error'] || 'Failed to create label');
                 }
-                // console.log(response.json())
-                console.log(res)
                 // Update selected pallets with the new label name and sent status
                 const palletsToUpdate = selectedPalletsData.map(pallet => ({
                     ...pallet,               // Spread the original pallet
@@ -535,7 +545,7 @@ export default {
             // Sample Data
             const sampleData = {
                 platformNumber: originalPallet.palletNumber || "",
-                farmer: originalPallet.farmer || "",
+                farmer: this.farmer || "",
                 variety: originalPallet.kind || "",
                 size: originalPallet.size || "",
                 quantity: originalPallet.boxes || "",
@@ -550,7 +560,6 @@ export default {
             try {
                 const encodedFarmer = encodeURIComponent(farmer);
                 const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`;
-                console.log(`Fetching last pallet from URL: ${URL}`);
                 const response = await fetch(URL, {
                     method: 'GET',
                     credentials: 'include', // Include cookies for authentication
@@ -561,7 +570,6 @@ export default {
                 }
 
                 const data = await response.json();
-                console.log(`Last pallet data:`, data);
                 return data;
             } catch (error) {
                 console.error(`Error fetching last pallet:`, error);

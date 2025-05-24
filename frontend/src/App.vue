@@ -107,6 +107,7 @@ export default {
       { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
       { path: '/Destination', label: 'הצבת יעדים', role: 'user' },
       { path: '/SentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
+      { path: '/DestinationsSummary', label: 'סיכום יעדים', role: 'user' }, // new tab
     ]);
 
     const accessibleRoutes = computed(() => {

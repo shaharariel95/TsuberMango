@@ -7,6 +7,7 @@ import SentPallets from "./components/SentPallets.vue";
 import sentPalletsForMark from "./components/sentPalletsForMark.vue";
 import Destination from "./components/Destination.vue";
 import Login from "./components/Login.vue";
+import DestinationsSummary from "./components/DestinationsSummary.vue";
 
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
@@ -40,6 +41,12 @@ const routes = [
     path: "/Destination",
     name: "Destination",
     component: Destination,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/DestinationsSummary",
+    name: "DestinationsSummary",
+    component: DestinationsSummary,
     meta: { requiresAuth: true },
   },
 ];

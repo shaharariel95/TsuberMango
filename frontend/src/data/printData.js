@@ -44,7 +44,7 @@ function createStickerPDF(data = {}) {
           widths: ["auto", "*"],
           body: [
             ["משטח:", platformNumber],
-            ["מגדל:", farmer],
+            ["מגדל:", farmer.replace(/\s/g, "-")],
             ["גודל:", size],
             ["זן:", variety],
             ["כמות:", quantity],
