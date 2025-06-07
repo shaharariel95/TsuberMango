@@ -65,7 +65,7 @@ export default {
     const error = ref(null);
     const route = useRoute();
     const router = useRouter();
-    const farmers = ref(['גבי צוברי', 'עטר שחק', 'איתי קופלר', 'פסח גמליאל', 'אבנר לוי', 'עידן לוי']);
+    const farmers = ref(['גבי צוברי', 'עטר שחק', 'איתי קופלר', 'גמליאל', 'אבנר לוי', 'עידן לוי']);
     const selectedFarmer = ref(farmers.value[0]);
     const collapsed = ref(false);
     const user = ref({ role: 'admin' }); // Set a default user or fetch from API

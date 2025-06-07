@@ -52,7 +52,7 @@ function createStickerPDF(data = {}) {
           ].map(([label, value]) => [
             {
               stack: [
-                { text: value || " ", alignment: "center", fontSize: 100 },
+                { text: value || " ", alignment: "center", fontSize: 100, bold: true },
                 {
                   canvas: [
                     {
