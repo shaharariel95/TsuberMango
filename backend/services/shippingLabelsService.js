@@ -7,7 +7,7 @@ const FARMER_SPREADSHEET_IDS = {
     'אבנר לוי': process.env.SHIPPING_LABELS_ID_AVNER,
     'עידן לוי': process.env.SHIPPING_LABELS_ID_IDAN,
     'גמליאל': process.env.SHIPPING_LABELS_ID_PESAH,
-    'איתי קופלר': process.env.SHIPPING_LABELS_ID_KOPLER,
+    'קופלר': process.env.SHIPPING_LABELS_ID_KOPLER,
     'עטר שחק': process.env.SHIPPING_LABELS_ID_SHAHAK,
 };
 

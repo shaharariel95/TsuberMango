@@ -206,7 +206,7 @@ export default {
             { key: 'selected', label: 'בחירת משטח', class: 'border border-black px-4 py-2 w-[6%]' }
         ];
         if (this.destinationOnly) {
-            columns = columns.filter(col => !['harvestDate', 'gidon', 'selected'].includes(col.key));
+            columns = columns.filter(col => !['gidon', 'selected'].includes(col.key));
             columns = columns.map(col => ({
                 ...col,
                 editable: col.key === 'destination'
