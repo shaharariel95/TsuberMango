@@ -25,12 +25,21 @@
                     </span>
                     <div v-else class="loading-circle"></div>
                 </button>
-                <button @click="sendToDestinations" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                <button @click="updateToDestinations(true)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
                     class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors "
                     :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                     v-if="isEditable">
                     <span v-if="isSendingPalletLoading == false">
                         העבר למארק
+                    </span>
+                    <div v-else class="loading-circle"></div>
+                </button>
+                <button @click="updateToDestinations(false)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                    class="font-bold bg-blue-500 text-white mx-3 px-4 py-2 rounded-md hover:bg-blue-600 transition-colors "
+                    :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    v-if="isEditable">
+                    <span v-if="isSendingPalletLoading == false">
+                        מחק למארק
                     </span>
                     <div v-else class="loading-circle"></div>
                 </button>
@@ -333,13 +342,19 @@ export default {
             this.editingId = null;
             this.editingPallet = null;
         },
-        async sendToDestinations() {
+        async updateToDestinations(toSend) {
             this.isCreatingLabel = true
             const selectedPalletsData = this.filteredPallets.filter(p =>
                 this.selectedPallets.includes(p.id)
             );
             try {
-                const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/destinations/toSend`, {
+                let url = ''
+                if(toSend){
+                    url = `${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/destinations/toSend` 
+                } else {
+                    url = `${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/destinations/Sent`
+                }
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
