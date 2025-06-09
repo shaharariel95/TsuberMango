@@ -184,6 +184,7 @@ class SheetController {
       );
 
       const { farmer } = req.params;
+      logger.info(`Farmer name from request: ${farmer}`);
       if (!farmer) {
         logger.warn("Missing farmer name in request.");
         return res.status(400).json({ error: "Farmer name is required" });

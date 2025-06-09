@@ -111,6 +111,10 @@
                                     <input type="date" v-model="editingPallet[col.key]"
                                     class="w-full border rounded px-2 py-1" />
                                 </div>
+                                <div v-else-if="col.key == 'palletNumber'">
+                                    <input type="number" v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1"
+                                    style="width: 100%;" :class="{ 'w-20': !col.key.includes('date') }" />
+                                </div>
                                 <div v-else>
                                     <input v-model="editingPallet[col.key]" class="w-full border rounded px-2 py-1"
                                     style="width: 100%;" :class="{ 'w-20': !col.key.includes('date') }" />
@@ -380,6 +384,11 @@ export default {
         async savePallet() {
             const originalPallet = { ...this.pallets.find(p => p.id === this.editingId) };
             this.isLoading = true
+            // Ensure numeric fields are numbers
+            this.editingPallet.palletNumber = Number(this.editingPallet.palletNumber);
+            if (this.editingPallet.cardId !== undefined) this.editingPallet.cardId = Number(this.editingPallet.cardId);
+            if (this.editingPallet.boxes !== undefined) this.editingPallet.boxes = Number(this.editingPallet.boxes);
+            if (this.editingPallet.weight !== undefined) this.editingPallet.weight = Number(this.editingPallet.weight);
 
             try {
                 const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/${this.editingId}`, {
@@ -489,7 +498,7 @@ export default {
                     sent: true,               // Set sent to true
                     mark: false,
                 }));
-                console.log(palletsToUpdate)
+                console.log(`paleltsToUpdate: `, palletsToUpdate)
                 const response2 = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/updatemany`, {
                     method: 'PUT',
                     headers: {

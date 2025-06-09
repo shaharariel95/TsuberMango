@@ -1,6 +1,8 @@
 // googleSheetsService.js
 const { google } = require('googleapis');
 const path = require('path');
+const logger = require("../utils/logger");
+
 
 class GoogleSheetsService {
     constructor() {
@@ -132,34 +134,47 @@ class GoogleSheetsService {
         }
     }
 
+    // Helper to get sheetId by sheetName
+    async getSheetIdByName(sheetName) {
+        await this.initialize();
+        const response = await this.sheets.spreadsheets.get({
+            spreadsheetId: this.SPREADSHEET_ID
+        });
+        const sheet = response.data.sheets.find(s => s.properties.title === sheetName);
+        if (!sheet) throw new Error(`Sheet with name ${sheetName} not found`);
+        return sheet.properties.sheetId;
+    }
+
     async updateRowsByIds(sheetName, ids, updatedDataArray) {
         await this.initialize();
         await this.validateSheetName(sheetName);
-    
+        logger.info(`updateing rows for farmer ${sheetName} with ids: `, ids)
         const requests = [];
-    
+
         // Fetch all rows once
         const response = await this.sheets.spreadsheets.values.get({
             spreadsheetId: this.SPREADSHEET_ID,
             range: `${sheetName}!A:M`,
         });
-    
+
         const rows = response.data.values || [];
-    
+        // Fetch the sheetId for the correct sheet
+        const sheetId = await this.getSheetIdByName(sheetName);
+
         // Prepare the batch update requests
         for (let i = 0; i < ids.length; i++) {
             const id = ids[i];
             const updatedData = updatedDataArray[i];
-    
+
             // Find the row to update
             const rowIndex = rows.findIndex(row => parseInt(row[0]) === id);
-    
+
             if (rowIndex === -1) {
                 throw new Error(`Row with ID ${id} not found in sheet ${sheetName}`);
             }
-    
+
             const rowWithId = [id, ...updatedData];
-    
+
             // Prepare the update request for this row
             requests.push({
                 updateCells: {
@@ -174,13 +189,14 @@ class GoogleSheetsService {
                     ],
                     fields: "userEnteredValue",
                     start: {
+                        sheetId: sheetId, // <-- Fix: specify the correct sheetId
                         rowIndex: rowIndex,
                         columnIndex: 0
                     }
                 }
             });
         }
-    
+
         // Perform the batch update for all rows
         if (requests.length > 0) {
             await this.sheets.spreadsheets.batchUpdate({
@@ -188,7 +204,7 @@ class GoogleSheetsService {
                 requestBody: { requests },
             });
         }
-    
+
         return { success: true, message: 'Rows updated successfully' };
     }
     
