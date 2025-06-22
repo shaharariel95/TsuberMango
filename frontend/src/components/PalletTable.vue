@@ -30,7 +30,7 @@
                     :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                     v-if="isEditable">
                     <span v-if="isSendingPalletLoading == false">
-                        העבר למארק
+                        העבר למשלוח
                     </span>
                     <div v-else class="loading-circle"></div>
                 </button>
@@ -39,7 +39,7 @@
                     :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
                     v-if="isEditable">
                     <span v-if="isSendingPalletLoading == false">
-                        מחק למארק
+                        הורד ממשלוח
                     </span>
                     <div v-else class="loading-circle"></div>
                 </button>

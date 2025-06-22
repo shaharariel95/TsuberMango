@@ -2,7 +2,7 @@
     <div class="">
         <div class="  border-black border-spacing-1 rounded-md">
             <p v-if="isLoading" class="border-b-2 p-3 border-gray-700">Loading...</p>
-            <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="true" :destinationOnly="true" />
+            <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="true" :destinationOnly="false" />
         </div>
     </div>
 </template>

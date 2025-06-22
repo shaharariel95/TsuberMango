@@ -103,9 +103,9 @@ export default {
 
     const routes = ref([
       { path: '/', label: 'קליטה', role: 'admin' },
-      { path: '/Weight', label: 'שקילה ויעד', role: 'admin' },
+      { path: '/Weight', label: 'טבלת נתונים', role: 'admin' },
       { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
-      { path: '/Destination', label: 'הצבת יעדים', role: 'user' },
+      { path: '/Destination', label: 'הכנה למשלוח', role: 'user' },
       { path: '/SentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
       { path: '/DestinationsSummary', label: 'סיכום יעדים', role: 'user' }, // new tab
     ]);
