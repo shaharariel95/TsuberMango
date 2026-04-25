@@ -1,9 +1,10 @@
 <template>
-    <div class="">
-        <div class="  border-black border-spacing-1 rounded-md">
-            <p v-if="isLoading" class="border-b-2 p-3 border-gray-700">Loading...</p>
-            <PalletTable v-else v-model:pallets="message" :farmer="farmerName" />
+    <div class="animate-fade-in">
+        <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 gap-3">
+            <span class="loading-spinner !w-10 !h-10 !border-[3px]"></span>
+            <span class="text-slate-400 text-sm font-medium">טוען נתונים...</span>
         </div>
+        <PalletTable v-else v-model:pallets="message" :farmer="farmerName" />
     </div>
 </template>
 

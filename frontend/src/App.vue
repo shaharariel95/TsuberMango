@@ -1,63 +1,126 @@
 <template>
-  <div class="min-h-screen w-full bg-gradient-to-b from-emerald-50 to-emerald-800 flex">
+  <div class="min-h-screen w-full flex bg-slate-100">
+    <!-- ── Sidebar ─────────────────────────────────────── -->
     <nav v-if="!isLoginPage"
-      :class="['bg-gray-300 border-r border-amber-50 p-4 flex flex-col space-y-4 fixed left-0 top-0 bottom-0 transition-all duration-300 z-50', collapsed ? 'w-16' : 'w-56']">
-      <div class="flex justify-between items-center">
-        <h1 v-if="!collapsed" class="text-2xl font-bold text-black">Tsuberi Mango's</h1>
-        <button @click="collapsed = !collapsed" class="text-black text-xl font-bold">
-          {{ collapsed ? '>' : '<' }} </button>
+      :class="[
+        'fixed right-0 top-0 bottom-0 z-50 flex flex-col',
+        'bg-sidebar border-l border-slate-700/50',
+        'transition-all duration-300 ease-in-out',
+        collapsed ? 'w-[68px]' : 'w-60'
+      ]">
+
+      <!-- Brand + Toggle -->
+      <div class="flex items-center justify-between p-4 border-b border-slate-700/50">
+        <div v-if="!collapsed" class="flex items-center gap-2 min-w-0">
+          <span class="text-2xl">🥭</span>
+          <h1 class="text-lg font-bold text-white truncate">Tsuberi Mango's</h1>
+        </div>
+        <button @click="collapsed = !collapsed"
+          class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors flex-shrink-0 mx-auto"
+          :class="{ 'mx-auto': collapsed }">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 transition-transform duration-300"
+            :class="{ 'rotate-180': collapsed }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
 
-      <div class="relative">
+      <!-- Farmer Selector -->
+      <div class="p-3">
         <select v-model="selectedFarmer"
-          :class="['w-full p-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 text-gray-700 cursor-pointer hover:border-amber-500 transition-colors duration-200 text-center', collapsed ? 'text-sm' : 'text-2xl']">
-          <option value="" disabled>Select a farmer</option>
+          :class="[
+            'w-full bg-sidebar-dark border border-slate-600 rounded-lg',
+            'text-white font-semibold cursor-pointer text-center',
+            'focus:outline-none focus:ring-2 focus:ring-mango-400/50 focus:border-mango-400',
+            'hover:border-mango-400/50 transition-colors',
+            collapsed ? 'p-1.5 text-sm' : 'p-2.5 text-base'
+          ]">
+          <option value="" disabled class="text-slate-400">בחר מגדל</option>
           <option v-for="farmer in farmers" :key="farmer" :value="farmer">
             {{ collapsed ? farmer[0] : farmer }}
           </option>
         </select>
       </div>
 
-      <ul class="flex flex-col space-y-2 flex-grow">
+      <!-- Navigation Links -->
+      <ul class="flex flex-col gap-1.5 px-3 flex-grow overflow-y-auto mt-1">
         <li v-for="route in accessibleRoutes" :key="route.path">
           <router-link
-            :class="['block p-2 rounded border-2  border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink(route.path), 'bg-white': !isActiveLink(route.path) }]"
-            :to="route.path">
-            {{ collapsed ? route.label[0] : route.label }}
+            :to="route.path"
+            :class="[
+              'flex items-center gap-3 rounded-lg font-medium transition-all duration-200',
+              collapsed ? 'p-2 justify-center' : 'py-2.5 px-3',
+              isActiveLink(route.path)
+                ? 'bg-mango-500/15 text-mango-400 shadow-glow-amber/20 border border-mango-500/30'
+                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white border border-transparent'
+            ]"
+            :title="collapsed ? route.label : ''">
+            <span :class="[collapsed ? 'text-sm' : 'text-sm']">
+              {{ collapsed ? route.label[0] : route.label }}
+            </span>
           </router-link>
         </li>
       </ul>
 
-      <div class="mt-auto flex flex-col space-y-2">
+      <!-- Bottom Section -->
+      <div class="mt-auto p-3 space-y-1.5 border-t border-slate-700/50">
         <router-link v-for="route in bottomRoutes" :key="route.path"
-            :class="['block p-2 rounded border-2 border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink(route.path), 'bg-white': !isActiveLink(route.path) }]"
-            :to="route.path">
-            {{ collapsed ? route.label[0] : route.label }}
+          :to="route.path"
+          :class="[
+            'flex items-center gap-3 rounded-lg font-medium transition-all duration-200',
+            collapsed ? 'p-2 justify-center' : 'py-2.5 px-3',
+            isActiveLink(route.path)
+              ? 'bg-mango-500/15 text-mango-400 border border-mango-500/30'
+              : 'text-slate-400 hover:bg-slate-700/50 hover:text-white border border-transparent'
+          ]"
+          :title="collapsed ? route.label : ''">
+          <span class="text-sm">{{ collapsed ? route.label[0] : route.label }}</span>
         </router-link>
-        <button @click="logout" class="p-2 bg-red-500 text-white rounded w-full font-bold">יציאה</button>
+
+        <button @click="logout"
+          :class="[
+            'w-full rounded-lg font-semibold transition-all duration-200',
+            'bg-red-500/15 text-red-400 hover:bg-red-500/25 hover:text-red-300',
+            collapsed ? 'p-2 text-sm' : 'py-2.5 px-3 text-sm'
+          ]">
+          {{ collapsed ? '✕' : 'יציאה' }}
+        </button>
       </div>
     </nav>
 
+    <!-- ── Main Content ──────────────────────────────── -->
     <div
-      :class="['flex-1 p-4 sm:p-1 transition-all duration-300 h-screen', !isLoginPage ? (collapsed ? 'ml-20' : 'ml-64') : 'ml-0']">
-      <div class="h-full w-full bg-natural-200 rounded-lg shadow-lg overflow-hidden flex flex-col">
-        <div class="flex-grow overflow-auto p-4 text-black">
-          <router-view v-if="!isLoginPage" :selected-farmer="selectedFarmer" />
-          <router-view v-else />
+      :class="[
+        'flex-1 transition-all duration-300 min-h-screen',
+        !isLoginPage ? (collapsed ? 'mr-[68px]' : 'mr-60') : 'mr-0'
+      ]">
+      <div v-if="!isLoginPage" class="h-full p-4 md:p-6">
+        <div class="h-full w-full bg-white rounded-2xl shadow-card overflow-hidden flex flex-col border border-slate-100">
+          <div class="flex-grow overflow-auto p-5 md:p-6 text-slate-800">
+            <router-view :selected-farmer="selectedFarmer" />
+          </div>
         </div>
       </div>
+      <router-view v-else />
     </div>
   </div>
 
-  <div v-if="showError"
-    class="fixed inset-0 m-4 sm:m-40 w-auto h-fit bg-amber-300 border border-amber-500 text-amber-800 px-4 py-3 rounded mb-4 flex justify-center items-center"
-    role="alert">
-    <div>
-      <strong class="font-bold">Error:</strong>
-      <span class="block sm:inline">{{ error }}</span>
+  <!-- ── Error Toast ───────────────────────────────── -->
+  <Transition
+    enter-active-class="transition-all duration-300 ease-out"
+    enter-from-class="opacity-0 translate-y-4"
+    enter-to-class="opacity-100 translate-y-0"
+    leave-active-class="transition-all duration-200 ease-in"
+    leave-from-class="opacity-100 translate-y-0"
+    leave-to-class="opacity-0 translate-y-4">
+    <div v-if="showError" class="toast-error" role="alert">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+      </svg>
+      <span>{{ error }}</span>
+      <button @click="error = null" class="mr-2 hover:text-red-200 transition-colors font-bold text-lg leading-none">&times;</button>
     </div>
-    <button class="absolute top-2 right-2 w-14 text-center" @click="error = null">x</button>
-  </div>
+  </Transition>
 </template>
 
 <script>

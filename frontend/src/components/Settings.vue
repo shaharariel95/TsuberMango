@@ -1,99 +1,153 @@
 <template>
-  <div class="p-6 max-w-4xl mx-auto bg-white rounded-xl shadow-md space-y-8" dir="rtl">
-    <h1 class="text-3xl font-bold text-gray-800 border-b pb-4">ניהול הגדרות מערכת</h1>
+  <div class="max-w-4xl mx-auto space-y-8 animate-fade-in" dir="rtl">
+    <!-- Header -->
+    <div class="border-b border-slate-200 pb-4">
+      <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+        <svg class="w-6 h-6 text-mango-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        ניהול הגדרות מערכת
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">ניהול חקלאים, זנים, גדלים ויעדים</p>
+    </div>
 
     <!-- 1. Farmers Management -->
-    <section class="space-y-4">
-      <h2 class="text-2xl font-semibold text-emerald-700 flex items-center gap-2">
-        <span>👨‍🌾</span> ניהול חקלאים
+    <section class="card space-y-4">
+      <h2 class="text-xl font-bold text-slate-700 flex items-center gap-2 pb-2 border-b border-slate-100">
+        <span class="text-lg">👨‍🌾</span> ניהול חקלאים
       </h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div v-for="farmer in localConfig.farmers" :key="farmer.name" 
-             class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+             class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
           <div class="flex items-center gap-4">
-            <span class="font-bold text-lg min-w-[120px]">{{ farmer.name }}</span>
-            <label class="flex items-center cursor-pointer">
-              <input type="checkbox" v-model="farmer.allowGidon" @change="saveConfig" class="form-checkbox h-5 w-5 text-emerald-600">
-              <span class="mr-2 text-sm text-gray-600">גדעון?</span>
+            <span class="font-bold text-sm min-w-[100px] text-slate-700">{{ farmer.name }}</span>
+            <label class="flex items-center cursor-pointer gap-2">
+              <input type="checkbox" v-model="farmer.allowGidon" @change="saveConfig" 
+                     class="form-checkbox h-4 w-4 rounded text-mango-500 border-slate-300 focus:ring-mango-400">
+              <span class="text-xs text-slate-500">גדעון?</span>
             </label>
           </div>
           <button @click="confirmDeleteFarmer(farmer.name)" 
-                  class="text-red-500 hover:text-red-700 p-2 transition-colors">
+                  class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all text-sm">
             🗑️
           </button>
         </div>
       </div>
 
       <!-- Add Farmer -->
-      <div class="flex gap-2 mt-4">
+      <div class="flex gap-2 mt-4 pt-4 border-t border-slate-100">
         <input v-model="newFarmerName" placeholder="שם חקלאי חדש" 
-               class="flex-1 p-2 border rounded-md focus:ring-2 focus:ring-emerald-500 outline-none">
+               class="input-field flex-1 text-sm">
         <button @click="addFarmer" :disabled="isWorking"
-                class="bg-emerald-600 text-white px-6 py-2 rounded-md hover:bg-emerald-700 disabled:bg-gray-400 transition-all">
-          {{ isWorking ? 'יוצר גיליון...' : 'הוסף חקלאי' }}
+                class="btn-primary text-sm flex items-center gap-1.5 whitespace-nowrap">
+          <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorking"></span>
+          {{ isWorking ? 'יוצר גיליון...' : '+ הוסף חקלאי' }}
         </button>
       </div>
     </section>
 
-    <hr>
-
-    <!-- 2. Lists Management (Kinds, Sizes, Destinations) -->
-    <div class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <ListEditor title="זנים" emoji="🥭" addButtonLabel="זן" v-model="localConfig.kinds" />
-            <ListEditor title="גדלים" emoji="📏" addButtonLabel="גודל" v-model="localConfig.sizes" />
-            <ListEditor title="יעדים" emoji="🚚" addButtonLabel="יעד" v-model="localConfig.destinations" />
-        </div>
-        
-        <div class="flex justify-end pt-4">
-            <button @click="saveConfig" :disabled="isWorking"
-                    class="bg-emerald-600 text-white px-10 py-3 rounded-lg hover:bg-emerald-700 font-bold shadow-md transition-all">
-                💾 שמור את כל השינויים ברשימות
-            </button>
-        </div>
-    </div>
-
-    <div class="pt-10 flex justify-center gap-4">
-        <button @click="importFromStatic" 
-                class="bg-blue-100 text-blue-700 px-4 py-2 rounded border border-blue-300 hover:bg-blue-200 text-sm">
-           📥 ייבוא נתונים מ-data.js (חד פעמי)
+    <!-- 2. Lists Management -->
+    <section class="card space-y-5">
+      <h2 class="text-xl font-bold text-slate-700 pb-2 border-b border-slate-100 flex items-center gap-2">
+        <span class="text-lg">📋</span> ניהול רשימות
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <ListEditor title="זנים" emoji="🥭" addButtonLabel="זן" v-model="localConfig.kinds" />
+        <ListEditor title="גדלים" emoji="📏" addButtonLabel="גודל" v-model="localConfig.sizes" />
+        <ListEditor title="יעדים" emoji="🚚" addButtonLabel="יעד" v-model="localConfig.destinations" />
+      </div>
+      
+      <div class="flex justify-end pt-4 border-t border-slate-100">
+        <button @click="saveConfig" :disabled="isWorking"
+                class="btn-primary flex items-center gap-2">
+          <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorking"></span>
+          <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+          </svg>
+          שמור את כל השינויים
         </button>
+      </div>
+    </section>
+
+    <!-- Import Button -->
+    <div class="flex justify-center">
+      <button @click="importFromStatic" 
+              class="btn-ghost text-xs border border-slate-200 text-slate-500 hover:text-slate-700 flex items-center gap-1.5">
+        📥 ייבוא נתונים מ-data.js (חד פעמי)
+      </button>
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div v-if="farmerToDelete" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-      <div class="bg-white p-8 rounded-xl max-w-md w-full shadow-2xl border-4 border-red-500">
-        <h3 class="text-3xl font-bold text-red-600 mb-4">⚠️ אזהרה חמורה!</h3>
-        <p class="text-lg mb-6">אתה עומד למחוק את החקלאי: <span class="font-black underline">{{ farmerToDelete }}</span></p>
-        
-        <div class="space-y-4 mb-6">
-          <label class="flex items-start gap-3 p-3 bg-red-50 rounded border border-red-100 cursor-pointer">
-            <input type="checkbox" v-model="confirmChecks.app" class="mt-1 h-5 w-5">
-            <span class="text-gray-800">אני מאשר להסיר את החקלאי מרשימת הבחירה באפליקציה.</span>
-          </label>
+    <Transition
+      enter-active-class="transition-all duration-200 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-all duration-150 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0">
+      <div v-if="farmerToDelete" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div class="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl animate-slide-up">
+          <!-- Red Header -->
+          <div class="bg-red-50 -m-6 mb-5 p-5 rounded-t-2xl border-b border-red-100">
+            <h3 class="text-xl font-bold text-red-600 flex items-center gap-2">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              אזהרה חמורה!
+            </h3>
+            <p class="text-sm text-red-500 mt-1">מחיקת החקלאי: <strong class="underline">{{ farmerToDelete }}</strong></p>
+          </div>
           
-          <label class="flex items-start gap-3 p-3 bg-red-50 rounded border border-red-100 cursor-pointer">
-            <input type="checkbox" v-model="confirmChecks.sheet" class="mt-1 h-5 w-5">
-            <span class="text-gray-800 font-bold">מחק גם את הגיליון (Sheet) עם כל הנתונים ההיסטוריים ב-Google Sheets. (לא ניתן לשחזור!)</span>
-          </label>
-        </div>
+          <div class="space-y-3 mb-6">
+            <label class="flex items-start gap-3 p-3 bg-red-50/50 rounded-lg border border-red-100 cursor-pointer hover:bg-red-50 transition-colors">
+              <input type="checkbox" v-model="confirmChecks.app" class="mt-0.5 h-4 w-4 rounded text-red-500 border-red-300 focus:ring-red-400">
+              <span class="text-sm text-slate-700">אני מאשר להסיר את החקלאי מרשימת הבחירה באפליקציה.</span>
+            </label>
+            
+            <label class="flex items-start gap-3 p-3 bg-red-50/50 rounded-lg border border-red-100 cursor-pointer hover:bg-red-50 transition-colors">
+              <input type="checkbox" v-model="confirmChecks.sheet" class="mt-0.5 h-4 w-4 rounded text-red-500 border-red-300 focus:ring-red-400">
+              <span class="text-sm text-slate-700 font-semibold">מחק גם את הגיליון (Sheet) עם כל הנתונים ההיסטוריים. (לא ניתן לשחזור!)</span>
+            </label>
+          </div>
 
-        <div class="flex gap-4">
-          <button @click="deleteFarmer" :disabled="!confirmChecks.app || isWorking"
-                  class="flex-1 bg-red-600 text-white font-bold py-3 rounded-md hover:bg-red-700 disabled:bg-gray-300 transition-all">
-            {{ isWorking ? 'מוחק...' : 'אשר מחיקה סופית' }}
-          </button>
-          <button @click="farmerToDelete = null" class="flex-1 bg-gray-200 text-gray-800 font-bold py-3 rounded-md hover:bg-gray-300">
-            ביטול
-          </button>
+          <div class="flex gap-3">
+            <button @click="deleteFarmer" :disabled="!confirmChecks.app || isWorking"
+                    class="flex-1 btn-danger flex items-center justify-center gap-2">
+              <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorking"></span>
+              {{ isWorking ? 'מוחק...' : 'אשר מחיקה סופית' }}
+            </button>
+            <button @click="farmerToDelete = null" 
+                    class="flex-1 btn-ghost bg-slate-100 hover:bg-slate-200 font-semibold">
+              ביטול
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Status Toast -->
-    <div v-if="status" :class="['fixed bottom-4 right-4 p-4 rounded-lg shadow-lg transition-all', status.type === 'error' ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white']">
-      {{ status.msg }}
-    </div>
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="opacity-0 translate-y-4"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-4">
+      <div v-if="status"
+           :class="[
+             'toast',
+             status.type === 'error' ? 'bg-red-500/95 text-white' : 'bg-emerald-500/95 text-white'
+           ]">
+        <svg v-if="status.type === 'error'" class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        <svg v-else class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        {{ status.msg }}
+      </div>
+    </Transition>
   </div>
 </template>
 

@@ -1,23 +1,160 @@
-/* src/assets/tailwind.css */
+/* src/index.css — TsuberMango Design System */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-    .btn-primary {
-        @apply font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors;
-    }
-    .btn-primary:disabled {
-        @apply bg-gray-400 hover:bg-gray-400;
-    }
-    
-    /* Fix for Firefox white-on-white dropdowns */
-    select option {
-        color: #000000 !important;
-        background-color: #ffffff !important;
-    }
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+  }
 
-    select {
-        color: #000000;
-    }
+  /* Smooth transitions on all interactive elements */
+  button, a, input, select, textarea {
+    @apply transition-all duration-200;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-100 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+@layer components {
+  /* ── Buttons ───────────────────────────────── */
+  .btn-primary {
+    @apply font-semibold text-white px-5 py-2.5 rounded-lg
+           bg-gradient-to-l from-mango-500 to-mango-600
+           hover:from-mango-600 hover:to-mango-700
+           hover:shadow-glow-amber hover:-translate-y-0.5
+           active:translate-y-0 active:shadow-none
+           disabled:from-slate-300 disabled:to-slate-400 disabled:text-slate-500
+           disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply font-semibold text-white px-5 py-2.5 rounded-lg
+           bg-gradient-to-l from-red-500 to-red-600
+           hover:from-red-600 hover:to-red-700
+           hover:shadow-lg hover:-translate-y-0.5
+           active:translate-y-0;
+  }
+
+  .btn-ghost {
+    @apply font-medium px-4 py-2 rounded-lg
+           text-slate-600 hover:bg-slate-100 hover:text-slate-800
+           active:bg-slate-200;
+  }
+
+  /* ── Cards ─────────────────────────────────── */
+  .card {
+    @apply bg-white rounded-xl shadow-card p-5 border border-slate-100;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200;
+  }
+
+  /* ── Inputs ────────────────────────────────── */
+  .input-field {
+    @apply w-full p-2.5 bg-white border border-slate-200 rounded-lg
+           text-slate-800 placeholder-slate-400
+           focus:outline-none focus:ring-2 focus:ring-mango-400/50 focus:border-mango-400
+           hover:border-slate-300;
+  }
+
+  .select-field {
+    @apply input-field cursor-pointer appearance-none
+           bg-no-repeat bg-[length:16px] bg-[position:left_12px_center]
+           pl-10;
+  }
+
+  /* ── Chip / Toggle Buttons ─────────────────── */
+  .chip {
+    @apply px-4 py-2 border-2 border-slate-200 rounded-full cursor-pointer
+           text-center font-medium text-slate-600
+           hover:border-mango-300 hover:text-mango-700 hover:bg-mango-50
+           transition-all duration-200;
+  }
+
+  .chip-active {
+    @apply bg-gradient-to-l from-mango-400 to-mango-500
+           text-white border-mango-500 shadow-glow-amber
+           hover:from-mango-500 hover:to-mango-600 hover:text-white;
+  }
+
+  /* ── Loading ───────────────────────────────── */
+  .loading-spinner {
+    @apply inline-block w-5 h-5 border-2 border-slate-200
+           border-t-mango-500 rounded-full animate-spin;
+  }
+
+  .loading-spinner-lg {
+    @apply inline-block w-8 h-8 border-3 border-slate-200
+           border-t-mango-500 rounded-full animate-spin;
+  }
+
+  .skeleton {
+    @apply bg-slate-200 rounded animate-pulse;
+  }
+
+  /* ── Status Badges ─────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-100 text-emerald-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-100 text-amber-700;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  /* ── Toast Notifications ───────────────────── */
+  .toast {
+    @apply fixed bottom-6 left-6 z-[200] px-5 py-3.5 rounded-xl shadow-xl
+           animate-slide-up font-medium text-sm flex items-center gap-3
+           max-w-md backdrop-blur-sm;
+  }
+
+  .toast-success {
+    @apply toast bg-emerald-500/95 text-white;
+  }
+
+  .toast-error {
+    @apply toast bg-red-500/95 text-white;
+  }
+
+  .toast-warning {
+    @apply toast bg-amber-500/95 text-white;
+  }
+
+  /* ── Fix for Firefox white-on-white dropdowns ── */
+  select option {
+    color: #000000 !important;
+    background-color: #ffffff !important;
+  }
+
+  select {
+    color: #000000;
+  }
+
+  /* ── RTL helper ────────────────────────────── */
+  .rtl {
+    direction: rtl;
+  }
 }

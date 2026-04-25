@@ -1,201 +1,235 @@
 <template>
-    <div class="flex flex-col space-y-4 p-4">
-        <!-- Loading state and last pallet number -->
-        <div class="mb-4 rtl flex items-center justify-between">
-            <h2 class="text-5xl font-bold">קליטה - רישום משטח חדש</h2>
-
-            <!-- Farmer -->
-            <div class="form-group text-2xl flex items-center space-x-2 space-x-reverse">
-                <span class="text-right">מגדל:</span>
-                <span class="font-bold border border-black rounded-lg p-2 bg-white">{{ selectedFarmer }}</span>
+    <div class="flex flex-col gap-6 animate-fade-in">
+        <!-- Page Header -->
+        <div class="flex items-center justify-between rtl">
+            <div>
+                <h2 class="text-3xl font-bold text-slate-800">קליטה</h2>
+                <p class="text-slate-500 text-sm mt-0.5">רישום משטח חדש</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-slate-500 text-sm">מגדל:</span>
+                <span class="font-bold text-base bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-4 py-1.5">
+                    {{ selectedFarmer }}
+                </span>
             </div>
         </div>
 
-
-
-        <form @submit.prevent="submitForm" class="space-y-4 rtl">
-            <!-- First Row: Harvest Date and Pallet Number -->
-            <div class="flex gap-4 text-xl font-bold">
-                <div class="flex-1">
-                    <label class="block text-right">
-                        תאריך קטיף
-                        <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" v-model="formData.harvestDate" required class="w-full p-2 border rounded-md" />
+        <!-- Form -->
+        <form @submit.prevent="submitForm" class="space-y-5 rtl">
+            <!-- Required Fields Section -->
+            <div class="card space-y-5">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-1 h-5 bg-mango-500 rounded-full"></div>
+                    <span class="text-sm font-semibold text-slate-500 uppercase tracking-wide">שדות חובה</span>
                 </div>
-                <div class="flex-1">
-                    <label class="block text-right">
-                        מספר משטח
-                        <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number" v-model="formData.palletNumber" required min="1"
-                        class="w-full p-2 border rounded-md" />
-                    <div v-if="isLoading" class="font-normal">טוען...</div>
-                    <div v-else class="font-normal">מספר משטח אחרון: {{ message }}</div>
-                </div>
-                <div class="flex-1">
-                    <label class="block text-right">
-                        ארגזים
-                        <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number" v-model="formData.boxes" min="0" class="w-full p-2 border rounded-md" />
-                </div>
-            </div>
 
-            <!-- Second Row: Kind and Size -->
-            <div class="flex gap-4 text-xl font-bold">
-                <div class="flex-1">
-                    <label class="block text-right">
-                        זן
-                        <span class="text-red-500">*</span>
-                    </label>
-                    <div class="flex flex-wrap gap-2 p-4">
-                        <template v-for="option in kinds" :key="option">
-                            <label class="relative">
-                                <input type="radio" v-model="formData.kind" :value="option" required
-                                    class="absolute opacity-0 w-0 h-0" />
-                                <span class="px-4 py-2 border rounded-md cursor-pointer block text-center"
-                                    :class="formData.kind === option ? 'bg-blue-500 text-white border-blue-500' : 'bg-white hover:bg-gray-100 border-gray-300'">
-                                    {{ option }}
-                                </span>
-                            </label>
-                        </template>
+                <!-- Row 1: Date, Pallet Number, Boxes -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-base font-medium">
+                    <div>
+                        <label class="block text-slate-600 mb-1.5 text-sm">
+                            תאריך קטיף <span class="text-red-400">*</span>
+                        </label>
+                        <input type="date" v-model="formData.harvestDate" required class="input-field" />
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 mb-1.5 text-sm">
+                            מספר משטח <span class="text-red-400">*</span>
+                        </label>
+                        <input type="number" v-model="formData.palletNumber" required min="1" class="input-field" />
+                        <div class="mt-1 text-xs text-slate-400">
+                            <span v-if="isLoading" class="flex items-center gap-1">
+                                <span class="loading-spinner !w-3 !h-3"></span> טוען...
+                            </span>
+                            <span v-else>משטח אחרון: <strong class="text-mango-600">{{ message }}</strong></span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 mb-1.5 text-sm">
+                            ארגזים <span class="text-red-400">*</span>
+                        </label>
+                        <input type="number" v-model="formData.boxes" min="0" class="input-field" />
                     </div>
                 </div>
-                <div class="flex-1">
-                    <label class="block text-right">
-                        גודל
-                        <span class="text-red-500">*</span>
-                    </label>
-                    <div class="flex flex-wrap gap-2 p-4">
-                        <template v-for="size in sizes" :key="size">
-                            <label class="relative">
-                                <input type="radio" v-model="formData.size" :value="size" required
-                                    class="absolute opacity-0 w-0 h-0" />
-                                <span class="px-4 py-2 border rounded-md cursor-pointer block text-center min-w-[60px]"
-                                    :class="formData.size === size ? 'bg-blue-500 text-white border-blue-500' : 'bg-white hover:bg-gray-100 border-gray-300'">
-                                    {{ size }}
-                                </span>
-                            </label>
-                        </template>
+
+                <!-- Row 2: Kind and Size chips -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-slate-600 mb-2 text-sm font-medium">
+                            זן <span class="text-red-400">*</span>
+                        </label>
+                        <div class="flex flex-wrap gap-2">
+                            <template v-for="option in kinds" :key="option">
+                                <label class="relative cursor-pointer">
+                                    <input type="radio" v-model="formData.kind" :value="option" required
+                                        class="absolute opacity-0 w-0 h-0" />
+                                    <span class="chip" :class="{ 'chip-active': formData.kind === option }">
+                                        {{ option }}
+                                    </span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 mb-2 text-sm font-medium">
+                            גודל <span class="text-red-400">*</span>
+                        </label>
+                        <div class="flex flex-wrap gap-2">
+                            <template v-for="size in sizes" :key="size">
+                                <label class="relative cursor-pointer">
+                                    <input type="radio" v-model="formData.size" :value="size" required
+                                        class="absolute opacity-0 w-0 h-0" />
+                                    <span class="chip min-w-[52px]" :class="{ 'chip-active': formData.size === size }">
+                                        {{ size }}
+                                    </span>
+                                </label>
+                            </template>
+                        </div>
                     </div>
                 </div>
-                <div v-if="farmerConfigs[selectedFarmer]?.allowGidon">
-                    <label class="block text-right pb-2">
-                        הערה
-                    </label>
-                    <label class="relative">
+
+                <!-- Gidon checkbox (conditional) -->
+                <div v-if="farmerConfigs[selectedFarmer]?.allowGidon" class="flex items-center gap-3">
+                    <label class="relative cursor-pointer">
                         <input type="checkbox" v-model="formData.gidon" class="absolute opacity-0 w-0 h-0" />
-                        <span class="px-4 py-2 border rounded-md cursor-pointer block text-center min-w-[60px]"
-                            :class="formData.gidon ? 'bg-blue-500 text-white border-blue-500' : 'bg-white hover:bg-gray-100 border-gray-300'">
+                        <span class="chip" :class="{ 'chip-active': formData.gidon }">
                             גדעון
                         </span>
                     </label>
+                    <span class="text-xs text-slate-400">הערה</span>
                 </div>
             </div>
 
-            <!-- Seperation line from requirent to not required-->
-            <div class="border-t border-gray-700 my-4"></div>
-
-            <!-- Third Row: Shipment Date, Card ID, Boxes, Weight -->
-            <div class="flex gap-4 text-xl">
-                <div class="flex-1">
-                    <label class="block text-right">תאריך משלוח</label>
-                    <input type="date" v-model="formData.shipmentDate" class="w-full p-2 border rounded-md" />
+            <!-- Optional Fields Section -->
+            <div class="card space-y-4">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-1 h-5 bg-slate-300 rounded-full"></div>
+                    <span class="text-sm font-semibold text-slate-400 uppercase tracking-wide">שדות נוספים</span>
                 </div>
-                <div class="flex-1">
-                    <label class="block text-right">מספר תעודה</label>
-                    <input type="number" v-model="formData.cardId" class="w-full p-2 border rounded-md" />
-                </div>
-                <div class="flex-1">
-                    <label class="block text-right">משקל</label>
-                    <input type="number" v-model="formData.weight" min="0" class="w-full p-2 border rounded-md" />
-                </div>
-            </div>
 
-            <!-- Fourth Row: Destination -->
-            <div class="form-group text-xl">
-                <label class="block text-right">יעד</label>
-                <select v-model="formData.destination" class="w-full p-2 border rounded-md bg-white text-black font-bold">
-                    <option v-for="destination in destinations" :value="destination" :key="destination">{{ destination
-                        }}</option>
-                </select>
-            </div>
-
-            <!-- Submit Button and Status Messages Row -->
-            <div class="flex items-center justify-center gap-4">
-                <div class="flex-1 text-xl">
-                    <!-- Success/Error Messages -->
-                    <div v-if="submitStatus"
-                        :class="'font-bold text-2xl', { 'text-yellow-300': submitStatus === 'success', 'text-red-500': submitStatus === 'error' }"
-                        class="text-left">
-                        {{ statusMessage }}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-base">
+                    <div>
+                        <label class="block text-slate-600 mb-1.5 text-sm">תאריך משלוח</label>
+                        <input type="date" v-model="formData.shipmentDate" class="input-field" />
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 mb-1.5 text-sm">מספר תעודה</label>
+                        <input type="number" v-model="formData.cardId" class="input-field" />
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 mb-1.5 text-sm">משקל</label>
+                        <input type="number" v-model="formData.weight" min="0" class="input-field" />
                     </div>
                 </div>
+
+                <div>
+                    <label class="block text-slate-600 mb-1.5 text-sm">יעד</label>
+                    <select v-model="formData.destination" class="input-field font-medium">
+                        <option v-for="destination in destinations" :value="destination" :key="destination">
+                            {{ destination }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Submit Row -->
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex-1">
+                    <Transition
+                        enter-active-class="transition-all duration-300"
+                        enter-from-class="opacity-0 translate-y-2"
+                        enter-to-class="opacity-100 translate-y-0">
+                        <div v-if="submitStatus"
+                            :class="[
+                                'font-semibold text-sm rounded-lg px-4 py-2 inline-flex items-center gap-2',
+                                submitStatus === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+                            ]">
+                            <svg v-if="submitStatus === 'success'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            {{ statusMessage }}
+                        </div>
+                    </Transition>
+                </div>
                 <button type="submit"
-                    class="text-2xl p-4 btn-primary"
+                    class="btn-primary text-lg px-8 py-3 flex items-center gap-2"
                     :disabled="isSubmitting">
+                    <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isSubmitting"></span>
                     {{ isSubmitting ? 'מוסיף...' : 'הוסף' }}
                 </button>
             </div>
         </form>
 
-        <!-- last form data -->
-        <div v-if="lastFormData" class="mt-8 p-4 border rounded-lg bg-gray-50 rtl">
-            <h3 class="text-2xl font-bold mb-4">פרטי משטח אחרון שנשלח:</h3>
-            <div class="grid grid-cols-2 gap-4 text-xl">
-                <div class="col-span-2">
-                    <span class="font-bold">מגדל: </span>
-                    <span>{{ lastFormData.farmer }}</span>
+        <!-- Last Submitted Pallet -->
+        <Transition
+            enter-active-class="transition-all duration-300"
+            enter-from-class="opacity-0 translate-y-4"
+            enter-to-class="opacity-100 translate-y-0">
+            <div v-if="lastFormData" class="card border-r-4 border-r-mango-400 rtl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-slate-700 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-mango-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        פרטי משטח אחרון שנשלח
+                    </h3>
+                    <button @click="printPDF" class="btn-primary text-sm px-4 py-2 flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        הפק מדבקה
+                    </button>
                 </div>
-                <div>
-                    <span class="font-bold">תאריך קטיף: </span>
-                    <span>{{ lastFormData.harvestDate }}</span>
-                </div>
-                <div>
-                    <span class="font-bold">תאריך משלוח: </span>
-                    <span>{{ lastFormData.shipmentDate || 'לא צוין' }}</span>
-                </div>
-                <div>
-                    <span class="font-bold">מספר משטח: </span>
-                    <span>{{ lastFormData.palletNumber }}</span>
-                </div>
-                <div>
-                    <span class="font-bold">מספר כרטיס: </span>
-                    <span>{{ lastFormData.cardId || 'לא צוין' }}</span>
-                </div>
-                <div>
-                    <span class="font-bold">זן: </span>
-                    <span>{{ lastFormData.kind }}</span>
-                </div>
-                <div>
-                    <span class="font-bold">גודל: </span>
-                    <span>{{ lastFormData.size }}</span>
-                </div>
-                <div v-if="farmerConfigs[selectedFarmer]?.allowGidon">
-                    <span class="font-bold">גדעון: </span>
-                    <span>{{ lastFormData.gidon ? 'כן' : 'לא' }}</span>
-                </div>
-                <div>
-                    <span class="font-bold">ארגזים: </span>
-                    <span>{{ lastFormData.boxes }}</span>
-                </div>
-                <div>
-                    <span class="font-bold">משקל: </span>
-                    <span>{{ lastFormData.weight || 'לא צוין' }}</span>
-                </div>
-                <div>
-                    <span class="font-bold">יעד: </span>
-                    <span>{{ lastFormData.destination || 'לא צוין' }}</span>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">מגדל</span>
+                        <span class="font-semibold">{{ lastFormData.farmer }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">תאריך קטיף</span>
+                        <span class="font-semibold">{{ lastFormData.harvestDate }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">תאריך משלוח</span>
+                        <span class="font-semibold">{{ lastFormData.shipmentDate || 'לא צוין' }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">מספר משטח</span>
+                        <span class="font-semibold">{{ lastFormData.palletNumber }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">מספר כרטיס</span>
+                        <span class="font-semibold">{{ lastFormData.cardId || 'לא צוין' }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">זן</span>
+                        <span class="font-semibold">{{ lastFormData.kind }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">גודל</span>
+                        <span class="font-semibold">{{ lastFormData.size }}</span>
+                    </div>
+                    <div v-if="farmerConfigs[selectedFarmer]?.allowGidon" class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">גדעון</span>
+                        <span class="font-semibold">{{ lastFormData.gidon ? 'כן' : 'לא' }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">ארגזים</span>
+                        <span class="font-semibold">{{ lastFormData.boxes }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">משקל</span>
+                        <span class="font-semibold">{{ lastFormData.weight || 'לא צוין' }}</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-2.5">
+                        <span class="text-slate-400 text-xs block">יעד</span>
+                        <span class="font-semibold">{{ lastFormData.destination || 'לא צוין' }}</span>
+                    </div>
                 </div>
             </div>
-            <div class="mt-6 flex justify-end">
-                <button @click="printPDF"
-                    class="text-2xl p-4 btn-primary">
-                    הפק מדבקה
-                </button>
-            </div>
-        </div>
+        </Transition>
     </div>
 </template>
 
@@ -357,9 +391,3 @@ export default {
     }
 }
 </script>
-
-<style scoped>
-.rtl {
-    direction: rtl;
-}
-</style>
