@@ -3,8 +3,7 @@
         <div class="mb-4 flex flex-row justify-between" >
             <div v-if="!destinationOnly && !columnsFilter.length">
                 <button @click="sendSelectedPallets" :disabled="isCreateLabelAllowed || isCreatingLabel"
-                    class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                    :class="[(isCreateLabelAllowed || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    class="btn-primary"
                     v-if="isEditable">
                     <span v-if="isSendingPalletLoading == false">
                         צור תעודת משלוח
@@ -12,13 +11,11 @@
                     <div v-else class="loading-circle"></div>
                 </button>
                 <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
-                    class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                    :class="[(selectedPallets.length === 0) ? 'bg-gray-400 hover:bg-gray-400' : '']" v-else>
+                    class="btn-primary" v-else>
                     החזר משטחים נשלחו
                 </button>
                 <button @click="printPDF" :disabled="selectedPallets.length !== 1 || isCreatingLabel"
-                    class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors mx-3"
-                    :class="[(selectedPallets.length !== 1 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    class="btn-primary mx-3"
                     v-if="isEditable">
                     <span v-if="isSendingPalletLoading == false">
                         הפק מדבקה
@@ -26,8 +23,7 @@
                     <div v-else class="loading-circle"></div>
                 </button>
                 <button @click="updateToDestinations(true)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
-                    class="font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors "
-                    :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    class="btn-primary "
                     v-if="isEditable">
                     <span v-if="isSendingPalletLoading == false">
                         העבר למשלוח
@@ -35,8 +31,7 @@
                     <div v-else class="loading-circle"></div>
                 </button>
                 <button @click="updateToDestinations(false)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
-                    class="font-bold bg-blue-500 text-white mx-3 px-4 py-2 rounded-md hover:bg-blue-600 transition-colors "
-                    :class="[(selectedPallets.length === 0 || isCreatingLabel) ? 'bg-gray-400 hover:bg-gray-400' : '']"
+                    class="btn-primary mx-3"
                     v-if="isEditable">
                     <span v-if="isSendingPalletLoading == false">
                         הורד ממשלוח
@@ -47,7 +42,7 @@
             <div>
                 <span class="font-bold text-lg p-2 m-4 rounded-lg border-2 border-gray-400">כמות משטחים: {{  AmountOfPallets }}</span>
                 <button v-if="isEditable && !destinationOnly && !columnsFilter.length" @click="toggleSentView"
-                        class="p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                        class="p-4 btn-primary">
                     <span v-if="sentView">הצג משטחים שנשלחו</span>
                     <span v-else>הסתר משטחים שנשלחו</span>
                 </button>
@@ -172,7 +167,8 @@
 </template>
 
 <script>
-import { kinds, sizes, destinations } from '../data/data.js';
+import { kinds, sizes, destinations, farmerConfigs as staticFarmerConfigs } from '../data/data.js';
+import { inject } from 'vue';
 import createStickerPDF from '../data/printData.js';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
@@ -202,6 +198,7 @@ export default {
             default: () => []
         }
     },
+    inject: ['config'],
 
     data() {
         let columns = [
@@ -228,14 +225,15 @@ export default {
         if (this.columnsFilter && this.columnsFilter.length > 0) {
             columns = columns.filter(col => !this.columnsFilter.includes(col.key));
         }
-        // Only show gidon column for farmer גבי צוברי
-        if (this.farmer !== 'גבי צוברי') {
+        
+        // Use dynamic config
+        const farmerConfigs = this.config.farmerConfigs;
+
+        // Only show gidon column for farmers with allowGidon
+        if (!farmerConfigs[this.farmer]?.allowGidon) {
             columns = columns.filter(col => col.key !== 'gidon');
         }
         return {
-            kinds,
-            sizes,
-            destinations,
             columns,
             filterBy: {
                 kind: '',
@@ -256,6 +254,9 @@ export default {
     },
 
     computed: {
+        kinds() { return this.config.kinds || []; },
+        sizes() { return this.config.sizes || []; },
+        destinations() { return this.config.destinations || []; },
         isCreateLabelAllowed() {
             return this.selectedPallets.length === 0 || this.selectedPallets.length > 13
         },
@@ -552,9 +553,14 @@ export default {
                     throw new Error('Failed to send pallets');
                 }
 
-                // Clear selected pallets upon success
+                const updatedPallets = this.pallets.map(p => {
+                    if (selectedPalletIds.includes(p.id)) {
+                        return { ...p, sent: false };
+                    }
+                    return p;
+                });
+                this.$emit('update:pallets', updatedPallets);
                 this.selectedPallets = [];
-                window.location.reload();
             } catch (err) {
                 this.error = err.message;
                 setTimeout(() => {

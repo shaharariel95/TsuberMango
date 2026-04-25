@@ -80,7 +80,7 @@
                         </template>
                     </div>
                 </div>
-                <div v-if="selectedFarmer == 'גבי צוברי'">
+                <div v-if="farmerConfigs[selectedFarmer]?.allowGidon">
                     <label class="block text-right pb-2">
                         הערה
                     </label>
@@ -116,7 +116,7 @@
             <!-- Fourth Row: Destination -->
             <div class="form-group text-xl">
                 <label class="block text-right">יעד</label>
-                <select v-model="formData.destination" class="w-full p-2 border rounded-md bg-white">
+                <select v-model="formData.destination" class="w-full p-2 border rounded-md bg-white text-black font-bold">
                     <option v-for="destination in destinations" :value="destination" :key="destination">{{ destination
                         }}</option>
                 </select>
@@ -133,7 +133,7 @@
                     </div>
                 </div>
                 <button type="submit"
-                    class="text-2xl p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                    class="text-2xl p-4 btn-primary"
                     :disabled="isSubmitting">
                     {{ isSubmitting ? 'מוסיף...' : 'הוסף' }}
                 </button>
@@ -172,7 +172,7 @@
                     <span class="font-bold">גודל: </span>
                     <span>{{ lastFormData.size }}</span>
                 </div>
-                <div v-if="selectedFarmer == 'גבי צוברי'">
+                <div v-if="farmerConfigs[selectedFarmer]?.allowGidon">
                     <span class="font-bold">גדעון: </span>
                     <span>{{ lastFormData.gidon ? 'כן' : 'לא' }}</span>
                 </div>
@@ -191,7 +191,7 @@
             </div>
             <div class="mt-6 flex justify-end">
                 <button @click="printPDF"
-                    class="text-2xl p-4 font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                    class="text-2xl p-4 btn-primary">
                     הפק מדבקה
                 </button>
             </div>
@@ -200,8 +200,7 @@
 </template>
 
 <script>
-import { kinds, sizes, destinations } from "../data/data.js"
-import { ref, reactive, watch } from 'vue'
+import { inject, ref, reactive, watch, computed } from 'vue'
 import createStickerPDF from '../data/printData.js';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
@@ -214,12 +213,17 @@ export default {
     },
 
     setup(props) {
-        destinations
-        kinds
-        sizes
         const isSubmitting = ref(false)
         const submitStatus = ref('')
         const statusMessage = ref('')
+        const config = inject('config');
+
+        // Reactive lists from config
+        const kinds = computed(() => config.kinds || []);
+        const sizes = computed(() => config.sizes || []);
+        const destinations = computed(() => config.destinations || []);
+        const farmerConfigs = computed(() => config.farmerConfigs || {});
+
         const isLoading = ref(false)
         const message = ref("Loading...")
         const lastFormData = ref(null)
@@ -329,6 +333,9 @@ export default {
             isLoading,
             message,
             destinations,
+            kinds,
+            sizes,
+            farmerConfigs,
             lastFormData  // Make sure to return lastFormData
         }
     },

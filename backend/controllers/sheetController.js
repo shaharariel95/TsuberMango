@@ -48,11 +48,11 @@ class SheetController {
       });
     } catch (error) {
       if (error.message.includes("Invalid farmer sheet")) {
-        res.status(400).json({ error: error.message });
+        return res.status(400).json({ error: error.message });
       } else if (error.message.includes("Missing required fields")) {
-        res.status(400).json({ error: error.message });
+        return res.status(400).json({ error: error.message });
       } else {
-        res
+        return res
           .status(500)
           .json({ error: "Failed to add record", details: error.message });
       }
@@ -75,9 +75,9 @@ class SheetController {
       });
     } catch (error) {
       if (error.message.includes("Invalid farmer sheet")) {
-        res.status(400).json({ error: error.message });
+        return res.status(400).json({ error: error.message });
       } else {
-        res.status(500).json({
+        return res.status(500).json({
           error: "Failed to fetch records",
           details: error.message,
         });
@@ -102,9 +102,9 @@ class SheetController {
         data: filteredRecords,
       })
     } catch(e) {
-      res.status(500).json({
+      return res.status(500).json({
         error: "Failed to fetch records",
-        details: error.message,
+        details: e.message,
       });
     }
   }
@@ -135,9 +135,9 @@ class SheetController {
       });
     } catch (error) {
       if (error.message.includes("Invalid farmer sheet")) {
-        res.status(400).json({ error: error.message });
+        return res.status(400).json({ error: error.message });
       } else {
-        res.status(500).json({
+        return res.status(500).json({
           error: "Failed to fetch records",
           details: error.message,
         });
@@ -169,7 +169,7 @@ class SheetController {
         `[getLastPallet] Error fetching last pallet for farmer: ${farmer}`,
         error
       );
-      res
+      return res
         .status(500)
         .json({ error: "Failed to fetch last pallet", details: error.message });
     }
@@ -215,7 +215,7 @@ class SheetController {
           destination,
           sent,
           gidon,
-          mark = mark || false,
+          mark = false,
         } = pallet;
 
         if (
@@ -353,16 +353,16 @@ class SheetController {
       });
     } catch (error) {
       if (error.message.includes("Invalid farmer sheet")) {
-        res.status(400).json({ error: error.message });
+        return res.status(400).json({ error: error.message });
       } else if (
         error.message.includes("Row with ID") &&
         error.message.includes("not found")
       ) {
-        res.status(404).json({ error: error.message });
+        return res.status(404).json({ error: error.message });
       } else if (error.message.includes("Missing required fields")) {
-        res.status(400).json({ error: error.message });
+        return res.status(400).json({ error: error.message });
       } else {
-        res.status(500).json({
+        return res.status(500).json({
           error: "Failed to update record",
           details: error.message,
         });
@@ -386,7 +386,7 @@ class SheetController {
 
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {
-      res
+      return res
         .status(500)
         .json({ error: "Failed to reset pallets", details: error.message });
     }
@@ -417,7 +417,7 @@ class SheetController {
 
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {
-      res
+      return res
         .status(500)
         .json({ error: "Failed to reset pallets", details: error.message });
     }
@@ -448,7 +448,7 @@ class SheetController {
 
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {
-      res
+      return res
         .status(500)
         .json({ error: "Failed to reset pallets", details: error.message });
     }

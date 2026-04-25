@@ -4,6 +4,21 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const cors = require("cors");
 const sheetRoutes = require("./routes/sheetRoutes");
+const admin = require("firebase-admin");
+const path = require("path");
+
+// 🔒 Initialize Firebase Admin for Secure Config Management
+try {
+  const serviceAccount = require(path.join(__dirname, "services", "SheetsCred.env.json"));
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id
+  });
+  console.log("Firebase Admin Initialized Successfully for project:", process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id);
+} catch (error) {
+  console.error("Firebase Admin Initialization Error:", error);
+}
+const db = admin.firestore();
 
 const app = express();
 
@@ -131,6 +146,44 @@ app.use(
   },
   sheetRoutes
 );
+
+// 🛠️ Admin Sheet Management
+app.post("/api/admin/create-sheet", ensureAdmin, async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: "Sheet name is required" });
+
+  try {
+    const sheetsService = require("./services/googleSheetsService");
+    await sheetsService.addSheet(name);
+    res.json({ success: true, message: `Sheet '${name}' created successfully` });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create sheet", details: error.message });
+  }
+});
+
+app.post("/api/admin/delete-sheet", ensureAdmin, async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: "Sheet name is required" });
+
+  try {
+    const sheetsService = require("./services/googleSheetsService");
+    await sheetsService.deleteSheet(name);
+    res.json({ success: true, message: `Sheet '${name}' deleted successfully` });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete sheet", details: error.message });
+  }
+});
+
+// 🔒 Secure Config Management (Proxy for Firestore)
+app.post("/api/admin/config", ensureAdmin, async (req, res) => {
+  try {
+    await db.collection("config").doc("global").set(req.body);
+    res.json({ success: true, message: "Configuration saved to Firestore via Backend" });
+  } catch (error) {
+    console.error("Firebase Admin Error:", error);
+    res.status(500).json({ error: "Failed to save config to Firestore", details: error.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

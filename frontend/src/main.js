@@ -5,6 +5,7 @@ import router from "./router";
 import axios from "axios";
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
 
 // Set global axios defaults
 axios.defaults.withCredentials = true;
@@ -22,5 +23,8 @@ const firebaseConfig = {
 
 const firebase = initializeApp(firebaseConfig);
 const analytics = getAnalytics(firebase);
+const db = getFirestore(firebase);
+
+export { db };
 
 createApp(App).use(router).mount("#app");

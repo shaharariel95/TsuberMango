@@ -2,3 +2,22 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+    .btn-primary {
+        @apply font-bold bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors;
+    }
+    .btn-primary:disabled {
+        @apply bg-gray-400 hover:bg-gray-400;
+    }
+    
+    /* Fix for Firefox white-on-white dropdowns */
+    select option {
+        color: #000000 !important;
+        background-color: #ffffff !important;
+    }
+
+    select {
+        color: #000000;
+    }
+}

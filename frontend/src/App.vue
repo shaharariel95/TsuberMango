@@ -28,8 +28,13 @@
         </li>
       </ul>
 
-      <div class="mt-auto">
-        <button @click="logout" class="p-2 bg-red-500 text-white rounded w-full">יציאה</button>
+      <div class="mt-auto flex flex-col space-y-2">
+        <router-link v-for="route in bottomRoutes" :key="route.path"
+            :class="['block p-2 rounded border-2 border-gray-700 text-black text-end font-bold', { 'bg-blue-400': isActiveLink(route.path), 'bg-white': !isActiveLink(route.path) }]"
+            :to="route.path">
+            {{ collapsed ? route.label[0] : route.label }}
+        </router-link>
+        <button @click="logout" class="p-2 bg-red-500 text-white rounded w-full font-bold">יציאה</button>
       </div>
     </nav>
 
@@ -56,8 +61,11 @@
 </template>
 
 <script>
-import { ref, provide, computed, watch } from 'vue';
+import { ref, reactive, provide, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { db } from './main';
+import { doc, onSnapshot } from 'firebase/firestore'; 
+import { farmerConfigs } from './data/data'; // Fallback for initial load
 
 export default {
   setup() {
@@ -65,10 +73,27 @@ export default {
     const error = ref(null);
     const route = useRoute();
     const router = useRouter();
-    const farmers = ref(['גבי צוברי', 'עטר שחק', 'קופלר', 'גמליאל', 'אבנר לוי', 'עידן לוי']);
-    const selectedFarmer = ref(farmers.value[0]);
+    
+    // Dynamic Config State
+    const farmers = ref([]); // Now dynamic
+    const kinds = ref([]);
+    const sizes = ref([]);
+    const destinations = ref([]);
+    const dynamicFarmerConfigs = ref({});
+
+    const selectedFarmer = ref("");
     const collapsed = ref(false);
-    const user = ref({ role: 'admin' }); // Set a default user or fetch from API
+    const user = ref(null); 
+
+    // Provide the config to all children as a reactive object
+    const config = reactive({
+      farmers: [],
+      kinds: [],
+      sizes: [],
+      destinations: [],
+      farmerConfigs: {}
+    });
+    provide('config', config);
     provide('selectedFarmer', selectedFarmer);
 
     const isActiveLink = (path) => {
@@ -107,14 +132,65 @@ export default {
       { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
       { path: '/Destination', label: 'הכנה למשלוח', role: 'user' },
       { path: '/SentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
-      { path: '/DestinationsSummary', label: 'סיכום יעדים', role: 'user' }, // new tab
+      { path: '/DestinationsSummary', label: 'סיכום יעדים', role: 'user' },
+      { path: '/Settings', label: 'ניהול הגדרות', role: 'admin', isBottom: true },
     ]);
+
+    onMounted(() => {
+      // 1. Fetch User Info
+      fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.email) user.value = data;
+        })
+        .catch(err => console.error("Not logged in"));
+
+      // 2. Listen to Firestore Config
+      const configDoc = doc(db, "config", "global");
+      onSnapshot(configDoc, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          kinds.value = data.kinds || [];
+          sizes.value = data.sizes || [];
+          destinations.value = data.destinations || [];
+          
+          // Map farmer list
+          const farmersList = data.farmers || [];
+          farmers.value = farmersList.map(f => f.name);
+          
+          // Map farmer configs
+          const fConfigs = {};
+          farmersList.forEach(f => {
+            fConfigs[f.name] = { allowGidon: f.allowGidon };
+          });
+          dynamicFarmerConfigs.value = fConfigs;
+
+          // Sync the shared reactive config object
+          config.kinds = data.kinds || [];
+          config.sizes = data.sizes || [];
+          config.destinations = data.destinations || [];
+          config.farmers = farmers.value;
+          config.farmerConfigs = fConfigs;
+
+          if (!selectedFarmer.value && farmers.value.length > 0) {
+            selectedFarmer.value = farmers.value[0];
+          }
+        }
+      });
+    });
 
     const accessibleRoutes = computed(() => {
       if (!user.value) return [];
       return routes.value.filter(route =>
-        user.value.role === 'admin' || route.role === user.value.role || route.role === 'all'
+        (user.value.role === 'admin' || route.role === user.value.role || route.role === 'all') && !route.isBottom
       );
+    });
+
+    const bottomRoutes = computed(() => {
+        if (!user.value) return [];
+        return routes.value.filter(route => 
+            route.isBottom && (user.value.role === 'admin' || route.role === user.value.role)
+        );
     });
 
     // Watch for error changes to show/hide error message
@@ -137,7 +213,9 @@ export default {
       isLoginPage,
       user,
       logout,
-      accessibleRoutes
+      accessibleRoutes,
+      bottomRoutes,
+      config
     };
   },
 };

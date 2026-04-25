@@ -3,6 +3,11 @@ const { google } = require('googleapis');
 const path = require('path');
 const logger = require("../utils/logger");
 
+const COL_INDEX = {
+    SENT: 10,
+    MARK: 12
+};
+
 
 class GoogleSheetsService {
     constructor() {
@@ -57,7 +62,7 @@ class GoogleSheetsService {
             const response = await this.sheets.spreadsheets.values.append({
                 spreadsheetId: this.SPREADSHEET_ID,
                 range: `${sheetName}!A:L`,
-                valueInputOption: 'RAW',
+                valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values: [rowWithId],
                 },
@@ -141,32 +146,81 @@ class GoogleSheetsService {
             spreadsheetId: this.SPREADSHEET_ID
         });
         const sheet = response.data.sheets.find(s => s.properties.title === sheetName);
-        if (!sheet) throw new Error(`Sheet with name ${sheetName} not found`);
+        if (!sheet) return null;
         return sheet.properties.sheetId;
+    }
+
+    async addSheet(sheetName) {
+        await this.initialize();
+
+        // 1. Create the sheet
+        await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId: this.SPREADSHEET_ID,
+            requestBody: {
+                requests: [{
+                    addSheet: {
+                        properties: {
+                            title: sheetName,
+                            gridProperties: {
+                                rowCount: 1000,
+                                columnCount: 20
+                            }
+                        }
+                    }
+                }]
+            }
+        });
+
+        // 2. Add headers
+        const headers = ["ID", "תאריך משלוח", "מספר תעודה", "תאריך קטיף", "מספר משטח", "זן", "גודל", "ארגזים", "משקל", "יעד", "נשלח", "גדעון", "סימון"];
+        await this.sheets.spreadsheets.values.update({
+            spreadsheetId: this.SPREADSHEET_ID,
+            range: `${sheetName}!A1:M1`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values: [headers]
+            }
+        });
+
+        return { success: true };
+    }
+
+    async deleteSheet(sheetName) {
+        await this.initialize();
+        const sheetId = await this.getSheetIdByName(sheetName);
+        if (!sheetId) throw new Error(`Sheet ${sheetName} not found`);
+
+        await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId: this.SPREADSHEET_ID,
+            requestBody: {
+                requests: [{
+                    deleteSheet: {
+                        sheetId: sheetId
+                    }
+                }]
+            }
+        });
+
+        return { success: true };
     }
 
     async updateRowsByIds(sheetName, ids, updatedDataArray) {
         await this.initialize();
         await this.validateSheetName(sheetName);
         logger.info(`updateing rows for farmer ${sheetName} with ids: `, ids)
-        const requests = [];
-
-        // Fetch all rows once
+        
         const response = await this.sheets.spreadsheets.values.get({
             spreadsheetId: this.SPREADSHEET_ID,
             range: `${sheetName}!A:M`,
         });
 
         const rows = response.data.values || [];
-        // Fetch the sheetId for the correct sheet
-        const sheetId = await this.getSheetIdByName(sheetName);
+        const updates = [];
 
-        // Prepare the batch update requests
         for (let i = 0; i < ids.length; i++) {
             const id = ids[i];
             const updatedData = updatedDataArray[i];
 
-            // Find the row to update
             const rowIndex = rows.findIndex(row => parseInt(row[0]) === id);
 
             if (rowIndex === -1) {
@@ -174,34 +228,20 @@ class GoogleSheetsService {
             }
 
             const rowWithId = [id, ...updatedData];
-
-            // Prepare the update request for this row
-            requests.push({
-                updateCells: {
-                    rows: [
-                        {
-                            values: rowWithId.map(value => ({
-                                userEnteredValue: typeof value === 'boolean' 
-                                    ? { boolValue: value }
-                                    : { stringValue: String(value) }
-                            }))
-                        }
-                    ],
-                    fields: "userEnteredValue",
-                    start: {
-                        sheetId: sheetId, // <-- Fix: specify the correct sheetId
-                        rowIndex: rowIndex,
-                        columnIndex: 0
-                    }
-                }
+            
+            updates.push({
+                range: `${sheetName}!A${rowIndex + 1}:M${rowIndex + 1}`,
+                values: [rowWithId],
             });
         }
 
-        // Perform the batch update for all rows
-        if (requests.length > 0) {
-            await this.sheets.spreadsheets.batchUpdate({
+        if (updates.length > 0) {
+            await this.sheets.spreadsheets.values.batchUpdate({
                 spreadsheetId: this.SPREADSHEET_ID,
-                requestBody: { requests },
+                requestBody: {
+                    valueInputOption: 'USER_ENTERED',
+                    data: updates
+                },
             });
         }
 
@@ -232,7 +272,7 @@ class GoogleSheetsService {
             await this.sheets.spreadsheets.values.update({
                 spreadsheetId: this.SPREADSHEET_ID,
                 range,
-                valueInputOption: 'RAW',
+                valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values: [rowWithId],
                 },
@@ -262,7 +302,7 @@ class GoogleSheetsService {
             palletIds.forEach(palletId => {
                 const rowIndex = rows.findIndex(row => parseInt(row[0]) === palletId); // Assuming ID is in column A
                 if (rowIndex !== -1) {
-                    rows[rowIndex][10] = newStatus;
+                    rows[rowIndex][COL_INDEX.SENT] = newStatus;
                     updates.push({
                         range: `${sheetName}!A${rowIndex + 1}:L${rowIndex + 1}`,
                         values: [rows[rowIndex]],
@@ -277,7 +317,7 @@ class GoogleSheetsService {
             // Batch update
             const batchUpdateRequest = {
                 data: updates,
-                valueInputOption: 'RAW',
+                valueInputOption: 'USER_ENTERED',
             };
     
             await this.sheets.spreadsheets.values.batchUpdate({
@@ -287,7 +327,7 @@ class GoogleSheetsService {
     
             return updates.map(update => ({
                 id: update.values[0][0],
-                sent: update.values[0][10],
+                sent: update.values[0][COL_INDEX.SENT],
             })); // Return updated rows with their IDs and new status
         } catch (error) {
             throw new Error(`Failed to update pallets: ${error.message}`);
@@ -310,7 +350,7 @@ class GoogleSheetsService {
             palletIds.forEach(palletId => {
                 const rowIndex = rows.findIndex(row => parseInt(row[0]) === palletId); // Assuming ID is in column A
                 if (rowIndex !== -1) {
-                    rows[rowIndex][12] = newStatus;
+                    rows[rowIndex][COL_INDEX.MARK] = newStatus;
                     updates.push({
                         range: `${sheetName}!A${rowIndex + 1}:M${rowIndex + 1}`,
                         values: [rows[rowIndex]],
@@ -325,7 +365,7 @@ class GoogleSheetsService {
             // Batch update
             const batchUpdateRequest = {
                 data: updates,
-                valueInputOption: 'RAW',
+                valueInputOption: 'USER_ENTERED',
             };
     
             await this.sheets.spreadsheets.values.batchUpdate({
@@ -335,7 +375,7 @@ class GoogleSheetsService {
     
             return updates.map(update => ({
                 id: update.values[0][0],
-                sent: update.values[0][10],
+                sent: update.values[0][COL_INDEX.SENT],
             })); // Return updated rows with their IDs and new status
         } catch (error) {
             throw new Error(`Failed to update pallets: ${error.message}`);

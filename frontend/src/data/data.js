@@ -3,6 +3,10 @@ export const kinds = ['שלי', 'טומי', 'היידן', 'אורלי','אגם' 
 
 export const sizes = [12, 15, 18, 21, 24, 'נספק'];
 
+export const farmerConfigs = {
+  "גבי צוברי": { allowGidon: true }
+};
+
 export const destinations = [
   "",
 "עדנאן- טמרה",
