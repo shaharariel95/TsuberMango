@@ -111,6 +111,22 @@ app.get(
   }
 );
 
+// 🔧 Dev Mode: Auto-login without Google OAuth
+if (process.env.NODE_ENV === 'development' && process.env.DEV_BYPASS_AUTH === 'true') {
+  console.warn('⚠️  DEV_BYPASS_AUTH is ON — authentication is bypassed for /api/auth/dev-login');
+
+  app.get('/api/auth/dev-login', (req, res) => {
+    const role = req.query.role || 'admin';
+    const email = req.query.email || Object.keys(USERS)[0];
+    req.login({ email, role }, (err) => {
+      if (err) return res.status(500).json({ error: 'Dev login failed' });
+      req.session.save(() => {
+        res.redirect(process.env.FRONT);
+      });
+    });
+  });
+}
+
 // Unauthorized route: clear session and cookies, redirect to login
 app.get("/api/auth/unauthorized", (req, res) => {
   req.logout(() => {

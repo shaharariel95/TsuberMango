@@ -8,7 +8,7 @@ export default defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: "https://backend-service-7akqk3wk3q-zf.a.run.app", // Backend server
+        target: "http://localhost:3000", // Local backend server
         changeOrigin: true, // Ensure the origin of the host header matches the target
         secure: false, // Allow self-signed certificates if using HTTPS
         configure: (proxy) => {
