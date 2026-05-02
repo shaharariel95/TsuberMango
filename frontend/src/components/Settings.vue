@@ -17,30 +17,31 @@
       <h2 class="text-xl font-bold text-slate-700 flex items-center gap-2 pb-2 border-b border-slate-100">
         <span class="text-lg">👨‍🌾</span> ניהול חקלאים
       </h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div v-for="farmer in localConfig.farmers" :key="farmer.name" 
-             class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
-          <div class="flex items-center gap-4">
-            <span class="font-bold text-sm min-w-[100px] text-slate-700">{{ farmer.name }}</span>
-            <label class="flex items-center cursor-pointer gap-2">
-              <input type="checkbox" v-model="farmer.allowGidon" @change="saveConfig" 
-                     class="form-checkbox h-4 w-4 rounded text-mango-500 border-slate-300 focus:ring-mango-400">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div v-for="farmer in localConfig.farmers" :key="farmer.name"
+             class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors gap-2">
+          <div class="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <span class="font-bold text-sm min-w-[80px] sm:min-w-[100px] text-slate-700 truncate">{{ farmer.name }}</span>
+            <label class="flex items-center cursor-pointer gap-2 flex-shrink-0">
+              <input type="checkbox" v-model="farmer.allowGidon" @change="saveConfig"
+                     class="form-checkbox h-5 w-5 rounded text-mango-500 border-slate-300 focus:ring-mango-400">
               <span class="text-xs text-slate-500">גדעון?</span>
             </label>
           </div>
-          <button @click="confirmDeleteFarmer(farmer.name)" 
-                  class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all text-sm">
+          <button @click="confirmDeleteFarmer(farmer.name)"
+                  class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-all text-base flex-shrink-0 min-h-[40px] min-w-[40px]"
+                  aria-label="מחק חקלאי">
             🗑️
           </button>
         </div>
       </div>
 
       <!-- Add Farmer -->
-      <div class="flex gap-2 mt-4 pt-4 border-t border-slate-100">
-        <input v-model="newFarmerName" placeholder="שם חקלאי חדש" 
+      <div class="flex flex-col sm:flex-row gap-2 mt-4 pt-4 border-t border-slate-100">
+        <input v-model="newFarmerName" placeholder="שם חקלאי חדש"
                class="input-field flex-1 text-sm">
         <button @click="addFarmer" :disabled="isWorking"
-                class="btn-primary text-sm flex items-center gap-1.5 whitespace-nowrap">
+                class="btn-primary text-sm flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[44px]">
           <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorking"></span>
           {{ isWorking ? 'יוצר גיליון...' : '+ הוסף חקלאי' }}
         </button>
@@ -52,7 +53,7 @@
       <h2 class="text-xl font-bold text-slate-700 pb-2 border-b border-slate-100 flex items-center gap-2">
         <span class="text-lg">📋</span> ניהול רשימות
       </h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <ListEditor title="זנים" emoji="🥭" addButtonLabel="זן" v-model="localConfig.kinds" />
         <ListEditor title="גדלים" emoji="📏" addButtonLabel="גודל" v-model="localConfig.sizes" />
         <ListEditor title="יעדים" emoji="🚚" addButtonLabel="יעד" v-model="localConfig.destinations" />
@@ -60,7 +61,7 @@
       
       <div class="flex justify-end pt-4 border-t border-slate-100">
         <button @click="saveConfig" :disabled="isWorking"
-                class="btn-primary flex items-center gap-2">
+                class="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto min-h-[44px]">
           <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorking"></span>
           <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />

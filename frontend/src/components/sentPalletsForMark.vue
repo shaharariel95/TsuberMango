@@ -4,7 +4,9 @@
             <span class="loading-spinner !w-10 !h-10 !border-[3px]"></span>
             <span class="text-slate-400 text-sm font-medium">טוען נתונים...</span>
         </div>
-        <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="false" :columnsFilter="['sent','gidon','harvestDate','selected']" />
+        <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="false"
+            :columnsFilter="['sent','gidon','harvestDate','selected']"
+            title="יצאו למשלוח" subtitle="משטחים שנשלחו עם פרטי משלוח" />
     </div>
 </template>
 

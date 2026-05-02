@@ -4,8 +4,18 @@
 @tailwind utilities;
 
 @layer base {
+  html, body {
+    /* Disable native blue-grey tap-highlight on touch */
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-slate-100 text-slate-800 antialiased;
+  }
+
+  /* Lock background scroll when the mobile drawer is open */
+  body.drawer-open {
+    overflow: hidden;
   }
 
   /* Smooth transitions on all interactive elements */
@@ -26,6 +36,14 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400;
+  }
+
+  /* Wider scrollbars on touch devices for easier dragging */
+  @media (pointer: coarse) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
   }
 }
 
@@ -80,9 +98,11 @@
 
   /* ── Chip / Toggle Buttons ─────────────────── */
   .chip {
-    @apply px-4 py-2 border-2 border-slate-200 rounded-full cursor-pointer
-           text-center font-medium text-slate-600
+    @apply inline-flex items-center justify-center min-h-[44px] min-w-[60px]
+           px-4 py-2 border-2 border-slate-200 rounded-full cursor-pointer
+           text-center font-medium text-slate-600 select-none
            hover:border-mango-300 hover:text-mango-700 hover:bg-mango-50
+           active:scale-95
            transition-all duration-200;
   }
 
@@ -143,6 +163,11 @@
     @apply toast bg-amber-500/95 text-white;
   }
 
+  /* ── Drawer overlay (mobile sidebar backdrop) ── */
+  .drawer-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40;
+  }
+
   /* ── Fix for Firefox white-on-white dropdowns ── */
   select option {
     color: #000000 !important;
@@ -156,5 +181,10 @@
   /* ── RTL helper ────────────────────────────── */
   .rtl {
     direction: rtl;
+  }
+
+  /* ── Touch-friendly tap target helper ──────── */
+  .tap-target {
+    @apply min-h-[44px] min-w-[44px];
   }
 }

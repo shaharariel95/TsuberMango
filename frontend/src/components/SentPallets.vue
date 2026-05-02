@@ -4,7 +4,8 @@
             <span class="loading-spinner !w-10 !h-10 !border-[3px]"></span>
             <span class="text-slate-400 text-sm font-medium">טוען נתונים...</span>
         </div>
-        <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="false" />
+        <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="false"
+            title="משטחים שנשלחו" subtitle="היסטוריית משטחים שנשלחו" />
     </div>
 </template>
 

@@ -1,14 +1,14 @@
 <template>
     <div class="flex flex-col gap-6 animate-fade-in">
         <!-- Page Header -->
-        <div class="flex items-center justify-between rtl">
-            <div>
-                <h2 class="text-3xl font-bold text-slate-800">קליטה</h2>
+        <div class="flex items-center justify-between rtl gap-3 flex-wrap">
+            <div class="min-w-0">
+                <h2 class="text-2xl sm:text-3xl font-bold text-slate-800">קליטה</h2>
                 <p class="text-slate-500 text-sm mt-0.5">רישום משטח חדש</p>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="text-slate-500 text-sm">מגדל:</span>
-                <span class="font-bold text-base bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-4 py-1.5">
+            <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                <span class="text-slate-500 text-sm hidden sm:inline">מגדל:</span>
+                <span class="font-bold text-sm sm:text-base bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-3 sm:px-4 py-1.5">
                     {{ selectedFarmer }}
                 </span>
             </div>
@@ -24,7 +24,7 @@
                 </div>
 
                 <!-- Row 1: Date, Pallet Number, Boxes -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-base font-medium">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-base font-medium">
                     <div>
                         <label class="block text-slate-600 mb-1.5 text-sm">
                             תאריך קטיף <span class="text-red-400">*</span>
@@ -52,7 +52,7 @@
                 </div>
 
                 <!-- Row 2: Kind and Size chips -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-slate-600 mb-2 text-sm font-medium">
                             זן <span class="text-red-400">*</span>
@@ -106,7 +106,7 @@
                     <span class="text-sm font-semibold text-slate-400 uppercase tracking-wide">שדות נוספים</span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-base">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-base">
                     <div>
                         <label class="block text-slate-600 mb-1.5 text-sm">תאריך משלוח</label>
                         <input type="date" v-model="formData.shipmentDate" class="input-field" />
@@ -132,7 +132,7 @@
             </div>
 
             <!-- Submit Row -->
-            <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
                 <div class="flex-1">
                     <Transition
                         enter-active-class="transition-all duration-300"
@@ -154,7 +154,7 @@
                     </Transition>
                 </div>
                 <button type="submit"
-                    class="btn-primary text-lg px-8 py-3 flex items-center gap-2"
+                    class="btn-primary text-lg px-8 py-3 flex items-center justify-center gap-2 w-full sm:w-auto min-h-[52px]"
                     :disabled="isSubmitting">
                     <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isSubmitting"></span>
                     {{ isSubmitting ? 'מוסיף...' : 'הוסף' }}
@@ -168,7 +168,7 @@
             enter-from-class="opacity-0 translate-y-4"
             enter-to-class="opacity-100 translate-y-0">
             <div v-if="lastFormData" class="card border-r-4 border-r-mango-400 rtl">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
                     <h3 class="text-lg font-bold text-slate-700 flex items-center gap-2">
                         <svg class="w-5 h-5 text-mango-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -182,7 +182,7 @@
                         הפק מדבקה
                     </button>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
                     <div class="bg-slate-50 rounded-lg p-2.5">
                         <span class="text-slate-400 text-xs block">מגדל</span>
                         <span class="font-semibold">{{ lastFormData.farmer }}</span>

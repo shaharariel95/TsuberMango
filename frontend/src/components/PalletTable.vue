@@ -1,64 +1,77 @@
 <template>
-    <div class="h-full animate-fade-in">
-        <!-- Action Bar -->
-        <div class="mb-4 flex flex-row justify-between items-center gap-3 rtl">
-            <div v-if="!destinationOnly && !columnsFilter.length" class="flex flex-wrap gap-2">
-                <button @click="sendSelectedPallets" :disabled="isCreateLabelAllowed || isCreatingLabel"
-                    class="btn-primary text-sm flex items-center gap-1.5"
-                    v-if="isEditable">
-                    <span v-if="isSendingPalletLoading == false">צור תעודת משלוח</span>
-                    <span v-else class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white"></span>
-                </button>
-                <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
-                    class="btn-primary text-sm" v-else>
-                    החזר משטחים נשלחו
-                </button>
-                <button @click="printPDF" :disabled="selectedPallets.length !== 1 || isCreatingLabel"
-                    class="btn-ghost text-sm border border-slate-200 flex items-center gap-1.5"
-                    v-if="isEditable">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                    </svg>
-                    <span v-if="isSendingPalletLoading == false">הפק מדבקה</span>
-                    <span v-else class="loading-spinner !w-4 !h-4"></span>
-                </button>
-                <button @click="updateToDestinations(true)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
-                    class="btn-primary text-sm bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 flex items-center gap-1.5"
-                    v-if="isEditable">
-                    <span v-if="isSendingPalletLoading == false">העבר למשלוח</span>
-                    <span v-else class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white"></span>
-                </button>
-                <button @click="updateToDestinations(false)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
-                    class="btn-ghost text-sm border border-slate-200"
-                    v-if="isEditable">
-                    <span v-if="isSendingPalletLoading == false">הורד ממשלוח</span>
-                    <span v-else class="loading-spinner !w-4 !h-4"></span>
-                </button>
+    <div class="w-full flex flex-col animate-fade-in">
+        <!-- Compact Toolbar -->
+        <div class="flex items-center justify-between gap-x-3 gap-y-2 mb-2 rtl flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap min-w-0">
+                <div class="toolbar-identity flex items-center gap-2">
+                    <h2 v-if="title" class="text-lg font-bold text-slate-800 truncate">{{ title }}</h2>
+                    <span class="text-sm font-semibold bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-2.5 py-1 flex-shrink-0">{{ farmer }}</span>
+                </div>
+                <span class="text-sm font-bold bg-slate-100 text-slate-600 rounded-lg px-2.5 py-1 flex-shrink-0">{{ AmountOfPallets }} משטחים</span>
             </div>
-            <div class="flex items-center gap-3">
-                <span class="badge bg-mango-50 text-mango-700 border border-mango-200 text-sm px-3 py-1.5 font-bold">
-                    כמות משטחים: {{ AmountOfPallets }}
-                </span>
-                <button v-if="isEditable && !destinationOnly && !columnsFilter.length" @click="toggleSentView"
-                        class="btn-ghost text-sm border border-slate-200">
-                    <span v-if="sentView">הצג משטחים שנשלחו</span>
-                    <span v-else>הסתר משטחים שנשלחו</span>
-                </button>
+            <div class="flex flex-wrap gap-1.5 items-center flex-shrink-0">
+                <template v-if="!destinationOnly && !columnsFilter.length">
+                    <button @click="sendSelectedPallets" :disabled="isCreateLabelAllowed || isCreatingLabel"
+                        class="btn-primary text-sm flex items-center gap-1.5 min-h-[36px] px-3"
+                        v-if="isEditable">
+                        <span v-if="isSendingPalletLoading == false">צור תעודת משלוח</span>
+                        <span v-else class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white"></span>
+                    </button>
+                    <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
+                        class="btn-primary text-sm min-h-[36px] px-3" v-else>
+                        החזר משטחים נשלחו
+                    </button>
+                    <button @click="printPDF" :disabled="selectedPallets.length !== 1 || isCreatingLabel"
+                        class="btn-ghost text-sm border border-slate-200 flex items-center gap-1.5 min-h-[36px] px-3"
+                        v-if="isEditable">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        <span v-if="isSendingPalletLoading == false">הפק מדבקה</span>
+                        <span v-else class="loading-spinner !w-4 !h-4"></span>
+                    </button>
+                    <button @click="updateToDestinations(true)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                        class="btn-primary text-sm bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 flex items-center gap-1.5 min-h-[36px] px-3"
+                        v-if="isEditable">
+                        <span v-if="isSendingPalletLoading == false">העבר למשלוח</span>
+                        <span v-else class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white"></span>
+                    </button>
+                    <button @click="updateToDestinations(false)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                        class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3"
+                        v-if="isEditable">
+                        <span v-if="isSendingPalletLoading == false">הורד ממשלוח</span>
+                        <span v-else class="loading-spinner !w-4 !h-4"></span>
+                    </button>
+                    <button v-if="isEditable" @click="toggleSentView"
+                            class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
+                        <span v-if="sentView">הצג משטחים שנשלחו</span>
+                        <span v-else>הסתר משטחים שנשלחו</span>
+                    </button>
+                </template>
             </div>
         </div>
 
+        <!-- Search -->
+        <div class="mb-2 relative rtl">
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input v-model="searchText" type="text" placeholder="חיפוש בטבלה..."
+                class="w-full border border-slate-200 rounded-lg text-sm pr-9 pl-3 py-1.5 min-h-[36px] focus:ring-1 focus:ring-mango-400 focus:border-mango-400 outline-none bg-white" />
+        </div>
+
         <!-- Table -->
-        <div class="overflow-auto h-[calc(100vh-50px)] sm:h-[calc(100vh-200px)] rounded-xl border border-slate-200 bg-white">
-            <table class="w-full border-collapse rtl">
+        <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white" style="overflow-y: clip; -webkit-overflow-scrolling: touch;">
+            <table class="w-full min-w-[1200px] border-collapse rtl">
                 <thead>
                     <tr>
                         <th v-for="col in columns" :key="col.key"
                             class="px-3 py-3 text-sm font-semibold text-slate-600 bg-slate-50 border-b-2 border-slate-200 text-center sticky top-0 z-[2]"
-                            :style="col.width ? `width: ${col.width}` : ''">
-                            <div class="flex items-center flex-col gap-1">
+                            :style="col.minWidth ? `min-width: ${col.minWidth}` : ''">
+                            <div class="flex items-center flex-col gap-1.5">
                                 {{ (col.key === 'selected' && !isEditable) ? 'הורדת סטטוס נשלח' : col.label }}
                                 <select v-if="col.filter" v-model="filterBy[col.key]"
-                                    class="border border-slate-200 rounded-md bg-white text-xs text-center px-1 py-0.5 max-w-[130px] focus:ring-1 focus:ring-mango-400 focus:border-mango-400 outline-none">
+                                    class="border border-slate-200 rounded-md bg-white text-xs sm:text-sm text-center px-2 py-1.5 min-h-[36px] max-w-[140px] focus:ring-1 focus:ring-mango-400 focus:border-mango-400 outline-none">
                                     <option value="">הכל</option>
                                     <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option"
                                         class="text-ellipsis overflow-hidden max-w-[150px]">
@@ -66,16 +79,16 @@
                                     </option>
                                 </select>
                                 <span v-if="col.sortable" @click="sortBy(col.key)"
-                                    class="cursor-pointer text-slate-400 hover:text-mango-500 transition-colors text-xs">
+                                    class="cursor-pointer text-slate-400 hover:text-mango-500 transition-colors text-xs select-none px-2 py-0.5">
                                     {{ col.key === sortField ? (sortDirection === 'asc' ? '▲' : '▼') : '⇅' }}
                                 </span>
                                 <input v-if="col.key === 'selected'" type="checkbox" @change="toggleSelectAll"
-                                    :checked="selectedPallets.length === filteredPallets.length"
-                                    class="w-4 h-4 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
+                                    :checked="selectedPallets.length === filteredPallets.length && filteredPallets.length > 0"
+                                    class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                             </div>
                         </th>
                         <th class="px-3 py-3 text-sm font-semibold text-slate-600 bg-slate-50 border-b-2 border-slate-200 sticky top-0 z-[2]"
-                            style="width: 6%" v-if="isEditable">עריכה</th>
+                            style="min-width: 80px" v-if="isEditable">עריכה</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -85,7 +98,6 @@
                             index % 2 === 0 ? 'bg-white' : 'bg-slate-50/70',
                             'hover:bg-mango-50/40'
                         ]">
-                        <!-- Editing Mode -->
                         <template v-if="editingId === pallet.id">
                             <td v-for="col in columns" :key="col.key" class="border-b border-slate-100 px-2 py-1.5">
                                 <template v-if="col.editable">
@@ -108,11 +120,11 @@
                                     </div>
                                     <div v-else-if="col.key == 'gidon'">
                                         <input type="checkbox" v-model="editingPallet[col.key]"
-                                            class="w-4 h-4 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
+                                            class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
                                     </div>
                                     <div v-else-if="col.key == 'sent'">
                                         <input type="checkbox" v-model="editingPallet[col.key]"
-                                            class="w-4 h-4 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
+                                            class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
                                     </div>
                                     <div v-else-if="col.key == 'shipmentDate'">
                                         <input type="date" v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5" />
@@ -126,37 +138,36 @@
                                 </template>
                                 <template v-else-if="col.key === 'selected'">
                                     <input type="checkbox" v-model="selectedPallets" :value="pallet.id"
-                                        class="w-4 h-4 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
+                                        class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                                 </template>
                                 <template v-else>{{ pallet[col.key] }}</template>
                             </td>
                             <td class="border-b border-slate-100 px-2 py-1.5">
                                 <div class="flex flex-col gap-1">
                                     <button v-if="!isLoading" @click="savePallet"
-                                        class="text-xs px-2 py-1 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium transition-colors">
+                                        class="text-xs px-2 py-1.5 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium transition-colors min-h-[32px]">
                                         שמור
                                     </button>
                                     <button v-else
-                                        class="text-xs px-2 py-1 rounded-md bg-mango-50 text-mango-600 font-medium flex items-center justify-center">
+                                        class="text-xs px-2 py-1.5 rounded-md bg-mango-50 text-mango-600 font-medium flex items-center justify-center min-h-[32px]">
                                         <span class="loading-spinner !w-3 !h-3"></span>
                                     </button>
                                     <button @click="closeEditing"
-                                        class="text-xs px-2 py-1 rounded-md bg-red-50 text-red-500 hover:bg-red-100 font-medium transition-colors">
+                                        class="text-xs px-2 py-1.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 font-medium transition-colors min-h-[32px]">
                                         ביטול
                                     </button>
                                 </div>
                             </td>
                         </template>
-                        <!-- View Mode -->
                         <template v-else>
                             <td v-for="col in columns" :key="col.key" class="border-b border-slate-100 px-3 py-2.5">
                                 <template v-if="col.key === 'selected'">
                                     <input type="checkbox" v-model="selectedPallets" :value="pallet.id"
-                                        class="w-4 h-4 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
+                                        class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                                 </template>
                                 <template v-if="col.key === 'sent'">
                                     <span :class="[
-                                        'inline-flex items-center justify-center w-2.5 h-2.5 rounded-full',
+                                        'inline-flex items-center justify-center w-3 h-3 rounded-full',
                                         pallet[col.key] ? 'bg-emerald-400 shadow-sm shadow-emerald-200' : 'bg-slate-300'
                                     ]"></span>
                                 </template>
@@ -164,7 +175,7 @@
                             </td>
                             <td class="border-b border-slate-100 px-3 py-2.5" v-if="isEditable">
                                 <button @click="startEditing(pallet)"
-                                    class="text-xs text-mango-600 hover:text-mango-800 font-medium hover:bg-mango-50 px-2 py-1 rounded transition-colors">
+                                    class="text-xs text-mango-600 hover:text-mango-800 font-medium hover:bg-mango-50 px-3 py-1.5 rounded transition-colors min-h-[32px]">
                                     ערוך
                                 </button>
                             </td>
@@ -223,24 +234,34 @@ export default {
             type: Array,
             required: false,
             default: () => []
+        },
+        title: {
+            type: String,
+            required: false,
+            default: ''
+        },
+        subtitle: {
+            type: String,
+            required: false,
+            default: ''
         }
     },
     inject: ['config'],
 
     data() {
         let columns = [
-            { key: 'sent', label: 'נשלח', editable: true, width: '5%' },
-            { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, width: '10%' },
-            { key: 'cardId', label: 'מספר תעודה', filter: true, editable: true, width: '7%' },
-            { key: 'harvestDate', label: 'תאריך קטיף', editable: true, width: '8%' },
-            { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, width: '7%' },
-            { key: 'kind', label: 'זן', filter: true, sortable: true, editable: true, width: '7%' },
-            { key: 'size', label: 'גודל', filter: true, sortable: true, editable: true, width: '6%' },
-            { key: 'boxes', label: 'ארגזים', editable: true, width: '6%' },
-            { key: 'weight', label: 'משקל', editable: true, width: '7%' },
-            { key: 'destination', label: 'יעד', filter: true, editable: true, width: '15%' },
-            { key: 'gidon', label: 'הערה', filter: true, editable: true, width: '6%' },
-            { key: 'selected', label: 'בחירת משטח', width: '6%' }
+            { key: 'sent', label: 'נשלח', editable: true, minWidth: '70px' },
+            { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, minWidth: '120px' },
+            { key: 'cardId', label: 'מספר תעודה', filter: true, editable: true, minWidth: '100px' },
+            { key: 'harvestDate', label: 'תאריך קטיף', editable: true, minWidth: '110px' },
+            { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, minWidth: '95px' },
+            { key: 'kind', label: 'זן', filter: true, sortable: true, editable: true, minWidth: '95px' },
+            { key: 'size', label: 'גודל', filter: true, sortable: true, editable: true, minWidth: '85px' },
+            { key: 'boxes', label: 'ארגזים', editable: true, minWidth: '80px' },
+            { key: 'weight', label: 'משקל', editable: true, minWidth: '85px' },
+            { key: 'destination', label: 'יעד', filter: true, editable: true, minWidth: '170px' },
+            { key: 'gidon', label: 'הערה', filter: true, editable: true, minWidth: '90px' },
+            { key: 'selected', label: 'בחירת משטח', minWidth: '100px' }
         ];
         if (this.destinationOnly) {
             columns = columns.filter(col => !['gidon', 'selected'].includes(col.key));
@@ -252,7 +273,7 @@ export default {
         if (this.columnsFilter && this.columnsFilter.length > 0) {
             columns = columns.filter(col => !this.columnsFilter.includes(col.key));
         }
-        
+
         // Use dynamic config
         const farmerConfigs = this.config.farmerConfigs;
 
@@ -277,6 +298,13 @@ export default {
             isCreatingLabel: false,
             sentView: false,
             destinationFilterText: '',
+            searchText: '',
+        }
+    },
+
+    watch: {
+        farmer() {
+            this.searchText = '';
         }
     },
 
@@ -288,27 +316,29 @@ export default {
             return this.selectedPallets.length === 0 || this.selectedPallets.length > 13
         },
         filteredPallets() {
+            const search = this.searchText.trim().toLowerCase();
             return this.pallets.filter(pallet => {
                 const matchesSent = this.sentView ? pallet.sent === false : true;
 
-                // Check each filter property
+                if (search) {
+                    const hit = ['palletNumber', 'cardId', 'shipmentDate', 'harvestDate', 'kind', 'size', 'boxes', 'weight', 'destination'].some(
+                        f => String(pallet[f] ?? '').toLowerCase().includes(search)
+                    );
+                    if (!hit) return false;
+                }
+
                 let allFiltersMatch = true;
 
-                // Special handling for gidon filter
                 if (this.filterBy.gidon !== undefined && this.filterBy.gidon !== null) {
                     if (this.filterBy.gidon === "גדעון") {
-                        // When filter is "גדעון", show only true values
                         if (!pallet.gidon) return false;
                     } else if (this.filterBy.gidon === "אין הערה") {
-                        // When filter is empty string, show only false values
                         if (pallet.gidon) return false;
                     }
                 }
 
-                // Handle other filters
                 for (const [key, value] of Object.entries(this.filterBy)) {
-                    if (key === 'gidon') continue; // Skip gidon, already handled
-
+                    if (key === 'gidon') continue;
                     if (value && pallet[key] !== value) {
                         allFiltersMatch = false;
                         break;
@@ -382,7 +412,7 @@ export default {
             try {
                 let url = ''
                 if(toSend){
-                    url = `${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/destinations/toSend` 
+                    url = `${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/destinations/toSend`
                 } else {
                     url = `${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/destinations/Sent`
                 }
@@ -638,10 +668,14 @@ export default {
 </script>
 
 <style scoped>
+@media (max-width: 1366px) {
+    .toolbar-identity {
+        display: none;
+    }
+}
+
 table {
-    table-layout: fixed;
     border-collapse: collapse;
-    width: 100%;
 }
 
 thead th {
@@ -651,7 +685,7 @@ thead th {
 }
 
 td, th {
-    height: 40px;
+    height: 44px;
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
     vertical-align: middle;
