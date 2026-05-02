@@ -1,5 +1,5 @@
 <template>
-    <div class="w-full flex flex-col animate-fade-in">
+    <div class="h-full w-full flex flex-col animate-fade-in">
         <!-- Compact Toolbar -->
         <div class="flex items-center justify-between gap-x-3 gap-y-2 mb-2 rtl flex-wrap">
             <div class="flex items-center gap-2 flex-wrap min-w-0">
@@ -61,7 +61,7 @@
         </div>
 
         <!-- Table -->
-        <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white" style="overflow-y: clip; -webkit-overflow-scrolling: touch;">
+        <div class="overflow-auto flex-1 min-h-0 rounded-xl border border-slate-200 bg-white" style="-webkit-overflow-scrolling: touch;">
             <table class="w-full min-w-[1200px] border-collapse rtl">
                 <thead>
                     <tr>

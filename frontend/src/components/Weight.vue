@@ -1,5 +1,5 @@
 <template>
-    <div class="animate-fade-in">
+    <div class="h-full animate-fade-in">
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 gap-3">
             <span class="loading-spinner !w-10 !h-10 !border-[3px]"></span>
             <span class="text-slate-400 text-sm font-medium">טוען נתונים...</span>
