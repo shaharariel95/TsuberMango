@@ -1,24 +1,16 @@
-import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "../../fonts/vfs_fonts.js"; // Adjust path if needed
+async function createStickerPDF(data = {}) {
+  const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
+    import("pdfmake/build/pdfmake"),
+    import("../../fonts/vfs_fonts.js"),
+  ]);
 
-pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
-
-pdfMake.fonts = {
-  Rubik: {
-    normal: "Rubik-VariableFont_wght.ttf",
-    bold: "Rubik-Bold.ttf",
-  },
-};
-
-// Now add your custom fonts
-pdfMake.fonts = {
-  Rubik: {
-    normal: "Rubik-VariableFont_wght.ttf",
-    bold: "Rubik-Bold.ttf",
-  },
-};
-
-function createStickerPDF(data = {}) {
+  pdfMake.vfs = pdfFonts;
+  pdfMake.fonts = {
+    Rubik: {
+      normal: "Rubik-VariableFont_wght.ttf",
+      bold: "Rubik-Bold.ttf",
+    },
+  };
   const {
     platformNumber = "",
     farmer = "",

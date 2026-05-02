@@ -374,7 +374,7 @@ export default {
         }
     },
     methods: {
-        printPDF() {
+        async printPDF() {
             // Sample Data
             const sampleData = {
                 platformNumber: this.lastFormData.palletNumber || "",
@@ -386,7 +386,7 @@ export default {
 
             };
 
-            createStickerPDF(sampleData);
+            await createStickerPDF(sampleData);
         }
     }
 }

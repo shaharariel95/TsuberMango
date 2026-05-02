@@ -626,7 +626,7 @@ export default {
             }
         },
 
-        printPDF() {
+        async printPDF() {
             const originalPallet = { ...this.pallets.find(p => p.id === this.selectedPallets[0]) };
             console.log(`this.editingId: ${this.selectedPallets}, orginalPallet: `, originalPallet)
             // Sample Data
@@ -640,7 +640,7 @@ export default {
 
             };
 
-            createStickerPDF(sampleData);
+            await createStickerPDF(sampleData);
         },
 
         async fetchLastPallet(farmer) {
