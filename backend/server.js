@@ -6,6 +6,7 @@ const cors = require("cors");
 const sheetRoutes = require("./routes/sheetRoutes");
 const admin = require("firebase-admin");
 const path = require("path");
+const logger = require("./utils/logger");
 
 // 🔒 Initialize Firebase Admin for Secure Config Management
 try {
@@ -19,6 +20,27 @@ try {
   console.error("Firebase Admin Initialization Error:", error);
 }
 const db = admin.firestore();
+
+// 🌱 Seed Firestore users collection from users.json on startup (if empty)
+async function seedUsersIfEmpty() {
+  try {
+    const snapshot = await db.collection("users").limit(1).get();
+    if (!snapshot.empty) {
+      logger.info("Firestore users collection already seeded — skipping.");
+      return;
+    }
+    const SEED_USERS = require("./users.json");
+    const batch = db.batch();
+    for (const [email, role] of Object.entries(SEED_USERS)) {
+      batch.set(db.collection("users").doc(email), { role });
+    }
+    await batch.commit();
+    logger.info(`Firestore users collection seeded with ${Object.keys(SEED_USERS).length} users.`);
+  } catch (err) {
+    logger.error("Failed to seed Firestore users collection:", err);
+  }
+}
+seedUsersIfEmpty();
 
 const app = express();
 
@@ -64,14 +86,21 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: process.env.GOOGLE_CALLBACK_URL,
     },
-    (accessToken, refreshToken, profile, done) => {
+    async (accessToken, refreshToken, profile, done) => {
       const email = profile.emails[0].value;
-      // Only allow login if user is in users.json
-      if (USERS[email]) {
-        return done(null, { email, role: USERS[email] });
-      } else {
-        // User not allowed
-        return done(null, false, { message: "User not authorized" });
+      try {
+        const docSnap = await db.collection("users").doc(email).get();
+        if (docSnap.exists) {
+          const { role } = docSnap.data();
+          logger.info(`Google OAuth login: ${email} (role: ${role})`);
+          return done(null, { email, role });
+        } else {
+          logger.info(`Google OAuth login rejected — not authorized: ${email}`);
+          return done(null, false, { message: "User not authorized" });
+        }
+      } catch (err) {
+        logger.error(`Error checking Firestore for user ${email}:`, err);
+        return done(err);
       }
     }
   )
@@ -139,7 +168,7 @@ app.get("/api/auth/unauthorized", (req, res) => {
 app.get("/api/auth/logout", (req, res) => {
   req.logout(() => {
     req.session = null;
-    res.redirect(process.env.FRONT);
+    res.json({ success: true });
   });
 });
 
@@ -198,6 +227,56 @@ app.post("/api/admin/config", ensureAdmin, async (req, res) => {
   } catch (error) {
     console.error("Firebase Admin Error:", error);
     res.status(500).json({ error: "Failed to save config to Firestore", details: error.message });
+  }
+});
+
+// 👥 User Management Endpoints
+app.get("/api/admin/users", ensureAdmin, async (req, res) => {
+  try {
+    const snapshot = await db.collection("users").get();
+    const users = snapshot.docs.map(doc => ({ email: doc.id, ...doc.data() }));
+    logger.info(`[GET /api/admin/users] Returned ${users.length} users`);
+    res.json(users);
+  } catch (err) {
+    logger.error("[GET /api/admin/users] Failed to fetch users:", err);
+    res.status(500).json({ error: "Failed to fetch users", details: err.message });
+  }
+});
+
+app.post("/api/admin/users", ensureAdmin, async (req, res) => {
+  const { email, role } = req.body;
+  if (!email || !role) {
+    return res.status(400).json({ error: "email and role are required" });
+  }
+  if (!["admin", "user"].includes(role)) {
+    return res.status(400).json({ error: "role must be 'admin' or 'user'" });
+  }
+  try {
+    await db.collection("users").doc(email).set({ role });
+    logger.info(`[POST /api/admin/users] Upserted user: ${email} (role: ${role})`);
+    res.json({ success: true, email, role });
+  } catch (err) {
+    logger.error(`[POST /api/admin/users] Failed to upsert user ${email}:`, err);
+    res.status(500).json({ error: "Failed to save user", details: err.message });
+  }
+});
+
+app.delete("/api/admin/users/:email", ensureAdmin, async (req, res) => {
+  const email = decodeURIComponent(req.params.email);
+  try {
+    // Prevent deleting the last admin
+    const snapshot = await db.collection("users").where("role", "==", "admin").get();
+    const adminDocs = snapshot.docs;
+    if (adminDocs.length === 1 && adminDocs[0].id === email) {
+      logger.info(`[DELETE /api/admin/users] Blocked deletion of last admin: ${email}`);
+      return res.status(400).json({ error: "לא ניתן למחוק את המנהל האחרון במערכת" });
+    }
+    await db.collection("users").doc(email).delete();
+    logger.info(`[DELETE /api/admin/users] Deleted user: ${email}`);
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`[DELETE /api/admin/users] Failed to delete user ${email}:`, err);
+    res.status(500).json({ error: "Failed to delete user", details: err.message });
   }
 });
 

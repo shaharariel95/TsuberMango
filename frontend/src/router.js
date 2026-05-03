@@ -83,15 +83,14 @@ router.beforeEach(async (to, from, next) => {
     next(); // allow navigation
   } catch (error) {
     if (error.response && error.response.status === 401) {
-      console.warn("Unauthorized: Redirecting to login.");
-    } else {
-      console.error("Error during authentication check:", error);
+      // Definitive "not logged in" — redirect to login
+      if (to.meta.requiresAuth) return next("/login");
+      return next();
     }
-
-    if (to.meta.requiresAuth) {
-      return next("/login"); // not logged in
-    }
-    next(); // public route (e.g., /login)
+    // Network error or server down — don't kick the user out, just let them through.
+    // Page components will show their own error states.
+    console.warn("Auth check failed (server may be down):", error.message);
+    next();
   }
 });
 

@@ -258,6 +258,32 @@ export default {
         const destinations = computed(() => config.destinations || []);
         const farmerConfigs = computed(() => config.farmerConfigs || {});
 
+        const FIELD_NAMES_HE = {
+            harvestDate: 'תאריך קטיף',
+            palletNumber: 'מספר משטח',
+            boxes: 'ארגזים',
+            kind: 'זן',
+            size: 'גודל',
+            weight: 'משקל',
+            destination: 'יעד',
+            shipmentDate: 'תאריך משלוח',
+            cardId: 'מספר תעודה',
+            farmer: 'שם חקלאי',
+        }
+
+        const translateServerError = (msg) => {
+            if (!msg) return 'שגיאה בשליחת הטופס'
+            if (msg.startsWith('Missing required fields:')) {
+                const fields = msg.replace('Missing required fields:', '').trim()
+                const translated = fields.split(',').map(f => FIELD_NAMES_HE[f.trim()] || f.trim()).join(', ')
+                return `שדות חובה חסרים: ${translated}`
+            }
+            if (msg.includes('Invalid farmer sheet')) return 'שם החקלאי לא נמצא במערכת'
+            if (msg.includes('Farmer name is required')) return 'שם חקלאי הוא שדה חובה'
+            if (msg.includes('Failed to add record')) return 'שגיאה בהוספת הרשומה, נסה שוב'
+            return 'שגיאה בשליחת הטופס'
+        }
+
         const isLoading = ref(false)
         const message = ref("Loading...")
         const lastFormData = ref(null)
@@ -339,7 +365,8 @@ export default {
                 })
 
                 if (!response.ok) {
-                    throw new Error('שגיאה בשליחת הטופס')
+                    const errorData = await response.json().catch(() => ({}))
+                    throw new Error(translateServerError(errorData.error))
                 }
 
                 submitStatus.value = 'success'

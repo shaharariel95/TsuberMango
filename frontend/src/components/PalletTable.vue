@@ -174,10 +174,21 @@
                                 <template v-else>{{ pallet[col.key] }}</template>
                             </td>
                             <td class="border-b border-slate-100 px-3 py-2.5" v-if="isEditable">
-                                <button @click="startEditing(pallet)"
-                                    class="text-xs text-mango-600 hover:text-mango-800 font-medium hover:bg-mango-50 px-3 py-1.5 rounded transition-colors min-h-[32px]">
-                                    ערוך
-                                </button>
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <div v-if="pallet.editedBy" class="relative group flex-shrink-0">
+                                        <span class="text-slate-400 hover:text-slate-600 cursor-default text-sm leading-none select-none">ⓘ</span>
+                                        <div class="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-10 hidden group-hover:block w-52 bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-lg pointer-events-none text-right">
+                                            <p class="font-semibold mb-0.5">עודכן על ידי:</p>
+                                            <p class="text-slate-300 mb-1">{{ pallet.editedBy }}</p>
+                                            <p class="font-semibold mb-0.5">בתאריך:</p>
+                                            <p class="text-slate-300">{{ formatEditedAt(pallet.editedAt) }}</p>
+                                        </div>
+                                    </div>
+                                    <button @click="startEditing(pallet)"
+                                        class="text-xs text-mango-600 hover:text-mango-800 font-medium hover:bg-mango-50 px-3 py-1.5 rounded transition-colors min-h-[32px]">
+                                        ערוך
+                                    </button>
+                                </div>
                             </td>
                         </template>
                     </tr>
@@ -384,6 +395,15 @@ export default {
     },
 
     methods: {
+        formatEditedAt(isoString) {
+            if (!isoString) return '';
+            try {
+                return new Date(isoString).toLocaleString('he-IL');
+            } catch {
+                return isoString;
+            }
+        },
+
         getFilterOptions(key) {
             if (key === 'gidon') {
                 return [...new Set(this.pallets.map(p => p.gidon ? "גדעון" : "אין הערה"))];

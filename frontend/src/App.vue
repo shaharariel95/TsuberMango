@@ -134,6 +134,9 @@
     </div>
   </div>
 
+  <!-- ── Global Notifications ────────────────────── -->
+  <NotificationList />
+
   <!-- ── Error Toast ───────────────────────────────── -->
   <Transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="opacity-0 translate-y-4"
     enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200 ease-in"
@@ -156,8 +159,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { db } from './main';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { farmerConfigs } from './data/data'; // Fallback for initial load
+import NotificationList from './components/NotificationList.vue'
 
 export default {
+  components: {
+    NotificationList
+  },
   setup() {
     const showError = ref(false);
     const error = ref(null);
@@ -244,16 +251,13 @@ export default {
     const logout = async () => {
       try {
         await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, { credentials: 'include' });
-        user.value = null;
-        if (isMobile.value) mobileOpen.value = false;
-        router.push('/login');
       } catch (err) {
-        error.value = "Failed to logout. Please try again.";
-        showError.value = true;
-        setTimeout(() => {
-          showError.value = false;
-        }, 3000);
+        // Session is cleared server-side regardless — proceed with client-side logout
+        console.warn('Logout request error (session still cleared):', err);
       }
+      user.value = null;
+      if (isMobile.value) mobileOpen.value = false;
+      router.push('/login');
     };
 
     const routes = ref([

@@ -58,10 +58,10 @@ class GoogleSheetsService {
         try {
             const id = await this.getNextId(sheetName);
             const rowWithId = [id, ...data];
-            
+
             const response = await this.sheets.spreadsheets.values.append({
                 spreadsheetId: this.SPREADSHEET_ID,
-                range: `${sheetName}!A:L`,
+                range: `${sheetName}!A:N`,
                 valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values: [rowWithId],
@@ -81,8 +81,7 @@ class GoogleSheetsService {
         try {
             const response = await this.sheets.spreadsheets.values.get({
                 spreadsheetId: this.SPREADSHEET_ID,
-                range: `${sheetName}!A:M`,
-                
+                range: `${sheetName}!A:O`,
             });
 
             const rows = response.data.values || [];
@@ -105,9 +104,34 @@ class GoogleSheetsService {
                 sent: row[10] == 'TRUE' ? true : false,
                 gidon: row[11] == 'TRUE' ? true : false,
                 mark: row[12] == 'TRUE' ? true : false,
+                editedBy: row[13] || '',
+                editedAt: row[14] || '',
             }));
         } catch (error) {
             throw new Error(`Failed to fetch records: ${error.message}`);
+        }
+    }
+
+    async getRowsByPallet(sheetName, palletNumber) {
+        await this.initialize();
+        await this.validateSheetName(sheetName);
+        logger.info(`getRowsByPallet called for sheet: ${sheetName}, palletNumber: ${palletNumber}`);
+
+        try {
+            const records = await this.getAllRecords(sheetName);
+
+            const filtered = records.filter(
+                record => String(record.palletNumber) === String(palletNumber)
+            );
+
+            if (filtered.length === 0) {
+                throw new Error(`Pallet ${palletNumber} not found in sheet ${sheetName}`);
+            }
+
+            return filtered;
+        } catch (error) {
+            logger.error(`getRowsByPallet failed for sheet: ${sheetName}, palletNumber: ${palletNumber} — ${error.message}`);
+            throw new Error('Failed to get records by pallet: ' + error.message);
         }
     }
 
@@ -211,7 +235,7 @@ class GoogleSheetsService {
         
         const response = await this.sheets.spreadsheets.values.get({
             spreadsheetId: this.SPREADSHEET_ID,
-            range: `${sheetName}!A:M`,
+            range: `${sheetName}!A:O`,
         });
 
         const rows = response.data.values || [];
@@ -228,9 +252,9 @@ class GoogleSheetsService {
             }
 
             const rowWithId = [id, ...updatedData];
-            
+
             updates.push({
-                range: `${sheetName}!A${rowIndex + 1}:M${rowIndex + 1}`,
+                range: `${sheetName}!A${rowIndex + 1}:O${rowIndex + 1}`,
                 values: [rowWithId],
             });
         }
@@ -256,17 +280,17 @@ class GoogleSheetsService {
         try {
             const response = await this.sheets.spreadsheets.values.get({
                 spreadsheetId: this.SPREADSHEET_ID,
-                range: `${sheetName}!A:M`,
+                range: `${sheetName}!A:O`,
             });
 
             const rows = response.data.values || [];
             const rowIndex = rows.findIndex(row => parseInt(row[0]) === id);
-            
+
             if (rowIndex === -1) {
                 throw new Error(`Row with ID ${id} not found in sheet ${sheetName}`);
             }
 
-            const range = `${sheetName}!A${rowIndex + 1}:M${rowIndex + 1}`;
+            const range = `${sheetName}!A${rowIndex + 1}:O${rowIndex + 1}`;
             const rowWithId = [id, ...updatedData];
 
             await this.sheets.spreadsheets.values.update({
@@ -379,6 +403,76 @@ class GoogleSheetsService {
             })); // Return updated rows with their IDs and new status
         } catch (error) {
             throw new Error(`Failed to update pallets: ${error.message}`);
+        }
+    }
+
+    async appendAuditLog(sheetName, entry) {
+        try {
+            await this.initialize();
+            const auditSheetName = `${sheetName}_audit`;
+
+            // Ensure the audit sheet exists; create it if not
+            let auditExists = true;
+            try {
+                await this.validateSheetName(auditSheetName);
+            } catch (e) {
+                if (e.message.includes('Invalid farmer sheet')) {
+                    auditExists = false;
+                } else {
+                    throw e;
+                }
+            }
+
+            if (!auditExists) {
+                await this.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: this.SPREADSHEET_ID,
+                    requestBody: {
+                        requests: [{
+                            addSheet: {
+                                properties: {
+                                    title: auditSheetName,
+                                    gridProperties: { rowCount: 1000, columnCount: 10 }
+                                }
+                            }
+                        }]
+                    }
+                });
+
+                // Write header row
+                await this.sheets.spreadsheets.values.update({
+                    spreadsheetId: this.SPREADSHEET_ID,
+                    range: `${auditSheetName}!A1:F1`,
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: {
+                        values: [["ID", "מזהה רשומה", "מספר משטח", "פעולה", "בוצע על ידי", "תאריך ושעה"]]
+                    }
+                });
+
+                logger.info(`Created audit sheet: ${auditSheetName}`);
+            }
+
+            // Get next audit ID
+            const idResponse = await this.sheets.spreadsheets.values.get({
+                spreadsheetId: this.SPREADSHEET_ID,
+                range: `${auditSheetName}!A:A`,
+            });
+            const idRows = idResponse.data.values || [];
+            const auditIds = idRows.slice(1).map(r => parseInt(r[0])).filter(n => !isNaN(n));
+            const nextAuditId = auditIds.length > 0 ? Math.max(...auditIds) + 1 : 1;
+
+            await this.sheets.spreadsheets.values.append({
+                spreadsheetId: this.SPREADSHEET_ID,
+                range: `${auditSheetName}!A:F`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                    values: [[nextAuditId, entry.recordId, entry.palletNumber, entry.action, entry.editedBy, entry.editedAt]]
+                }
+            });
+
+            logger.info(`Audit log appended to ${auditSheetName}: record ${entry.recordId}, action ${entry.action} by ${entry.editedBy}`);
+        } catch (error) {
+            logger.error(`appendAuditLog failed for sheet ${sheetName}: ${error.message}`);
+            // Do NOT rethrow — audit failures must never break the main flow
         }
     }
 

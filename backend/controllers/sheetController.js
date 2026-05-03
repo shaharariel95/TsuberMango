@@ -24,6 +24,9 @@ class SheetController {
         return res.status(400).json({ error: "Farmer name is required" });
       }
 
+      const editedBy = req.user?.email || 'unknown';
+      const editedAt = new Date().toISOString();
+
       const sheetRecord = new SheetModel(
         shipmentDate,
         cardId,
@@ -35,13 +38,25 @@ class SheetController {
         weight,
         destination,
         false /*sent*/,
-        gidon
+        gidon,
+        false /*mark*/,
+        editedBy,
+        editedAt
       );
 
       const result = await sheetsService.appendRow(
         farmer,
         sheetRecord.toArray()
       );
+
+      sheetsService.appendAuditLog(farmer, {
+        recordId: result.id,
+        palletNumber,
+        action: 'קליטה',
+        editedBy,
+        editedAt,
+      }).catch(err => logger.error(`appendAuditLog failed on create: ${err.message}`));
+
       res.status(201).json({
         message: "Record added successfully",
         data: result,
@@ -198,6 +213,9 @@ class SheetController {
           .json({ error: "Pallets data is required and must be an array" });
       }
 
+      const editedBy = req.user?.email || 'unknown';
+      const editedAt = new Date().toISOString();
+
       const ids = [];
       const updatedDataArray = [];
 
@@ -248,7 +266,9 @@ class SheetController {
           destination,
           sent,
           gidon,
-          mark
+          mark,
+          editedBy,
+          editedAt
         );
 
         updatedDataArray.push(sheetRecord.toArray());
@@ -271,6 +291,17 @@ class SheetController {
       }
 
       logger.info(`Successfully updated records for farmer: ${farmer}`);
+
+      // Append audit log entries for each updated pallet (fire-and-forget; failures are silent)
+      for (const pallet of palletsData) {
+        await sheetsService.appendAuditLog(farmer, {
+          recordId: pallet.id,
+          palletNumber: pallet.palletNumber,
+          action: 'עדכון',
+          editedBy,
+          editedAt,
+        });
+      }
 
       return res.json({
         message: result.message, // Use the correct message from the response
@@ -325,7 +356,9 @@ class SheetController {
         mark
       } = req.body;
 
-      const isSent = sent ? "TRUE" : "FALSE";
+      const editedBy = req.user?.email || 'unknown';
+      const editedAt = new Date().toISOString();
+
       const sheetRecord = new SheetModel(
         shipmentDate,
         cardId,
@@ -338,7 +371,9 @@ class SheetController {
         destination,
         sent,
         gidon,
-        mark
+        mark,
+        editedBy,
+        editedAt
       );
 
       const result = await sheetsService.updateRowById(
@@ -346,6 +381,14 @@ class SheetController {
         parseInt(id),
         sheetRecord.toArray()
       );
+
+      await sheetsService.appendAuditLog(farmer, {
+        recordId: parseInt(id),
+        palletNumber: req.body.palletNumber,
+        action: 'עדכון',
+        editedBy,
+        editedAt,
+      });
 
       res.json({
         message: "Record updated successfully",

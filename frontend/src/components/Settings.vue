@@ -48,7 +48,53 @@
       </div>
     </section>
 
-    <!-- 2. Lists Management -->
+    <!-- 2. User Management -->
+    <section class="card space-y-4">
+      <h2 class="text-xl font-bold text-slate-700 flex items-center gap-2 pb-2 border-b border-slate-100">
+        <span class="text-lg">👤</span> ניהול משתמשים
+      </h2>
+
+      <!-- User List -->
+      <div class="space-y-2">
+        <div v-if="usersLoading" class="text-slate-400 text-sm text-center py-4">טוען משתמשים...</div>
+        <div v-else-if="usersList.length === 0" class="text-slate-400 text-sm text-center py-4">אין משתמשים עדיין</div>
+        <div v-for="u in usersList" :key="u.email"
+             class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors gap-2">
+          <div class="flex items-center gap-3 min-w-0 flex-1">
+            <span class="text-sm text-slate-700 truncate">{{ u.email }}</span>
+            <span :class="[
+              'text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0',
+              u.role === 'admin' ? 'bg-mango-100 text-mango-700' : 'bg-slate-200 text-slate-600'
+            ]">{{ u.role === 'admin' ? 'מנהל' : 'משתמש' }}</span>
+          </div>
+          <button @click="deleteUser(u.email)"
+                  :disabled="isLastAdmin(u)"
+                  :title="isLastAdmin(u) ? 'לא ניתן למחוק את המנהל האחרון' : 'מחק משתמש'"
+                  class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-all flex-shrink-0 min-h-[40px] min-w-[40px] disabled:opacity-30 disabled:cursor-not-allowed">
+            <svg class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Add User -->
+      <div class="flex flex-col sm:flex-row gap-2 mt-4 pt-4 border-t border-slate-100">
+        <input v-model="newUserEmail" placeholder="כתובת אימייל" type="email"
+               class="input-field flex-1 text-sm" dir="ltr">
+        <select v-model="newUserRole" class="input-field text-sm sm:w-36">
+          <option value="admin">מנהל</option>
+          <option value="user">משתמש</option>
+        </select>
+        <button @click="addUser" :disabled="isWorkingUsers"
+                class="btn-primary text-sm flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[44px]">
+          <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorkingUsers"></span>
+          {{ isWorkingUsers ? 'שומר...' : '+ הוסף משתמש' }}
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. Lists Management -->
     <section class="card space-y-5">
       <h2 class="text-xl font-bold text-slate-700 pb-2 border-b border-slate-100 flex items-center gap-2">
         <span class="text-lg">📋</span> ניהול רשימות
@@ -177,7 +223,61 @@ export default {
     const confirmChecks = reactive({ app: false, sheet: false });
     const status = ref(null);
 
+    // User management state
+    const usersList = ref([]);
+    const usersLoading = ref(false);
+    const newUserEmail = ref('');
+    const newUserRole = ref('user');
+    const isWorkingUsers = ref(false);
+
     const baseUrl = import.meta.env.VITE_API_BASE_URL;
+
+    const fetchUsers = async () => {
+      usersLoading.value = true;
+      try {
+        const res = await axios.get(`${baseUrl}/api/admin/users`);
+        usersList.value = res.data;
+      } catch (err) {
+        showStatus('שגיאה בטעינת המשתמשים', 'error');
+        console.error(err);
+      } finally {
+        usersLoading.value = false;
+      }
+    };
+
+    const isLastAdmin = (u) => {
+      return u.role === 'admin' && usersList.value.filter(x => x.role === 'admin').length === 1;
+    };
+
+    const addUser = async () => {
+      const email = newUserEmail.value.trim();
+      if (!email) return showStatus('נא להזין כתובת אימייל', 'error');
+      isWorkingUsers.value = true;
+      try {
+        await axios.post(`${baseUrl}/api/admin/users`, { email, role: newUserRole.value });
+        showStatus(`המשתמש ${email} נוסף/עודכן בהצלחה`, 'success');
+        newUserEmail.value = '';
+        newUserRole.value = 'user';
+        await fetchUsers();
+      } catch (err) {
+        showStatus(`שגיאה בהוספת משתמש: ${err.response?.data?.error || err.message}`, 'error');
+        console.error(err);
+      } finally {
+        isWorkingUsers.value = false;
+      }
+    };
+
+    const deleteUser = async (email) => {
+      if (!confirm(`למחוק את המשתמש ${email}?`)) return;
+      try {
+        await axios.delete(`${baseUrl}/api/admin/users/${encodeURIComponent(email)}`);
+        showStatus(`המשתמש ${email} נמחק`, 'success');
+        await fetchUsers();
+      } catch (err) {
+        showStatus(`שגיאה במחיקת משתמש: ${err.response?.data?.error || err.message}`, 'error');
+        console.error(err);
+      }
+    };
 
     onMounted(() => {
       // Listen to config
@@ -187,6 +287,8 @@ export default {
           Object.assign(localConfig, snap.data());
         }
       });
+      // Load users
+      fetchUsers();
     });
 
     const saveConfig = async () => {
@@ -280,7 +382,9 @@ export default {
     return {
       localConfig, newFarmerName, isWorking, saveConfig, addFarmer,
       confirmDeleteFarmer, farmerToDelete, confirmChecks, deleteFarmer,
-      importFromStatic, status
+      importFromStatic, status,
+      usersList, usersLoading, newUserEmail, newUserRole, isWorkingUsers,
+      addUser, deleteUser, isLastAdmin
     };
   }
 };

@@ -7,6 +7,17 @@
         <p class="text-slate-400 text-sm mt-0.5">סיכום משטחים לפי יעד</p>
       </div>
       <div class="flex items-center gap-3 flex-wrap">
+        <button
+          @click="exportToExcel"
+          :disabled="isLoading || Object.keys(destinationCounts).length === 0"
+          class="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span v-if="isLoading" class="loading-spinner !w-4 !h-4 !border-2"></span>
+          <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          ייצוא לאקסל
+        </button>
         <label class="text-sm font-medium text-slate-500 flex-shrink-0">בחר תאריך:</label>
         <select v-model="selectedDate" class="input-field !w-auto min-w-[160px] text-sm">
           <option value="">הכל</option>
@@ -164,12 +175,32 @@ export default {
 
     watch(selectedDate, updateCounts);
 
+    const exportToExcel = async () => {
+      const XLSX = await import('xlsx');
+
+      const rows = Object.entries(destinationCounts.value).map(([dest, count]) => ({
+        'יעד': dest,
+        'מספר משטחים': count,
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 30 }, { wch: 16 }];
+      ws['!dir'] = 'rtl';
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'סיכום יעדים');
+
+      const filename = `סיכום-יעדים-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    };
+
     return {
       destinationCounts,
       isLoading,
       error,
       shipmentDates,
       selectedDate,
+      exportToExcel,
     };
   },
 };
