@@ -1,6 +1,7 @@
 // sheetController.js
 const SheetModel = require("../models/sheetModel");
 const sheetsService = require("../services/googleSheetsService");
+const backupService = require("../services/backupService");
 const logger = require("../utils/logger");
 
 class SheetController {
@@ -494,6 +495,40 @@ class SheetController {
       return res
         .status(500)
         .json({ error: "Failed to reset pallets", details: error.message });
+    }
+  }
+
+  // POST /api/admin/backup
+  async triggerBackup(req, res) {
+    try {
+      const triggeredBy = req.user?.email || 'unknown';
+      logger.info(`[triggerBackup] Backup requested by ${triggeredBy}`);
+
+      const result = await backupService.runBackup(triggeredBy);
+
+      logger.info(`[triggerBackup] Backup completed — filename: ${result.filename}, rowCount: ${result.rowCount}`);
+      return res.json({
+        success: true,
+        filename: result.filename,
+        rowCount: result.rowCount,
+        farmerCount: result.farmerCount,
+      });
+    } catch (error) {
+      logger.error(`[triggerBackup] Backup failed: ${error.message}`);
+      return res.status(500).json({ error: 'גיבוי נכשל', details: error.message });
+    }
+  }
+
+  // GET /api/admin/backups
+  async listBackups(req, res) {
+    try {
+      logger.info('[listBackups] Fetching recent backup records from Firestore');
+      const backups = await backupService.getRecentBackups(7);
+      logger.info(`[listBackups] Returning ${backups.length} backup records`);
+      return res.json({ backups });
+    } catch (error) {
+      logger.error(`[listBackups] Failed to list backups: ${error.message}`);
+      return res.status(500).json({ error: 'שגיאה בטעינת גיבויים', details: error.message });
     }
   }
 }

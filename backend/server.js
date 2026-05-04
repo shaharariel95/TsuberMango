@@ -230,6 +230,12 @@ app.post("/api/admin/config", ensureAdmin, async (req, res) => {
   }
 });
 
+// 💾 Backup Endpoints
+const sheetController = require('./controllers/sheetController');
+
+app.post('/api/admin/backup', ensureAdmin, sheetController.triggerBackup.bind(sheetController));
+app.get('/api/admin/backups', ensureAdmin, sheetController.listBackups.bind(sheetController));
+
 // 👥 User Management Endpoints
 app.get("/api/admin/users", ensureAdmin, async (req, res) => {
   try {

@@ -7,12 +7,39 @@
                 <p class="text-slate-500 text-sm mt-0.5">רישום משטח חדש</p>
             </div>
             <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                <button @click="fastMode = !fastMode"
+                    :class="[
+                        'text-sm font-semibold rounded-lg px-3 py-1.5 border transition-all',
+                        fastMode
+                            ? 'bg-emerald-500 text-white border-emerald-500'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'
+                    ]">
+                    מצב מהיר
+                </button>
                 <span class="text-slate-500 text-sm hidden sm:inline">מגדל:</span>
                 <span class="font-bold text-sm sm:text-base bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-3 sm:px-4 py-1.5">
                     {{ selectedFarmer }}
                 </span>
             </div>
         </div>
+
+        <!-- Fast mode session tally -->
+        <Transition
+            enter-active-class="transition-all duration-300"
+            enter-from-class="opacity-0 -translate-y-2"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition-all duration-200"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 -translate-y-2">
+            <div v-if="fastMode" class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 rtl">
+                <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span class="text-sm font-bold text-emerald-700">מצב מהיר פעיל</span>
+                <span class="text-slate-300">·</span>
+                <span class="text-sm text-emerald-700">נקלטו <strong>{{ sessionTally }}</strong> משטחים בסשן הזה</span>
+            </div>
+        </Transition>
 
         <!-- Form -->
         <form @submit.prevent="submitForm" class="space-y-5 rtl">
@@ -35,7 +62,7 @@
                         <label class="block text-slate-600 mb-1.5 text-sm">
                             מספר משטח <span class="text-red-400">*</span>
                         </label>
-                        <input type="number" v-model="formData.palletNumber" required min="1" class="input-field" />
+                        <input type="number" v-model="formData.palletNumber" required min="1" class="input-field" ref="palletNumberInput" />
                         <div class="mt-1 text-xs text-slate-400">
                             <span v-if="isLoading" class="flex items-center gap-1">
                                 <span class="loading-spinner !w-3 !h-3"></span> טוען...
@@ -131,6 +158,34 @@
                 </div>
             </div>
 
+            <!-- Duplicate pallet warning -->
+            <Transition
+                enter-active-class="transition-all duration-300"
+                enter-from-class="opacity-0 -translate-y-2"
+                enter-to-class="opacity-100 translate-y-0"
+                leave-active-class="transition-all duration-200"
+                leave-from-class="opacity-100 translate-y-0"
+                leave-to-class="opacity-0 -translate-y-2">
+                <div v-if="duplicateWarning" class="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-yellow-50 border border-yellow-300 rounded-xl px-4 py-3 rtl">
+                    <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5 sm:mt-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <span class="text-sm font-medium text-yellow-800 flex-1">
+                        משטח מספר {{ formData.palletNumber }} כבר קיים. האם להמשיך?
+                    </span>
+                    <div class="flex gap-2 flex-shrink-0">
+                        <button type="button" @click="proceedDespiteDuplicate"
+                            class="text-sm font-semibold px-3 py-1.5 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition-colors">
+                            כן המשך
+                        </button>
+                        <button type="button" @click="cancelDuplicate"
+                            class="text-sm font-semibold px-3 py-1.5 rounded-lg bg-white text-yellow-700 border border-yellow-300 hover:bg-yellow-50 transition-colors">
+                            לא תקן
+                        </button>
+                    </div>
+                </div>
+            </Transition>
+
             <!-- Submit Row -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
                 <div class="flex-1">
@@ -155,7 +210,7 @@
                 </div>
                 <button type="submit"
                     class="btn-primary text-lg px-8 py-3 flex items-center justify-center gap-2 w-full sm:w-auto min-h-[52px]"
-                    :disabled="isSubmitting">
+                    :disabled="isSubmitting || duplicateWarning">
                     <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isSubmitting"></span>
                     {{ isSubmitting ? 'מוסיף...' : 'הוסף' }}
                 </button>
@@ -234,7 +289,7 @@
 </template>
 
 <script>
-import { inject, ref, reactive, watch, computed } from 'vue'
+import { inject, ref, reactive, watch, computed, nextTick } from 'vue'
 import createStickerPDF from '../data/printData.js';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
@@ -287,6 +342,12 @@ export default {
         const isLoading = ref(false)
         const message = ref("Loading...")
         const lastFormData = ref(null)
+        const fastMode = ref(false)
+        const sessionTally = ref(0)
+        const palletNumberInput = ref(null)
+        const duplicateWarning = ref(false)
+
+        watch(fastMode, val => { if (!val) sessionTally.value = 0 })
 
         const formData = reactive({
             farmer: props.selectedFarmer,
@@ -331,17 +392,19 @@ export default {
         const resetForm = () => {
             formData.cardId = null
             formData.palletNumber = null
-            formData.kind = ''
-            formData.size = null
             formData.boxes = null
             formData.weight = null
             formData.destination = ''
             formData.shipmentDate = ''
-            formData.harvestDate = new Date().toISOString().split('T')[0]
-            formData.gidon = false
+            if (!fastMode.value) {
+                formData.kind = ''
+                formData.size = null
+                formData.harvestDate = new Date().toISOString().split('T')[0]
+                formData.gidon = false
+            }
         }
 
-        const submitForm = async () => {
+        const doSubmit = async () => {
             isSubmitting.value = true
             submitStatus.value = ''
             statusMessage.value = ''
@@ -354,7 +417,6 @@ export default {
                     harvestDate: new Date(formData.harvestDate)
                         .toLocaleDateString('en-GB').slice(0, 5),
                 }
-                console.log('Formatted Data:', formattedData)
                 const response = await fetch(`${baseUrl}/api/records`, {
                     method: 'POST',
                     headers: {
@@ -371,9 +433,14 @@ export default {
 
                 submitStatus.value = 'success'
                 statusMessage.value = 'הנתונים נשלחו בהצלחה'
-                lastFormData.value = { ...formattedData }  // Create a new object to ensure reactivity
+                lastFormData.value = { ...formattedData }
                 await fetchLastPallet(formData.farmer)
+                if (fastMode.value) sessionTally.value++
                 resetForm()
+                if (fastMode.value) {
+                    await nextTick()
+                    palletNumberInput.value?.focus()
+                }
             } catch (error) {
                 submitStatus.value = 'error'
                 statusMessage.value = error.message
@@ -383,12 +450,46 @@ export default {
             }
         }
 
+        const submitForm = async () => {
+            if (!formData.palletNumber) {
+                await doSubmit()
+                return
+            }
+            try {
+                const encodedFarmer = encodeURIComponent(formData.farmer)
+                const res = await fetch(
+                    `${baseUrl}/api/farmers/${encodedFarmer}/records/pallet/${formData.palletNumber}`,
+                    { credentials: 'include' }
+                )
+                if (res.ok) {
+                    duplicateWarning.value = true
+                    return
+                }
+            } catch {
+                // network failure: don't block submission
+            }
+            await doSubmit()
+        }
+
+        const proceedDespiteDuplicate = async () => {
+            duplicateWarning.value = false
+            await doSubmit()
+        }
+
+        const cancelDuplicate = async () => {
+            duplicateWarning.value = false
+            await nextTick()
+            palletNumberInput.value?.focus()
+        }
+
         return {
             formData,
             kinds,
             sizes,
             isSubmitting,
             submitForm,
+            proceedDespiteDuplicate,
+            cancelDuplicate,
             submitStatus,
             statusMessage,
             isLoading,
@@ -397,7 +498,11 @@ export default {
             kinds,
             sizes,
             farmerConfigs,
-            lastFormData  // Make sure to return lastFormData
+            lastFormData,
+            fastMode,
+            sessionTally,
+            palletNumberInput,
+            duplicateWarning
         }
     },
     methods: {

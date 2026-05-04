@@ -261,7 +261,8 @@ export default {
     };
 
     const routes = ref([
-      { path: '/', label: 'קליטה', role: 'admin' },
+      { path: '/Dashboard', label: 'לוח בקרה', role: 'admin' },
+      { path: '/Intake', label: 'קליטה', role: 'admin' },
       { path: '/Weight', label: 'טבלת נתונים', role: 'admin' },
       { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
       { path: '/Destination', label: 'הכנה למשלוח', role: 'user' },

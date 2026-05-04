@@ -117,9 +117,56 @@
       </div>
     </section>
 
+    <!-- 4. Backups -->
+    <section class="card space-y-4">
+      <h2 class="text-xl font-bold text-slate-700 flex items-center gap-2 pb-2 border-b border-slate-100">
+        <svg class="w-5 h-5 text-mango-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        </svg>
+        גיבויים
+      </h2>
+
+      <!-- Backup Now button -->
+      <div class="flex items-center gap-3">
+        <button @click="triggerBackup" :disabled="isBackingUp"
+                class="btn-primary flex items-center justify-center gap-2 min-h-[44px] min-w-[140px]">
+          <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isBackingUp"></span>
+          <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          {{ isBackingUp ? 'מגבה...' : 'גבה עכשיו' }}
+        </button>
+        <span v-if="backupError" class="text-sm text-red-500">{{ backupError }}</span>
+      </div>
+
+      <!-- Backup list -->
+      <div v-if="backupsLoading" class="text-slate-400 text-sm text-center py-4">טוען גיבויים...</div>
+      <div v-else-if="backupsList.length === 0" class="text-slate-400 text-sm text-center py-4">אין גיבויים עדיין</div>
+      <div v-else class="overflow-x-auto rounded-lg border border-slate-100">
+        <table class="w-full text-sm text-right">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="px-4 py-2 font-semibold">תאריך ושעה</th>
+              <th class="px-4 py-2 font-semibold">שורות</th>
+              <th class="px-4 py-2 font-semibold">חקלאים</th>
+              <th class="px-4 py-2 font-semibold">בוצע על ידי</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr v-for="b in backupsList" :key="b.id" class="hover:bg-slate-50 transition-colors">
+              <td class="px-4 py-2 text-slate-700 whitespace-nowrap" dir="ltr">{{ formatBackupDate(b.timestamp) }}</td>
+              <td class="px-4 py-2 text-slate-600">{{ b.rowCount }}</td>
+              <td class="px-4 py-2 text-slate-600">{{ b.farmerCount }}</td>
+              <td class="px-4 py-2 text-slate-500 truncate max-w-[180px]" :title="b.triggeredBy">{{ b.triggeredBy }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- Import Button -->
     <div class="flex justify-center">
-      <button @click="importFromStatic" 
+      <button @click="importFromStatic"
               class="btn-ghost text-xs border border-slate-200 text-slate-500 hover:text-slate-700 flex items-center gap-1.5">
         📥 ייבוא נתונים מ-data.js (חד פעמי)
       </button>
@@ -230,6 +277,12 @@ export default {
     const newUserRole = ref('user');
     const isWorkingUsers = ref(false);
 
+    // Backup state
+    const backupsList = ref([]);
+    const backupsLoading = ref(false);
+    const isBackingUp = ref(false);
+    const backupError = ref('');
+
     const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
     const fetchUsers = async () => {
@@ -279,6 +332,45 @@ export default {
       }
     };
 
+    const fetchBackups = async () => {
+      backupsLoading.value = true;
+      backupError.value = '';
+      try {
+        const res = await axios.get(`${baseUrl}/api/admin/backups`);
+        backupsList.value = res.data.backups || [];
+      } catch (err) {
+        backupError.value = 'שגיאה בטעינת רשימת הגיבויים';
+        console.error(err);
+      } finally {
+        backupsLoading.value = false;
+      }
+    };
+
+    const triggerBackup = async () => {
+      isBackingUp.value = true;
+      backupError.value = '';
+      try {
+        await axios.post(`${baseUrl}/api/admin/backup`);
+        showStatus('הגיבוי הושלם בהצלחה', 'success');
+        await fetchBackups();
+      } catch (err) {
+        backupError.value = `גיבוי נכשל: ${err.response?.data?.error || err.message}`;
+        showStatus('גיבוי נכשל', 'error');
+        console.error(err);
+      } finally {
+        isBackingUp.value = false;
+      }
+    };
+
+    const formatBackupDate = (isoStr) => {
+      if (!isoStr) return '—';
+      const d = new Date(isoStr);
+      return d.toLocaleString('he-IL', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit',
+      });
+    };
+
     onMounted(() => {
       // Listen to config
       const docRef = doc(db, "config", "global");
@@ -289,6 +381,8 @@ export default {
       });
       // Load users
       fetchUsers();
+      // Load backups
+      fetchBackups();
     });
 
     const saveConfig = async () => {
@@ -384,7 +478,9 @@ export default {
       confirmDeleteFarmer, farmerToDelete, confirmChecks, deleteFarmer,
       importFromStatic, status,
       usersList, usersLoading, newUserEmail, newUserRole, isWorkingUsers,
-      addUser, deleteUser, isLastAdmin
+      addUser, deleteUser, isLastAdmin,
+      backupsList, backupsLoading, isBackingUp, backupError,
+      triggerBackup, fetchBackups, formatBackupDate,
     };
   }
 };

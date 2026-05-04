@@ -29,14 +29,37 @@
             <span class="text-sm font-medium">אין נתונים להצגה</span>
         </div>
 
-        <!-- Table -->
-        <PalletTable v-else v-model:pallets="message" :farmer="farmerName"
-            title="טבלת נתונים" subtitle="כל המשטחים של המגדל" />
+        <!-- Table + H4 controls -->
+        <div v-else class="h-full flex flex-col gap-2">
+            <div class="flex items-center gap-2 flex-shrink-0 flex-wrap rtl">
+                <span :class="[
+                    'text-sm font-semibold rounded-lg px-3 py-1.5',
+                    missingWeightCount > 0 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                ]">
+                    {{ missingWeightCount }} משטחים ללא משקל
+                </span>
+                <button @click="filterMissingWeight = !filterMissingWeight"
+                    :class="[
+                        'text-sm font-semibold rounded-lg px-3 py-1.5 border transition-all',
+                        filterMissingWeight
+                            ? 'bg-amber-500 text-white border-amber-500'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300 hover:text-amber-700'
+                    ]">
+                    {{ filterMissingWeight ? 'הצג הכל' : 'סנן חסרי משקל' }}
+                </button>
+            </div>
+            <div class="flex-1 min-h-0">
+                <PalletTable v-model:pallets="message" :farmer="farmerName"
+                    title="טבלת נתונים" subtitle="כל המשטחים של המגדל"
+                    :filter-missing-weight="filterMissingWeight"
+                    :highlight-missing-weight="true" />
+            </div>
+        </div>
     </div>
 </template>
 
 <script>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import PalletTable from './PalletTable.vue'
 import { useNotification } from '../composables/useNotification'
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
@@ -57,6 +80,8 @@ export default {
         const errorMessage = ref('')
         const isLoading = ref(false)
         const farmerName = ref('')
+        const filterMissingWeight = ref(false)
+        const missingWeightCount = computed(() => message.value.filter(r => !r.weight).length)
         const { notify } = useNotification()
 
         const getPallets = async (farmer) => {
@@ -91,7 +116,7 @@ export default {
             }
         }, { immediate: true })
 
-        return { message, showError, errorMessage, isLoading, farmerName, getPallets }
+        return { message, showError, errorMessage, isLoading, farmerName, getPallets, filterMissingWeight, missingWeightCount }
     }
 }
 </script>

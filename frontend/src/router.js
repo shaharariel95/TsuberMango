@@ -9,13 +9,20 @@ import Destination from "./components/Destination.vue";
 import Login from "./components/Login.vue";
 import DestinationsSummary from "./components/DestinationsSummary.vue";
 import Settings from "./components/Settings.vue";
+import Dashboard from "./components/Dashboard.vue";
 
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 const routes = [
   { path: "/login", name: "Login", component: Login },
   {
-    path: "/",
+    path: "/Dashboard",
+    name: "Dashboard",
+    component: Dashboard,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/Intake",
     name: "PalletInfo",
     component: PalletInput,
     meta: { requiresAuth: true, requiresAdmin: true },
@@ -78,6 +85,10 @@ router.beforeEach(async (to, from, next) => {
 
     if (to.meta.requiresAdmin && user.role !== "admin") {
       return next("/Destination"); // fallback for non-admins
+    }
+
+    if (to.path === "/" && user.role === "admin") {
+      return next("/Dashboard");
     }
 
     next(); // allow navigation

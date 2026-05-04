@@ -92,10 +92,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="(pallet, index) in sortedPallets" :key="pallet.id"
+                    <tr v-for="pallet in sortedPallets" :key="pallet.id"
                         :class="[
                             'text-center text-sm transition-colors duration-100',
-                            index % 2 === 0 ? 'bg-white' : 'bg-slate-50/70',
+                            highlightMissingWeight && !pallet.weight
+                                ? 'bg-amber-50 border-r-4 border-amber-300'
+                                : palletGroupIndex[String(pallet.palletNumber)] % 2 === 0 ? 'bg-white' : 'bg-yellow-50',
                             'hover:bg-mango-50/40'
                         ]">
                         <template v-if="editingId === pallet.id">
@@ -255,6 +257,16 @@ export default {
             type: String,
             required: false,
             default: ''
+        },
+        highlightMissingWeight: {
+            type: Boolean,
+            required: false,
+            default: false
+        },
+        filterMissingWeight: {
+            type: Boolean,
+            required: false,
+            default: false
         }
     },
     inject: ['config'],
@@ -331,6 +343,8 @@ export default {
             return this.pallets.filter(pallet => {
                 const matchesSent = this.sentView ? pallet.sent === false : true;
 
+                if (this.filterMissingWeight && pallet.weight) return false;
+
                 if (search) {
                     const hit = ['palletNumber', 'cardId', 'shipmentDate', 'harvestDate', 'kind', 'size', 'boxes', 'weight', 'destination'].some(
                         f => String(pallet[f] ?? '').toLowerCase().includes(search)
@@ -391,6 +405,17 @@ export default {
         AmountOfPallets() {
             const uniquePalletNumbers = new Set(this.filteredPallets.map(pallet => pallet.palletNumber));
             return uniquePalletNumbers.size;
+        },
+        palletGroupIndex() {
+            const indexMap = {};
+            let groupCounter = 0;
+            for (const pallet of this.sortedPallets) {
+                const key = String(pallet.palletNumber);
+                if (!(key in indexMap)) {
+                    indexMap[key] = groupCounter++;
+                }
+            }
+            return indexMap;
         }
     },
 
