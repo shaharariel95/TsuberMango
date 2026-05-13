@@ -181,49 +181,28 @@
                         </div>
                     </Transition>
                 </div>
-                <button type="submit"
-                    class="btn-primary text-lg px-8 py-3 flex items-center justify-center gap-2 w-full sm:w-auto min-h-[52px]"
-                    :disabled="isSubmitting || duplicateWarning">
-                    <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isSubmitting"></span>
-                    {{ isSubmitting ? 'מוסיף...' : 'הוסף' }}
-                </button>
+                <SpinnerButton type="submit" :loading="isSubmitting" loading-label="מוסיף..."
+                    :disabled="duplicateWarning"
+                    class="btn-primary text-lg px-8 py-3 w-full sm:w-auto min-h-[52px]">
+                    הוסף
+                </SpinnerButton>
             </div>
         </form>
 
         <!-- Duplicate Pallet Modal -->
-        <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0"
-            enter-to-class="opacity-100" leave-active-class="transition-all duration-150"
-            leave-from-class="opacity-100" leave-to-class="opacity-0">
-            <div v-if="duplicateWarning"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full rtl text-right animate-fade-in">
-                    <div class="flex items-start gap-3 mb-5">
-                        <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <svg class="w-5 h-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-base mb-1">משטח כפול</h3>
-                            <p class="text-slate-600 text-sm leading-relaxed">
-                                משטח מספר <strong>{{ formData.palletNumber }}</strong> כבר קיים עבור מגדל זה.
-                                האם להמשיך בכל זאת?
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flex gap-2 justify-start">
-                        <button type="button" @click="proceedDespiteDuplicate"
-                            class="px-5 py-2 rounded-lg text-sm font-semibold bg-yellow-500 text-white hover:bg-yellow-600 transition-colors">
-                            כן המשך
-                        </button>
-                        <button type="button" @click="cancelDuplicate"
-                            class="px-5 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
-                            לא תקן
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </Transition>
+        <ConfirmModal
+            :show="duplicateWarning"
+            title="משטח כפול"
+            icon-variant="yellow"
+            confirm-text="כן המשך"
+            cancel-text="לא תקן"
+            confirm-variant="yellow"
+            @confirm="proceedDespiteDuplicate"
+            @cancel="cancelDuplicate"
+        >
+            משטח מספר <strong>{{ formData.palletNumber }}</strong> כבר קיים עבור מגדל זה.
+            האם להמשיך בכל זאת?
+        </ConfirmModal>
 
         <!-- Last Submitted Pallet -->
         <Transition
@@ -299,9 +278,12 @@
 <script>
 import { inject, ref, reactive, watch, computed, nextTick } from 'vue'
 import createStickerPDF from '../data/printData.js';
+import ConfirmModal from './shared/ConfirmModal.vue';
+import SpinnerButton from './shared/SpinnerButton.vue';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
+    components: { ConfirmModal, SpinnerButton },
     props: {
         selectedFarmer: {
             type: String,

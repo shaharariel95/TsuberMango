@@ -40,11 +40,10 @@
       <div class="flex flex-col sm:flex-row gap-2 mt-4 pt-4 border-t border-slate-100">
         <input v-model="newFarmerName" placeholder="שם חקלאי חדש"
                class="input-field flex-1 text-sm">
-        <button @click="addFarmer" :disabled="isWorking"
+        <SpinnerButton @click="addFarmer" :loading="isWorking" loading-label="יוצר גיליון..."
                 class="btn-primary text-sm flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[44px]">
-          <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorking"></span>
-          {{ isWorking ? 'יוצר גיליון...' : '+ הוסף חקלאי' }}
-        </button>
+          + הוסף חקלאי
+        </SpinnerButton>
       </div>
     </section>
 
@@ -86,11 +85,10 @@
           <option value="admin">מנהל</option>
           <option value="user">משתמש</option>
         </select>
-        <button @click="addUser" :disabled="isWorkingUsers"
+        <SpinnerButton @click="addUser" :loading="isWorkingUsers" loading-label="שומר..."
                 class="btn-primary text-sm flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[44px]">
-          <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorkingUsers"></span>
-          {{ isWorkingUsers ? 'שומר...' : '+ הוסף משתמש' }}
-        </button>
+          + הוסף משתמש
+        </SpinnerButton>
       </div>
     </section>
 
@@ -106,14 +104,13 @@
       </div>
       
       <div class="flex justify-end pt-4 border-t border-slate-100">
-        <button @click="saveConfig" :disabled="isWorking"
+        <SpinnerButton @click="saveConfig" :loading="isWorking"
                 class="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto min-h-[44px]">
-          <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorking"></span>
-          <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
           </svg>
           שמור את כל השינויים
-        </button>
+        </SpinnerButton>
       </div>
     </section>
 
@@ -128,14 +125,13 @@
 
       <!-- Backup Now button -->
       <div class="flex items-center gap-3">
-        <button @click="triggerBackup" :disabled="isBackingUp"
+        <SpinnerButton @click="triggerBackup" :loading="isBackingUp" loading-label="מגבה..."
                 class="btn-primary flex items-center justify-center gap-2 min-h-[44px] min-w-[140px]">
-          <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isBackingUp"></span>
-          <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
-          {{ isBackingUp ? 'מגבה...' : 'גבה עכשיו' }}
-        </button>
+          גבה עכשיו
+        </SpinnerButton>
         <span v-if="backupError" class="text-sm text-red-500">{{ backupError }}</span>
       </div>
 
@@ -206,11 +202,11 @@
           </div>
 
           <div class="flex gap-3">
-            <button @click="deleteFarmer" :disabled="!confirmChecks.app || isWorking"
+            <SpinnerButton @click="deleteFarmer" :loading="isWorking" loading-label="מוחק..."
+                    :disabled="!confirmChecks.app"
                     class="flex-1 btn-danger flex items-center justify-center gap-2">
-              <span class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white" v-if="isWorking"></span>
-              {{ isWorking ? 'מוחק...' : 'אשר מחיקה סופית' }}
-            </button>
+              אשר מחיקה סופית
+            </SpinnerButton>
             <button @click="farmerToDelete = null" 
                     class="flex-1 btn-ghost bg-slate-100 hover:bg-slate-200 font-semibold">
               ביטול
@@ -252,11 +248,12 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import axios from 'axios';
 import { kinds, sizes, destinations, farmerConfigs } from '../data/data';
 import ListEditor from './ListEditor.vue';
+import SpinnerButton from './shared/SpinnerButton.vue';
 
 
 
 export default {
-  components: { ListEditor },
+  components: { ListEditor, SpinnerButton },
   setup() {
     const localConfig = reactive({
       farmers: [],

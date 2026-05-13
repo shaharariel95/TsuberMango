@@ -7,17 +7,18 @@
         <p class="text-slate-400 text-sm mt-0.5">סיכום משטחים לפי יעד</p>
       </div>
       <div class="flex items-center gap-3 flex-wrap">
-        <button
+        <SpinnerButton
           @click="exportToExcel"
-          :disabled="isLoading || Object.keys(destinationCounts).length === 0"
+          :loading="isLoading"
+          :inverted="false"
+          :disabled="Object.keys(destinationCounts).length === 0"
           class="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span v-if="isLoading" class="loading-spinner !w-4 !h-4 !border-2"></span>
-          <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           ייצוא לאקסל
-        </button>
+        </SpinnerButton>
         <label class="text-sm font-medium text-slate-500 flex-shrink-0">בחר תאריך:</label>
         <select v-model="selectedDate" class="input-field !w-auto min-w-[160px] text-sm">
           <option value="">הכל</option>
@@ -27,10 +28,7 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 gap-3">
-      <span class="loading-spinner !w-10 !h-10 !border-[3px]"></span>
-      <span class="text-slate-400 text-sm font-medium">טוען נתונים...</span>
-    </div>
+    <LoadingState v-if="isLoading" />
 
     <!-- Table -->
     <div v-else-if="Object.keys(destinationCounts).length" class="max-w-xl mx-auto">
@@ -61,12 +59,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!isLoading" class="flex flex-col items-center justify-center py-20 gap-2 text-slate-400">
-      <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-      </svg>
-      <span class="text-sm font-medium">אין נתונים להצגה</span>
-    </div>
+    <EmptyState v-else-if="!isLoading" />
 
     <!-- Error -->
     <div v-if="error" class="mt-4 bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2 max-w-xl mx-auto">
@@ -80,12 +73,16 @@
 
 <script>
 import { ref, onMounted, watch } from "vue";
+import LoadingState from './shared/LoadingState.vue';
+import EmptyState from './shared/EmptyState.vue';
+import SpinnerButton from './shared/SpinnerButton.vue';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL)
   .toString()
   .replace(/\/$/, "");
 
 export default {
   name: "DestinationsSummary",
+  components: { LoadingState, EmptyState, SpinnerButton },
   props: {
     selectedFarmer: {
       type: String,

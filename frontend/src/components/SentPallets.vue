@@ -1,33 +1,13 @@
 <template>
     <div class="h-full animate-fade-in">
         <!-- Loading -->
-        <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 gap-3">
-            <span class="loading-spinner !w-10 !h-10 !border-[3px]"></span>
-            <span class="text-slate-400 text-sm font-medium">טוען נתונים...</span>
-        </div>
+        <LoadingState v-if="isLoading" />
 
         <!-- Error state -->
-        <div v-else-if="showError" class="flex flex-col items-center justify-center py-20 gap-4">
-            <div class="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md w-full text-center shadow-sm">
-                <svg class="w-10 h-10 text-red-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <p class="text-red-700 font-semibold text-sm mb-1">שגיאה:</p>
-                <p class="text-red-600 text-sm mb-4">{{ errorMessage }}</p>
-                <button @click="getPallets(farmerName)"
-                    class="px-4 py-2 bg-red-500 hover:bg-red-600 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all">
-                    נסה שוב
-                </button>
-            </div>
-        </div>
+        <ErrorState v-else-if="showError" title="שגיאה:" :message="errorMessage" @retry="getPallets(farmerName)" />
 
         <!-- Empty state -->
-        <div v-else-if="pallets.length === 0" class="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-            <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-            <span class="text-sm font-medium">אין נתונים להצגה</span>
-        </div>
+        <EmptyState v-else-if="pallets.length === 0" />
 
         <!-- Table -->
         <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="false"
@@ -39,11 +19,17 @@
 import { ref, watch } from 'vue'
 import PalletTable from './PalletTable.vue'
 import { useNotification } from '../composables/useNotification'
+import LoadingState from './shared/LoadingState.vue'
+import ErrorState from './shared/ErrorState.vue'
+import EmptyState from './shared/EmptyState.vue'
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
     components: {
-        PalletTable
+        PalletTable,
+        LoadingState,
+        ErrorState,
+        EmptyState
     },
     props: {
         selectedFarmer: {

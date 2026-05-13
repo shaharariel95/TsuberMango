@@ -11,37 +11,34 @@
             </div>
             <div class="flex flex-wrap gap-1.5 items-center flex-shrink-0">
                 <template v-if="!destinationOnly && !columnsFilter.length">
-                    <button @click="sendSelectedPallets" :disabled="isCreateLabelAllowed || isCreatingLabel"
-                        class="btn-primary text-sm flex items-center gap-1.5 min-h-[36px] px-3"
-                        v-if="isEditable">
-                        <span v-if="isSendingPalletLoading == false">צור תעודת משלוח</span>
-                        <span v-else class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white"></span>
-                    </button>
+                    <SpinnerButton v-if="isEditable" @click="sendSelectedPallets"
+                        :loading="isCreatingLabel" :disabled="isCreateLabelAllowed"
+                        class="btn-primary text-sm min-h-[36px] px-3">
+                        צור תעודת משלוח
+                    </SpinnerButton>
                     <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
                         class="btn-primary text-sm min-h-[36px] px-3" v-else>
                         החזר משטחים נשלחו
                     </button>
-                    <button @click="printPDF" :disabled="selectedPallets.length !== 1 || isCreatingLabel"
-                        class="btn-ghost text-sm border border-slate-200 flex items-center gap-1.5 min-h-[36px] px-3"
-                        v-if="isEditable">
+                    <SpinnerButton v-if="isEditable" @click="printPDF"
+                        :loading="isCreatingLabel" :inverted="false"
+                        :disabled="selectedPallets.length !== 1"
+                        class="btn-ghost text-sm border border-slate-200 flex items-center gap-1.5 min-h-[36px] px-3">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
-                        <span v-if="isSendingPalletLoading == false">הפק מדבקה</span>
-                        <span v-else class="loading-spinner !w-4 !h-4"></span>
-                    </button>
-                    <button @click="requestConfirm(true)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
-                        class="btn-primary text-sm bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 flex items-center gap-1.5 min-h-[36px] px-3"
-                        v-if="isEditable">
-                        <span v-if="isSendingPalletLoading == false">העבר למשלוח</span>
-                        <span v-else class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white"></span>
-                    </button>
-                    <button @click="requestConfirm(false)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
-                        class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3"
-                        v-if="isEditable">
-                        <span v-if="isSendingPalletLoading == false">הורד ממשלוח</span>
-                        <span v-else class="loading-spinner !w-4 !h-4"></span>
-                    </button>
+                        הפק מדבקה
+                    </SpinnerButton>
+                    <SpinnerButton v-if="isEditable" @click="requestConfirm(true)"
+                        :loading="isCreatingLabel" :disabled="selectedPallets.length === 0"
+                        class="btn-primary text-sm bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 min-h-[36px] px-3">
+                        העבר למשלוח
+                    </SpinnerButton>
+                    <SpinnerButton v-if="isEditable" @click="requestConfirm(false)"
+                        :loading="isCreatingLabel" :inverted="false" :disabled="selectedPallets.length === 0"
+                        class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
+                        הורד ממשלוח
+                    </SpinnerButton>
                     <button v-if="isEditable" @click="toggleSentView"
                             class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
                         <span v-if="sentView">הצג משטחים שנשלחו</span>
@@ -199,74 +196,29 @@
         </div>
 
         <!-- Bulk Action Confirmation Modal -->
-        <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0"
-            enter-to-class="opacity-100" leave-active-class="transition-all duration-150"
-            leave-from-class="opacity-100" leave-to-class="opacity-0">
-            <div v-if="confirmModal.show"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-                @click.self="confirmModal.show = false">
-                <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full rtl text-right animate-fade-in">
-                    <div class="flex items-start gap-3 mb-4">
-                        <div :class="[
-                            'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
-                            confirmModal.toSend ? 'bg-emerald-100' : 'bg-amber-100'
-                        ]">
-                            <svg class="w-5 h-5" :class="confirmModal.toSend ? 'text-emerald-600' : 'text-amber-600'"
-                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-base mb-1">אישור פעולה</h3>
-                            <p class="text-slate-600 text-sm leading-relaxed">
-                                <template v-if="confirmModal.toSend">
-                                    האם להעביר <strong>{{ confirmModal.count }} משטחים</strong> למשלוח?
-                                </template>
-                                <template v-else>
-                                    האם להוריד <strong>{{ confirmModal.count }} משטחים</strong> מהמשלוח?
-                                </template>
-                            </p>
-                            <p v-if="confirmModal.destinations.length" class="text-slate-400 text-xs mt-1">
-                                יעדים: {{ confirmModal.destinations.join(', ') }}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flex gap-2 justify-start">
-                        <button @click="() => { confirmModal.show = false; updateToDestinations(confirmModal.toSend); }"
-                            :class="[
-                                'px-5 py-2 rounded-lg text-sm font-semibold text-white transition-colors',
-                                confirmModal.toSend
-                                    ? 'bg-emerald-500 hover:bg-emerald-600'
-                                    : 'bg-amber-500 hover:bg-amber-600'
-                            ]">
-                            אשר
-                        </button>
-                        <button @click="confirmModal.show = false"
-                            class="px-5 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
-                            ביטול
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </Transition>
+        <ConfirmModal
+            :show="confirmModal.show"
+            title="אישור פעולה"
+            :icon-variant="confirmModal.toSend ? 'emerald' : 'amber'"
+            confirm-text="אשר"
+            cancel-text="ביטול"
+            :confirm-variant="confirmModal.toSend ? 'emerald' : 'amber'"
+            @confirm="() => { confirmModal.show = false; updateToDestinations(confirmModal.toSend); }"
+            @cancel="confirmModal.show = false"
+        >
+            <template v-if="confirmModal.toSend">
+                האם להעביר <strong>{{ confirmModal.count }} משטחים</strong> למשלוח?
+            </template>
+            <template v-else>
+                האם להוריד <strong>{{ confirmModal.count }} משטחים</strong> מהמשלוח?
+            </template>
+            <p v-if="confirmModal.destinations.length" class="text-slate-400 text-xs mt-1">
+                יעדים: {{ confirmModal.destinations.join(', ') }}
+            </p>
+        </ConfirmModal>
 
         <!-- Error Toast -->
-        <Transition
-            enter-active-class="transition-all duration-300 ease-out"
-            enter-from-class="opacity-0 translate-y-4"
-            enter-to-class="opacity-100 translate-y-0"
-            leave-active-class="transition-all duration-200 ease-in"
-            leave-from-class="opacity-100 translate-y-0"
-            leave-to-class="opacity-0 translate-y-4">
-            <div v-if="error" class="toast-error" role="alert">
-                <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <span>{{ error }}</span>
-                <button class="mr-2 hover:text-red-200 transition-colors font-bold text-lg leading-none" @click="error = null">&times;</button>
-            </div>
-        </Transition>
+        <ErrorToast :error="error" @dismiss="error = null" />
     </div>
 </template>
 
@@ -274,9 +226,13 @@
 import { kinds, sizes, destinations, farmerConfigs as staticFarmerConfigs } from '../data/data.js';
 import { inject } from 'vue';
 import createStickerPDF from '../data/printData.js';
+import ConfirmModal from './shared/ConfirmModal.vue';
+import SpinnerButton from './shared/SpinnerButton.vue';
+import ErrorToast from './shared/ErrorToast.vue';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
+    components: { ConfirmModal, SpinnerButton, ErrorToast },
     props: {
         pallets: {
             type: Array,

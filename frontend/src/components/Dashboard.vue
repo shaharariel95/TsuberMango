@@ -1,25 +1,10 @@
 <template>
     <div class="h-full animate-fade-in overflow-auto">
         <!-- Loading -->
-        <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 gap-3">
-            <span class="loading-spinner !w-10 !h-10 !border-[3px]"></span>
-            <span class="text-slate-400 text-sm font-medium">טוען נתונים...</span>
-        </div>
+        <LoadingState v-if="isLoading" />
 
         <!-- Error -->
-        <div v-else-if="fetchError" class="flex flex-col items-center justify-center py-20 gap-4">
-            <div class="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md w-full text-center shadow-sm">
-                <svg class="w-10 h-10 text-red-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <p class="text-red-700 font-semibold text-sm mb-1">שגיאה בטעינת נתונים</p>
-                <p class="text-red-600 text-sm mb-4">{{ fetchError }}</p>
-                <button @click="fetchAllFarmers"
-                    class="px-4 py-2 bg-red-500 hover:bg-red-600 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all">
-                    נסה שוב
-                </button>
-            </div>
-        </div>
+        <ErrorState v-else-if="fetchError" title="שגיאה בטעינת נתונים" :message="fetchError" @retry="fetchAllFarmers" />
 
         <!-- Content -->
         <div v-else class="space-y-5 rtl pb-6">
@@ -148,6 +133,8 @@
 <script>
 import { ref, computed, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import LoadingState from './shared/LoadingState.vue'
+import ErrorState from './shared/ErrorState.vue'
 
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '')
 
@@ -168,6 +155,7 @@ function computeStats(records) {
 
 export default {
     name: 'Dashboard',
+    components: { LoadingState, ErrorState },
     setup() {
         const router = useRouter()
         const config = inject('config', { farmers: [], farmerConfigs: {} })
