@@ -92,11 +92,9 @@
                     <tr v-for="pallet in sortedPallets" :key="pallet.id"
                         :class="[
                             'text-center text-sm transition-colors duration-100 bg-white hover:bg-mango-50/40',
-                            highlightMissingWeight && !pallet.weight ? 'border-r-4 border-r-amber-300 bg-amber-50' : ''
+                            highlightMissingWeight && !pallet.weight ? 'bg-amber-50' : ''
                         ]"
-                        :style="!(highlightMissingWeight && !pallet.weight) && mixPalletColorMap[String(pallet.palletNumber)]
-                            ? `border-right: 4px solid ${mixPalletColorMap[String(pallet.palletNumber)]}`
-                            : ''">
+                        :style="getMixStyle(pallet)">
                         <template v-if="editingId === pallet.id">
                             <td v-for="col in columns" :key="col.key" class="border-b border-slate-100 px-2 py-1.5">
                                 <template v-if="col.editable">
@@ -422,21 +420,40 @@ export default {
             return uniquePalletNumbers.size;
         },
         mixPalletColorMap() {
-            const COLORS = ['#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#f97316', '#ec4899', '#84cc16', '#ef4444'];
+            const PALETTE = [
+                { border: '#8b5cf6', bg: 'rgba(139,92,246,0.09)' },
+                { border: '#3b82f6', bg: 'rgba(59,130,246,0.09)' },
+                { border: '#06b6d4', bg: 'rgba(6,182,212,0.09)' },
+                { border: '#10b981', bg: 'rgba(16,185,129,0.09)' },
+                { border: '#f97316', bg: 'rgba(249,115,22,0.09)' },
+                { border: '#ec4899', bg: 'rgba(236,72,153,0.09)' },
+                { border: '#84cc16', bg: 'rgba(132,204,22,0.09)' },
+                { border: '#ef4444', bg: 'rgba(239,68,68,0.09)' },
+            ];
             const counts = {};
-            for (const p of this.pallets) {
+            for (const p of this.filteredPallets) {
                 const k = String(p.palletNumber);
                 counts[k] = (counts[k] || 0) + 1;
             }
             const map = {};
+            let ci = 0;
             for (const [num, cnt] of Object.entries(counts)) {
-                if (cnt > 1) map[num] = COLORS[Number(num) % COLORS.length];
+                if (cnt > 1) {
+                    map[num] = PALETTE[ci % PALETTE.length];
+                    ci++;
+                }
             }
             return map;
         }
     },
 
     methods: {
+        getMixStyle(pallet) {
+            const mixInfo = this.mixPalletColorMap[String(pallet.palletNumber)];
+            if (!mixInfo) return {};
+            return { 'border-right': `4px solid ${mixInfo.border}` };
+        },
+
         formatEditedAt(isoString) {
             if (!isoString) return '';
             try {
