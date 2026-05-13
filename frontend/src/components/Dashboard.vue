@@ -54,20 +54,19 @@
                 </div>
             </div>
 
-            <!-- Today's Activity -->
+            <!-- Recent Pallets -->
             <div class="card">
                 <div class="flex items-center gap-2 mb-3">
                     <svg class="w-4 h-4 text-mango-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <h3 class="text-sm font-bold text-slate-700">פעילות היום</h3>
-                    <span class="text-xs text-slate-400">({{ todayStr }})</span>
+                    <h3 class="text-sm font-bold text-slate-700">5 המשטחים האחרונים</h3>
                 </div>
-                <div v-if="todayRecords.length === 0" class="text-center text-slate-400 text-sm py-4">
-                    אין פעילות להיום
+                <div v-if="recentPallets.length === 0" class="text-center text-slate-400 text-sm py-4">
+                    אין נתונים להצגה
                 </div>
                 <div v-else class="divide-y divide-slate-100 -mx-3 sm:-mx-4">
-                    <div v-for="(rec, idx) in todayRecords" :key="idx"
+                    <div v-for="(rec, idx) in recentPallets" :key="idx"
                         class="flex items-center justify-between px-3 sm:px-4 py-2 text-sm">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="text-xs text-slate-400 font-medium bg-slate-100 rounded px-1.5 py-0.5 flex-shrink-0">{{ rec.farmer }}</span>
@@ -152,11 +151,6 @@ import { useRouter } from 'vue-router'
 
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '')
 
-function getTodayStr() {
-    const d = new Date()
-    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
-}
-
 function computeStats(records) {
     const palletNums = new Set(records.map(r => r.palletNumber))
     const totalBoxes = records.reduce((s, r) => s + (Number(r.boxes) || 0), 0)
@@ -182,17 +176,13 @@ export default {
         const isLoading = ref(false)
         const fetchError = ref(null)
         const farmerDataList = ref([])
-        const todayStr = getTodayStr()
 
-        const todayRecords = computed(() => {
+        const recentPallets = computed(() => {
             const all = []
             for (const fd of farmerDataList.value) {
                 if (!fd.records) continue
                 for (const rec of fd.records) {
-                    const date = String(rec.shipmentDate || '').trim().split(' ')[0]
-                    if (date === todayStr) {
-                        all.push({ farmer: fd.name, ...rec })
-                    }
+                    all.push({ farmer: fd.name, ...rec })
                 }
             }
             all.sort((a, b) => Number(b.palletNumber) - Number(a.palletNumber))
@@ -245,14 +235,14 @@ export default {
 
         const goToWeight = name => {
             selectedFarmerRef.value = name
-            router.push('/Weight')
+            router.push({ path: '/Weight', query: { filter: 'missingWeight' } })
         }
 
         watch(() => config.farmers, farmers => {
             if (farmers?.length && !farmerDataList.value.length) fetchAllFarmers()
         }, { immediate: true })
 
-        return { isLoading, fetchError, farmerDataList, globalStats, todayRecords, todayStr, fetchAllFarmers, goToIntake, goToWeight }
+        return { isLoading, fetchError, farmerDataList, globalStats, recentPallets, fetchAllFarmers, goToIntake, goToWeight }
     }
 }
 </script>

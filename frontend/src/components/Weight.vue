@@ -60,6 +60,7 @@
 
 <script>
 import { ref, watch, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import PalletTable from './PalletTable.vue'
 import { useNotification } from '../composables/useNotification'
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
@@ -75,12 +76,13 @@ export default {
         }
     },
     setup(props) {
+        const route = useRoute()
         const message = ref([])
         const showError = ref(false)
         const errorMessage = ref('')
         const isLoading = ref(false)
         const farmerName = ref('')
-        const filterMissingWeight = ref(false)
+        const filterMissingWeight = ref(route.query.filter === 'missingWeight')
         const missingWeightCount = computed(() => message.value.filter(r => !r.weight).length)
         const { notify } = useNotification()
 

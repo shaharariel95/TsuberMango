@@ -134,6 +134,34 @@
     </div>
   </div>
 
+  <!-- ── Offline Banner ───────────────────────────── -->
+  <Transition enter-active-class="transition-all duration-300" enter-from-class="opacity-0 -translate-y-2"
+    enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200"
+    leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-2">
+    <div v-if="!isOnline"
+      class="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 bg-amber-500 text-white text-sm font-semibold px-4 py-2.5 shadow-md"
+      role="alert">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M12 12h.01M8.464 15.536a5 5 0 010-7.072M5.636 18.364a9 9 0 010-12.728" />
+      </svg>
+      אין חיבור לאינטרנט — שינויים לא יישמרו
+    </div>
+  </Transition>
+
+  <!-- ── Back-Online Toast ─────────────────────────── -->
+  <Transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="opacity-0 translate-y-4"
+    enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200 ease-in"
+    leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-4">
+    <div v-if="showOnlineToast"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg"
+      role="status">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+      החיבור חזר
+    </div>
+  </Transition>
+
   <!-- ── Global Notifications ────────────────────── -->
   <NotificationList />
 
@@ -168,6 +196,8 @@ export default {
   setup() {
     const showError = ref(false);
     const error = ref(null);
+    const isOnline = ref(navigator.onLine);
+    const showOnlineToast = ref(false);
     const route = useRoute();
     const router = useRouter();
 
@@ -279,12 +309,21 @@ export default {
       }
     };
 
+    const handleOffline = () => { isOnline.value = false; };
+    const handleOnline = () => {
+      isOnline.value = true;
+      showOnlineToast.value = true;
+      setTimeout(() => { showOnlineToast.value = false; }, 3000);
+    };
+
     onMounted(() => {
       // Auto-collapse on medium-width desktops (1024–1280px)
       if (window.innerWidth > 1366 && window.innerWidth < 1600) {
         desktopCollapsed.value = true;
       }
       window.addEventListener('resize', onResize);
+      window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', handleOnline);
 
       // 1. Fetch User Info
       fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, { credentials: 'include' })
@@ -330,6 +369,8 @@ export default {
 
     onBeforeUnmount(() => {
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
       if (typeof document !== 'undefined') {
         document.body.classList.remove('drawer-open');
       }
@@ -362,6 +403,8 @@ export default {
     return {
       showError,
       error,
+      isOnline,
+      showOnlineToast,
       isActiveLink,
       selectedFarmer,
       farmers,

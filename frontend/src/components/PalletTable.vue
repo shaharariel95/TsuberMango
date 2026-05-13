@@ -30,13 +30,13 @@
                         <span v-if="isSendingPalletLoading == false">הפק מדבקה</span>
                         <span v-else class="loading-spinner !w-4 !h-4"></span>
                     </button>
-                    <button @click="updateToDestinations(true)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                    <button @click="requestConfirm(true)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
                         class="btn-primary text-sm bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 flex items-center gap-1.5 min-h-[36px] px-3"
                         v-if="isEditable">
                         <span v-if="isSendingPalletLoading == false">העבר למשלוח</span>
                         <span v-else class="loading-spinner !w-4 !h-4 !border-white/30 !border-t-white"></span>
                     </button>
-                    <button @click="updateToDestinations(false)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
+                    <button @click="requestConfirm(false)" :disabled="selectedPallets.length === 0 || isCreatingLabel"
                         class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3"
                         v-if="isEditable">
                         <span v-if="isSendingPalletLoading == false">הורד ממשלוח</span>
@@ -94,12 +94,12 @@
                 <tbody>
                     <tr v-for="pallet in sortedPallets" :key="pallet.id"
                         :class="[
-                            'text-center text-sm transition-colors duration-100',
-                            highlightMissingWeight && !pallet.weight
-                                ? 'bg-amber-50 border-r-4 border-amber-300'
-                                : palletGroupIndex[String(pallet.palletNumber)] % 2 === 0 ? 'bg-white' : 'bg-yellow-50',
-                            'hover:bg-mango-50/40'
-                        ]">
+                            'text-center text-sm transition-colors duration-100 bg-white hover:bg-mango-50/40',
+                            highlightMissingWeight && !pallet.weight ? 'border-r-4 border-r-amber-300 bg-amber-50' : ''
+                        ]"
+                        :style="!(highlightMissingWeight && !pallet.weight) && mixPalletColorMap[String(pallet.palletNumber)]
+                            ? `border-right: 4px solid ${mixPalletColorMap[String(pallet.palletNumber)]}`
+                            : ''">
                         <template v-if="editingId === pallet.id">
                             <td v-for="col in columns" :key="col.key" class="border-b border-slate-100 px-2 py-1.5">
                                 <template v-if="col.editable">
@@ -197,6 +197,59 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Bulk Action Confirmation Modal -->
+        <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0"
+            enter-to-class="opacity-100" leave-active-class="transition-all duration-150"
+            leave-from-class="opacity-100" leave-to-class="opacity-0">
+            <div v-if="confirmModal.show"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                @click.self="confirmModal.show = false">
+                <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full rtl text-right animate-fade-in">
+                    <div class="flex items-start gap-3 mb-4">
+                        <div :class="[
+                            'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
+                            confirmModal.toSend ? 'bg-emerald-100' : 'bg-amber-100'
+                        ]">
+                            <svg class="w-5 h-5" :class="confirmModal.toSend ? 'text-emerald-600' : 'text-amber-600'"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-base mb-1">אישור פעולה</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                <template v-if="confirmModal.toSend">
+                                    האם להעביר <strong>{{ confirmModal.count }} משטחים</strong> למשלוח?
+                                </template>
+                                <template v-else>
+                                    האם להוריד <strong>{{ confirmModal.count }} משטחים</strong> מהמשלוח?
+                                </template>
+                            </p>
+                            <p v-if="confirmModal.destinations.length" class="text-slate-400 text-xs mt-1">
+                                יעדים: {{ confirmModal.destinations.join(', ') }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 justify-start">
+                        <button @click="() => { confirmModal.show = false; updateToDestinations(confirmModal.toSend); }"
+                            :class="[
+                                'px-5 py-2 rounded-lg text-sm font-semibold text-white transition-colors',
+                                confirmModal.toSend
+                                    ? 'bg-emerald-500 hover:bg-emerald-600'
+                                    : 'bg-amber-500 hover:bg-amber-600'
+                            ]">
+                            אשר
+                        </button>
+                        <button @click="confirmModal.show = false"
+                            class="px-5 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+                            ביטול
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Transition>
 
         <!-- Error Toast -->
         <Transition
@@ -322,6 +375,12 @@ export default {
             sentView: false,
             destinationFilterText: '',
             searchText: '',
+            confirmModal: {
+                show: false,
+                toSend: true,
+                count: 0,
+                destinations: []
+            }
         }
     },
 
@@ -406,16 +465,18 @@ export default {
             const uniquePalletNumbers = new Set(this.filteredPallets.map(pallet => pallet.palletNumber));
             return uniquePalletNumbers.size;
         },
-        palletGroupIndex() {
-            const indexMap = {};
-            let groupCounter = 0;
-            for (const pallet of this.sortedPallets) {
-                const key = String(pallet.palletNumber);
-                if (!(key in indexMap)) {
-                    indexMap[key] = groupCounter++;
-                }
+        mixPalletColorMap() {
+            const COLORS = ['#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#f97316', '#ec4899', '#84cc16', '#ef4444'];
+            const counts = {};
+            for (const p of this.pallets) {
+                const k = String(p.palletNumber);
+                counts[k] = (counts[k] || 0) + 1;
             }
-            return indexMap;
+            const map = {};
+            for (const [num, cnt] of Object.entries(counts)) {
+                if (cnt > 1) map[num] = COLORS[Number(num) % COLORS.length];
+            }
+            return map;
         }
     },
 
@@ -449,6 +510,12 @@ export default {
             this.editingId = null;
             this.editingPallet = null;
         },
+        requestConfirm(toSend) {
+            const selectedData = this.filteredPallets.filter(p => this.selectedPallets.includes(p.id));
+            const destinations = [...new Set(selectedData.map(p => p.destination).filter(Boolean))];
+            this.confirmModal = { show: true, toSend, count: selectedData.length, destinations };
+        },
+
         async updateToDestinations(toSend) {
             this.isCreatingLabel = true
             const selectedPalletsData = this.filteredPallets.filter(p =>

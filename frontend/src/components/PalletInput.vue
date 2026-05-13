@@ -7,7 +7,7 @@
                 <p class="text-slate-500 text-sm mt-0.5">רישום משטח חדש</p>
             </div>
             <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                <button @click="fastMode = !fastMode"
+                <!-- <button @click="fastMode = !fastMode"
                     :class="[
                         'text-sm font-semibold rounded-lg px-3 py-1.5 border transition-all',
                         fastMode
@@ -15,7 +15,7 @@
                             : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'
                     ]">
                     מצב מהיר
-                </button>
+                </button> not shipped until further notice  -->
                 <span class="text-slate-500 text-sm hidden sm:inline">מגדל:</span>
                 <span class="font-bold text-sm sm:text-base bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-3 sm:px-4 py-1.5">
                     {{ selectedFarmer }}
@@ -158,33 +158,6 @@
                 </div>
             </div>
 
-            <!-- Duplicate pallet warning -->
-            <Transition
-                enter-active-class="transition-all duration-300"
-                enter-from-class="opacity-0 -translate-y-2"
-                enter-to-class="opacity-100 translate-y-0"
-                leave-active-class="transition-all duration-200"
-                leave-from-class="opacity-100 translate-y-0"
-                leave-to-class="opacity-0 -translate-y-2">
-                <div v-if="duplicateWarning" class="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-yellow-50 border border-yellow-300 rounded-xl px-4 py-3 rtl">
-                    <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5 sm:mt-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    <span class="text-sm font-medium text-yellow-800 flex-1">
-                        משטח מספר {{ formData.palletNumber }} כבר קיים. האם להמשיך?
-                    </span>
-                    <div class="flex gap-2 flex-shrink-0">
-                        <button type="button" @click="proceedDespiteDuplicate"
-                            class="text-sm font-semibold px-3 py-1.5 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition-colors">
-                            כן המשך
-                        </button>
-                        <button type="button" @click="cancelDuplicate"
-                            class="text-sm font-semibold px-3 py-1.5 rounded-lg bg-white text-yellow-700 border border-yellow-300 hover:bg-yellow-50 transition-colors">
-                            לא תקן
-                        </button>
-                    </div>
-                </div>
-            </Transition>
 
             <!-- Submit Row -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
@@ -216,6 +189,41 @@
                 </button>
             </div>
         </form>
+
+        <!-- Duplicate Pallet Modal -->
+        <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0"
+            enter-to-class="opacity-100" leave-active-class="transition-all duration-150"
+            leave-from-class="opacity-100" leave-to-class="opacity-0">
+            <div v-if="duplicateWarning"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full rtl text-right animate-fade-in">
+                    <div class="flex items-start gap-3 mb-5">
+                        <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg class="w-5 h-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-base mb-1">משטח כפול</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                משטח מספר <strong>{{ formData.palletNumber }}</strong> כבר קיים עבור מגדל זה.
+                                האם להמשיך בכל זאת?
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 justify-start">
+                        <button type="button" @click="proceedDespiteDuplicate"
+                            class="px-5 py-2 rounded-lg text-sm font-semibold bg-yellow-500 text-white hover:bg-yellow-600 transition-colors">
+                            כן המשך
+                        </button>
+                        <button type="button" @click="cancelDuplicate"
+                            class="px-5 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+                            לא תקן
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Transition>
 
         <!-- Last Submitted Pallet -->
         <Transition
