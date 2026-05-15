@@ -71,7 +71,6 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  // Allow direct navigation to /login without auth check
   if (to.path === "/login") {
     return next();
   }
@@ -79,28 +78,23 @@ router.beforeEach(async (to, from, next) => {
     const res = await axios.get(`${baseUrl}/api/auth/me`, { withCredentials: true });
     const user = res.data;
 
-    if (to.meta.requiresAuth && !user) {
-      return next("/login");
+    // Unknown route or bare root → role-appropriate home
+    if (to.matched.length === 0 || to.path === "/") {
+      return next(user.role === "admin" ? "/Dashboard" : "/Destination");
     }
 
     if (to.meta.requiresAdmin && user.role !== "admin") {
-      return next("/Destination"); // fallback for non-admins
+      return next("/Destination");
     }
 
-    if (to.path === "/" && user.role === "admin") {
-      return next("/Dashboard");
-    }
-
-    next(); // allow navigation
+    next();
   } catch (error) {
     if (error.response && error.response.status === 401) {
-      // Definitive "not logged in" — redirect to login
-      if (to.meta.requiresAuth) return next("/login");
-      return next();
+      return next("/login");
     }
-    // Network error or server down — don't kick the user out, just let them through.
-    // Page components will show their own error states.
+    // Server down — let existing routes through, send unknown routes to login as fallback
     console.warn("Auth check failed (server may be down):", error.message);
+    if (to.matched.length === 0 || to.path === "/") return next("/login");
     next();
   }
 });

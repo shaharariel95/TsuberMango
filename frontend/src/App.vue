@@ -284,9 +284,9 @@ export default {
       { path: '/Dashboard', label: 'לוח בקרה', role: 'admin' },
       { path: '/Intake', label: 'קליטה', role: 'admin' },
       { path: '/Weight', label: 'טבלת נתונים', role: 'admin' },
-      { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
       { path: '/Destination', label: 'הכנה למשלוח', role: 'user' },
       { path: '/SentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
+      { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
       { path: '/DestinationsSummary', label: 'סיכום יעדים', role: 'user' },
       { path: '/Settings', label: 'ניהול הגדרות', role: 'admin', isBottom: true },
     ]);

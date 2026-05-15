@@ -182,6 +182,45 @@ app.get("/api/auth/me", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
+// 🕛 Internal endpoint for Cloud Scheduler — OIDC token auth, no session required
+// Must be defined BEFORE the global app.use("/api", ensureAuthenticated) block
+const backupService = require('./services/backupService');
+const { OAuth2Client } = require('google-auth-library');
+const oidcClient = new OAuth2Client();
+
+app.post('/api/internal/backup', async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '').trim();
+
+  if (process.env.NODE_ENV !== 'production') {
+    const devSecret = process.env.CRON_SECRET;
+    if (devSecret && token === devSecret) {
+      logger.info('[/api/internal/backup] Dev CRON_SECRET accepted');
+      const result = await backupService.runBackup('cloud-scheduler/dev');
+      return res.json({ success: true, ...result });
+    }
+  }
+
+  if (!token) {
+    return res.status(401).json({ error: 'Missing Authorization header' });
+  }
+
+  try {
+    const ticket = await oidcClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.CLOUD_RUN_SERVICE_URL,
+    });
+    const payload = ticket.getPayload();
+    const triggeredBy = payload.email || 'cloud-scheduler';
+    logger.info(`[/api/internal/backup] OIDC verified — triggeredBy: ${triggeredBy}`);
+    const result = await backupService.runBackup(triggeredBy);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    logger.error('[/api/internal/backup] OIDC verification failed:', err.message);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+});
+
 app.use(
   "/api",
   ensureAuthenticated,

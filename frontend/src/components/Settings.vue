@@ -153,7 +153,7 @@
               <td class="px-4 py-2 text-slate-700 whitespace-nowrap" dir="ltr">{{ formatBackupDate(b.timestamp) }}</td>
               <td class="px-4 py-2 text-slate-600">{{ b.rowCount }}</td>
               <td class="px-4 py-2 text-slate-600">{{ b.farmerCount }}</td>
-              <td class="px-4 py-2 text-slate-500 truncate max-w-[180px]" :title="b.triggeredBy">{{ b.triggeredBy }}</td>
+              <td class="px-4 py-2 text-slate-500 truncate max-w-[180px]" :title="b.triggeredBy">{{ b.triggeredBy?.includes('developer.gserviceaccount.com') ? 'גיבוי אוטומטי' : b.triggeredBy }}</td>
             </tr>
           </tbody>
         </table>
@@ -162,10 +162,10 @@
 
     <!-- Import Button -->
     <div class="flex justify-center">
-      <button @click="importFromStatic"
+      <!-- <button @click="importFromStatic"
               class="btn-ghost text-xs border border-slate-200 text-slate-500 hover:text-slate-700 flex items-center gap-1.5">
         📥 ייבוא נתונים מ-data.js (חד פעמי)
-      </button>
+      </button> -->
     </div>
 
     <!-- Delete Confirmation Modal -->
@@ -246,7 +246,7 @@ import { ref, reactive, onMounted, defineComponent } from 'vue';
 import { db } from '../main';
 import { doc, onSnapshot } from 'firebase/firestore';
 import axios from 'axios';
-import { kinds, sizes, destinations, farmerConfigs } from '../data/data';
+// import { kinds, sizes, destinations, farmerConfigs } from '../data/data';
 import ListEditor from './ListEditor.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
 
@@ -448,23 +448,6 @@ export default {
       }
     };
 
-    const importFromStatic = async () => {
-      if (!confirm('האם לייבא את כל הנתונים מ-data.js? זה ידרוס את ההגדרות הנוכחיות ב-Firestore.')) return;
-      
-      const legacyFarmers = ['גבי צוברי', 'עטר שחק', 'קופלר', 'גמליאל', 'אבנר לוי', 'עידן לוי'];
-      
-      localConfig.kinds = kinds;
-      localConfig.sizes = sizes;
-      localConfig.destinations = destinations;
-      localConfig.farmers = legacyFarmers.map(name => ({
-        name,
-        allowGidon: farmerConfigs[name]?.allowGidon || false
-      }));
-      
-      await saveConfig();
-      showStatus('נתונים יובאו בהצלחה', 'success');
-    };
-
     const showStatus = (msg, type) => {
       status.value = { msg, type };
       setTimeout(() => status.value = null, 4000);
@@ -473,7 +456,7 @@ export default {
     return {
       localConfig, newFarmerName, isWorking, saveConfig, addFarmer,
       confirmDeleteFarmer, farmerToDelete, confirmChecks, deleteFarmer,
-      importFromStatic, status,
+      status,
       usersList, usersLoading, newUserEmail, newUserRole, isWorkingUsers,
       addUser, deleteUser, isLastAdmin,
       backupsList, backupsLoading, isBackingUp, backupError,

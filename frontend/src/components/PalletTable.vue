@@ -11,13 +11,8 @@
             </div>
             <div class="flex flex-wrap gap-1.5 items-center flex-shrink-0">
                 <template v-if="!destinationOnly && !columnsFilter.length">
-                    <SpinnerButton v-if="isEditable" @click="sendSelectedPallets"
-                        :loading="isCreatingLabel" :disabled="isCreateLabelAllowed"
-                        class="btn-primary text-sm min-h-[36px] px-3">
-                        צור תעודת משלוח
-                    </SpinnerButton>
                     <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
-                        class="btn-primary text-sm min-h-[36px] px-3" v-else>
+                        class="btn-primary text-sm min-h-[36px] px-3" v-if="!isEditable">
                         החזר משטחים נשלחו
                     </button>
                     <SpinnerButton v-if="isEditable" @click="printPDF"
@@ -39,6 +34,11 @@
                         class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
                         הורד ממשלוח
                     </SpinnerButton>
+                    <SpinnerButton v-if="isEditable" @click="sendSelectedPallets"
+                        :loading="isCreatingLabel" :disabled="isCreateLabelAllowed"
+                        class="btn-primary text-sm min-h-[36px] px-3">
+                        צור תעודת משלוח
+                    </SpinnerButton>
                     <button v-if="isEditable" @click="toggleSentView"
                             class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
                         <span v-if="sentView">הצג משטחים שנשלחו</span>
@@ -58,7 +58,7 @@
         </div>
 
         <!-- Table -->
-        <div class="overflow-auto flex-1 min-h-0 rounded-xl border border-slate-200 bg-white" style="-webkit-overflow-scrolling: touch;">
+        <div class="overflow-auto flex-1 min-h-0 rounded-xl border border-slate-200 bg-white" style="-webkit-overflow-scrolling: touch; padding-bottom: 35vh;">
             <table class="w-full min-w-[1200px] border-collapse rtl">
                 <thead>
                     <tr>
@@ -89,14 +89,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="pallet in sortedPallets" :key="pallet.id"
+                    <tr v-for="pallet in sortedPallets" :key="pallet.id" :data-id="pallet.id"
                         :class="[
                             'text-center text-sm transition-colors duration-100 bg-white hover:bg-mango-50/40',
                             highlightMissingWeight && !pallet.weight ? 'bg-amber-50' : ''
                         ]"
                         :style="getMixStyle(pallet)">
                         <template v-if="editingId === pallet.id">
-                            <td v-for="col in columns" :key="col.key" class="border-b border-slate-100 px-2 py-1.5">
+                            <td v-for="col in columns" :key="col.key" class="border-b border-slate-300 px-2 py-1.5">
                                 <template v-if="col.editable">
                                     <div v-if="col.key === 'kind'">
                                         <select v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5">
@@ -139,7 +139,7 @@
                                 </template>
                                 <template v-else>{{ pallet[col.key] }}</template>
                             </td>
-                            <td class="border-b border-slate-100 px-2 py-1.5">
+                            <td class="border-b border-slate-200 px-2 py-1.5">
                                 <div class="flex flex-col gap-1">
                                     <button v-if="!isLoading" @click="savePallet"
                                         class="text-xs px-2 py-1.5 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium transition-colors min-h-[32px]">
@@ -157,7 +157,7 @@
                             </td>
                         </template>
                         <template v-else>
-                            <td v-for="col in columns" :key="col.key" class="border-b border-slate-100 px-3 py-2.5">
+                            <td v-for="col in columns" :key="col.key" class="border-b border-slate-200 px-3 py-2.5">
                                 <template v-if="col.key === 'selected'">
                                     <input type="checkbox" v-model="selectedPallets" :value="pallet.id"
                                         class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
@@ -170,7 +170,7 @@
                                 </template>
                                 <template v-else>{{ pallet[col.key] }}</template>
                             </td>
-                            <td class="border-b border-slate-100 px-3 py-2.5" v-if="isEditable">
+                            <td class="border-b border-slate-200 px-3 py-2.5" v-if="isEditable">
                                 <div class="flex items-center justify-center gap-1.5">
                                     <div v-if="pallet.editedBy" class="relative group flex-shrink-0">
                                         <span class="text-slate-400 hover:text-slate-600 cursor-default text-sm leading-none select-none">ⓘ</span>
@@ -477,6 +477,10 @@ export default {
                 sent: !!pallet.sent,
                 gidon: !!pallet.gidon
             };
+            this.$nextTick(() => {
+                const row = this.$el.querySelector(`tr[data-id="${pallet.id}"]`);
+                if (row) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
         },
 
         closeEditing() {
@@ -598,16 +602,11 @@ export default {
         },
         validatePallet(pallet) {
             const requiredFields = ['boxes', 'weight', 'size', 'kind', 'destination', 'shipmentDate', 'harvestDate'];
-            for (const field of requiredFields) {
-                if (!pallet[field]) {
-                    this.error = `Missing field: ${field}`;
-                    setTimeout(() => {
-                        this.error = null;
-                    }, 5000);
-                    return false;
-                }
+            const missing = requiredFields.filter(field => !pallet[field]);
+            if (missing.length > 0) {
+                return `שדות חסרים: ${missing.join(', ')}`;
             }
-            return true;
+            return null;
         },
         async sendSelectedPallets() {
             this.isCreatingLabel = true
@@ -616,11 +615,10 @@ export default {
             );
 
             try {
-                selectedPalletsData.forEach(pallet => {
-                    if (!this.validatePallet(pallet)) {
-                        throw new Error('Missing required fields in pallet data');
-                    }
-                });
+                for (const pallet of selectedPalletsData) {
+                    const validationError = this.validatePallet(pallet);
+                    if (validationError) throw new Error(validationError);
+                }
                 const response = await fetch(`${baseUrl}/api/shipping/newlabel`, {
                     method: 'POST',
                     headers: {
@@ -774,6 +772,10 @@ td, th {
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
     vertical-align: middle;
+}
+
+td {
+    border-bottom: 1px solid #b2b8c1;
 }
 
 .rtl {
