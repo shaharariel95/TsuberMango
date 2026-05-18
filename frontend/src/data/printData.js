@@ -73,9 +73,26 @@ async function createStickerPDF(data = {}) {
     ],
   };
 
-  pdfMake
-    .createPdf(docDefinition)
-    .download(`${platformNumber || "sticker"}.pdf`);
+  const pdf = pdfMake.createPdf(docDefinition);
+  const filename = `${platformNumber || "sticker"}.pdf`;
+
+  // On Android/mobile: use native share sheet so the user can pick any print app
+  if (navigator.share) {
+    pdf.getBlob(async (blob) => {
+      const file = new File([blob], filename, { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: `משטח ${platformNumber}` });
+          return;
+        } catch {
+          // User cancelled or share failed — fall through to download
+        }
+      }
+      pdf.download(filename);
+    });
+  } else {
+    pdf.download(filename);
+  }
 }
 
 export default createStickerPDF;
