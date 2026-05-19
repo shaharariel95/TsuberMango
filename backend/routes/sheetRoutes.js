@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const sheetController = require('../controllers/sheetController');
 const labelController = require('../controllers/labelController');
+const fridgeController = require('../controllers/fridgeController');
 const logger = require('../utils/logger');
 
 // Middleware to validate farmer parameter
@@ -77,5 +78,9 @@ router.post('/farmers/:farmer/destinations/Sent',
     (req,res,next)=> {logger.info(`in /shipping/destinations/Sent`); next()},
     sheetController.removeFromDestination.bind(sheetController)
 );
+
+// Fridge Layout Routes
+router.get('/fridge', fridgeController.getLayout.bind(fridgeController));
+router.post('/fridge', fridgeController.saveLayout.bind(fridgeController));
 
 module.exports = router;

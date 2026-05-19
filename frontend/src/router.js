@@ -10,6 +10,7 @@ import Login from "./components/Login.vue";
 import DestinationsSummary from "./components/DestinationsSummary.vue";
 import Settings from "./components/Settings.vue";
 import Dashboard from "./components/Dashboard.vue";
+import FridgeLayout from "./components/FridgeLayout.vue";
 
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
@@ -62,6 +63,12 @@ const routes = [
     name: "Settings",
     component: Settings,
     meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/Fridge",
+    name: "FridgeLayout",
+    component: FridgeLayout,
+    meta: { requiresAuth: true },
   },
 ];
 

@@ -284,6 +284,7 @@ export default {
       { path: '/Dashboard', label: 'לוח בקרה', role: 'admin' },
       { path: '/Intake', label: 'קליטה', role: 'admin' },
       { path: '/Weight', label: 'טבלת נתונים', role: 'admin' },
+      { path: '/Fridge', label: 'סידור מקרר 🧊', role: 'user' },
       { path: '/Destination', label: 'הכנה למשלוח', role: 'user' },
       { path: '/SentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
       { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
