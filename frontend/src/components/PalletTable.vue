@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full w-full flex flex-col animate-fade-in">
+    <div class="h-auto lg:h-full w-full flex flex-col animate-fade-in">
         <!-- Compact Toolbar -->
         <div class="flex items-center justify-between gap-x-3 gap-y-2 mb-2 rtl flex-wrap">
             <div class="flex items-center gap-2 flex-wrap min-w-0">
@@ -57,8 +57,8 @@
                 class="w-full border border-slate-200 rounded-lg text-sm pr-9 pl-3 py-1.5 min-h-[36px] focus:ring-1 focus:ring-mango-400 focus:border-mango-400 outline-none bg-white" />
         </div>
 
-        <!-- Table -->
-        <div class="overflow-auto flex-1 min-h-0 rounded-xl border border-slate-200 bg-white" style="-webkit-overflow-scrolling: touch; padding-bottom: 35vh;">
+        <!-- Desktop Table View -->
+        <div class="hidden lg:block overflow-auto flex-1 min-h-0 rounded-xl border border-slate-200 bg-white" style="-webkit-overflow-scrolling: touch; padding-bottom: 35vh;">
             <table class="w-full min-w-[1200px] border-collapse rtl">
                 <thead>
                     <tr>
@@ -162,7 +162,7 @@
                                     <input type="checkbox" v-model="selectedPallets" :value="pallet.id"
                                         class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                                 </template>
-                                <template v-if="col.key === 'sent'">
+                                <template v-else-if="col.key === 'sent'">
                                     <span :class="[
                                         'inline-flex items-center justify-center w-3 h-3 rounded-full',
                                         pallet[col.key] ? 'bg-emerald-400 shadow-sm shadow-emerald-200' : 'bg-slate-300'
@@ -191,6 +191,196 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Mobile Cards View -->
+        <div class="block lg:hidden space-y-3 mt-2 pb-24 rtl" style="touch-action: manipulation;">
+            <div v-if="sortedPallets.length === 0" class="text-center text-slate-400 py-8 bg-white rounded-2xl border border-slate-100 italic shadow-sm">
+                אין משטחים להצגה
+            </div>
+            <div v-else v-for="pallet in sortedPallets" :key="pallet.id"
+                :class="[
+                    'relative bg-white rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:border-mango-300',
+                    highlightMissingWeight && !pallet.weight ? 'bg-amber-50/50 border-amber-300' : 'border-slate-100',
+                    editingId === pallet.id ? 'ring-2 ring-mango-400 border-mango-400 bg-mango-50/5' : ''
+                ]"
+                :style="getMixStyle(pallet)"
+            >
+                <!-- Card Header -->
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <input v-if="hasColumn('selected')" type="checkbox" v-model="selectedPallets" :value="pallet.id"
+                            class="w-6 h-6 rounded-lg border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs text-slate-400 font-medium">משטח</span>
+                            <span class="font-mono font-black text-lg text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">#{{ pallet.palletNumber }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-1.5">
+                        <span v-if="hasColumn('sent')" :class="[
+                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold',
+                            pallet.sent ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                        ]">
+                            <span :class="['w-2 h-2 rounded-full', pallet.sent ? 'bg-emerald-500' : 'bg-slate-400']"></span>
+                            {{ pallet.sent ? 'נשלח' : 'ממתין' }}
+                        </span>
+                        
+                        <span v-if="highlightMissingWeight && !pallet.weight" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 animate-pulse">
+                            ⚠️ חסר משקל
+                        </span>
+                        
+                        <span v-if="pallet.gidon && hasColumn('gidon')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800">
+                            גדעון
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Card Body: Inline Editing Form -->
+                <div v-if="editingId === pallet.id" class="grid grid-cols-2 gap-3 mt-3">
+                    <div v-if="hasColumn('palletNumber')" class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-slate-500">מספר משטח</label>
+                        <input type="number" v-model="editingPallet.palletNumber" class="input-field text-sm w-full !p-2" />
+                    </div>
+
+                    <div v-if="hasColumn('kind')" class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-slate-500">זן</label>
+                        <select v-model="editingPallet.kind" class="input-field text-sm w-full !p-2">
+                            <option v-for="kind in kinds" :key="kind" :value="kind">{{ kind }}</option>
+                        </select>
+                    </div>
+
+                    <div v-if="hasColumn('size')" class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-slate-500">גודל</label>
+                        <select v-model="editingPallet.size" class="input-field text-sm w-full !p-2">
+                            <option v-for="size in sizes" :key="size" :value="size">{{ size }}</option>
+                        </select>
+                    </div>
+
+                    <div v-if="hasColumn('boxes')" class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-slate-500">ארגזים</label>
+                        <input type="number" v-model="editingPallet.boxes" class="input-field text-sm w-full !p-2" />
+                    </div>
+
+                    <div v-if="hasColumn('weight')" class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-slate-500">משקל</label>
+                        <input type="number" step="0.1" v-model="editingPallet.weight" class="input-field text-sm w-full !p-2" />
+                    </div>
+
+                    <div v-if="hasColumn('harvestDate')" class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-slate-500">תאריך קטיף</label>
+                        <input type="date" v-model="editingPallet.harvestDate" class="input-field text-sm w-full !p-2" />
+                    </div>
+
+                    <div v-if="hasColumn('shipmentDate')" class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-slate-500">תאריך משלוח</label>
+                        <input type="date" v-model="editingPallet.shipmentDate" class="input-field text-sm w-full !p-2" />
+                    </div>
+
+                    <div v-if="hasColumn('cardId')" class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-slate-500">מספר תעודה</label>
+                        <input type="number" v-model="editingPallet.cardId" class="input-field text-sm w-full !p-2" />
+                    </div>
+
+                    <div v-if="hasColumn('destination')" class="flex flex-col gap-1 col-span-2">
+                        <label class="text-xs font-semibold text-slate-500">יעד</label>
+                        <input type="text" v-model="destinationFilterText" placeholder="סנן יעד..." class="input-field text-sm w-full mb-1 !p-2" />
+                        <select v-model="editingPallet.destination" class="input-field text-sm w-full !p-2">
+                            <option v-for="destination in filteredDestinations" :key="destination" :value="destination">{{ destination }}</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-6 col-span-2 mt-2">
+                        <div v-if="hasColumn('gidon')" class="flex items-center gap-2">
+                            <input type="checkbox" id="edit-mobile-gidon" v-model="editingPallet.gidon"
+                                class="w-6 h-6 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
+                            <label for="edit-mobile-gidon" class="text-sm font-semibold text-slate-600 cursor-pointer">גדעון</label>
+                        </div>
+                        <div v-if="hasColumn('sent')" class="flex items-center gap-2">
+                            <input type="checkbox" id="edit-mobile-sent" v-model="editingPallet.sent"
+                                class="w-6 h-6 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
+                            <label for="edit-mobile-sent" class="text-sm font-semibold text-slate-600 cursor-pointer">נשלח</label>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Form Actions -->
+                    <div class="flex gap-2 col-span-2 mt-3 pt-3 border-t border-slate-200">
+                        <button v-if="!isLoading" @click="savePallet"
+                            class="flex-1 min-h-[44px] rounded-xl bg-emerald-500 text-white font-bold text-sm shadow-sm hover:bg-emerald-600 transition-colors flex items-center justify-center">
+                            שמור
+                        </button>
+                        <button v-else
+                            class="flex-1 min-h-[44px] rounded-xl bg-mango-100 text-mango-700 font-bold text-sm flex items-center justify-center">
+                            <span class="loading-spinner !w-4 !h-4"></span>
+                        </button>
+                        <button @click="closeEditing"
+                            class="flex-1 min-h-[44px] rounded-xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center justify-center">
+                            ביטול
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card Body: Read-only view -->
+                <div v-else>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2.5 mt-3 pt-3 border-t border-slate-100 text-sm">
+                        <div v-if="hasColumn('kind')" class="flex flex-col">
+                            <span class="text-xs text-slate-400">זן</span>
+                            <span class="font-bold text-slate-700">{{ pallet.kind || '—' }}</span>
+                        </div>
+
+                        <div v-if="hasColumn('size')" class="flex flex-col">
+                            <span class="text-xs text-slate-400">גודל</span>
+                            <span class="font-bold text-slate-700">{{ pallet.size || '—' }}</span>
+                        </div>
+
+                        <div v-if="hasColumn('boxes')" class="flex flex-col">
+                            <span class="text-xs text-slate-400">ארגזים</span>
+                            <span class="font-bold text-slate-700 font-mono">{{ pallet.boxes || '0' }}</span>
+                        </div>
+
+                        <div v-if="hasColumn('weight')" class="flex flex-col">
+                            <span class="text-xs text-slate-400">משקל</span>
+                            <span class="font-bold text-slate-700 font-mono">{{ pallet.weight ? `${pallet.weight} ק״ג` : '—' }}</span>
+                        </div>
+
+                        <div v-if="hasColumn('destination')" class="flex flex-col">
+                            <span class="text-xs text-slate-400">יעד</span>
+                            <span class="font-bold text-mango-800">{{ pallet.destination || '—' }}</span>
+                        </div>
+
+                        <div v-if="hasColumn('harvestDate')" class="flex flex-col">
+                            <span class="text-xs text-slate-400">תאריך קטיף</span>
+                            <span class="font-medium text-slate-700 font-mono text-xs">{{ pallet.harvestDate || '—' }}</span>
+                        </div>
+
+                        <div v-if="hasColumn('shipmentDate')" class="flex flex-col">
+                            <span class="text-xs text-slate-400">תאריך משלוח</span>
+                            <span class="font-medium text-slate-700 font-mono text-xs">{{ pallet.shipmentDate || '—' }}</span>
+                        </div>
+
+                        <div v-if="hasColumn('cardId')" class="flex flex-col">
+                            <span class="text-xs text-slate-400">מספר תעודה</span>
+                            <span class="font-mono font-bold text-slate-700">{{ pallet.cardId || '—' }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Card Footer Actions -->
+                    <div v-if="isEditable || pallet.editedBy" class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 flex-wrap gap-2">
+                        <div v-if="pallet.editedBy" class="flex items-center gap-1 text-slate-400 text-[10px] sm:text-xs">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="truncate max-w-[180px]">עודכן ע״י {{ pallet.editedBy }} ({{ formatEditedAt(pallet.editedAt) }})</span>
+                        </div>
+                        <div v-else></div>
+
+                        <button v-if="isEditable" @click="startEditing(pallet)"
+                            class="min-h-[36px] px-4 py-1.5 rounded-lg border border-mango-200 text-mango-600 font-bold text-sm bg-mango-50/30 hover:bg-mango-50 transition-colors mr-auto">
+                            ערוך משטח
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Bulk Action Confirmation Modal -->
@@ -341,6 +531,14 @@ export default {
     watch: {
         farmer() {
             this.searchText = '';
+            this.filterBy = {
+                kind: '',
+                size: '',
+                destination: '',
+                cardId: '',
+                gidon: ''
+            };
+            this.selectedPallets = [];
         }
     },
 
@@ -448,6 +646,10 @@ export default {
     },
 
     methods: {
+        hasColumn(key) {
+            return this.columns.some(col => col.key === key);
+        },
+
         getMixStyle(pallet) {
             const mixInfo = this.mixPalletColorMap[String(pallet.palletNumber)];
             if (!mixInfo) return {};

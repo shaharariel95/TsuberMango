@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full animate-fade-in">
+    <div class="h-auto lg:h-full animate-fade-in">
         <!-- Loading -->
         <LoadingState v-if="isLoading" />
 
@@ -10,7 +10,7 @@
         <EmptyState v-else-if="message.length === 0" />
 
         <!-- Table + H4 controls -->
-        <div v-else class="h-full flex flex-col gap-2">
+        <div v-else class="h-auto lg:h-full flex flex-col gap-2">
             <div class="flex items-center gap-2 flex-shrink-0 flex-wrap rtl">
                 <span :class="[
                     'text-sm font-semibold rounded-lg px-3 py-1.5',
@@ -28,7 +28,7 @@
                     {{ filterMissingWeight ? 'הצג הכל' : 'סנן חסרי משקל' }}
                 </button>
             </div>
-            <div class="flex-1 min-h-0">
+            <div class="h-auto lg:flex-1 lg:min-h-0">
                 <PalletTable v-model:pallets="message" :farmer="farmerName"
                     title="טבלת נתונים" subtitle="כל המשטחים של המגדל"
                     :filter-missing-weight="filterMissingWeight"

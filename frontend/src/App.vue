@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen w-full overflow-hidden flex bg-slate-100">
+  <div :class="['w-full flex', isMobile ? 'min-h-screen bg-slate-50' : 'h-screen overflow-hidden bg-slate-100']">
     <!-- ── Mobile Topbar ─────────────────────────────── -->
     <header v-if="!isLoginPage && isMobile"
       class="fixed top-0 right-0 left-0 z-30 h-14 bg-white border-b border-slate-200 shadow-sm flex items-center gap-3 px-3 rtl">
@@ -119,17 +119,24 @@
 
     <!-- ── Main Content ──────────────────────────────── -->
     <div :class="[
-      'flex-1 min-h-0 min-w-0 transition-all duration-300',
+      'flex-grow min-w-0 transition-all duration-300',
+      isMobile ? 'min-h-screen bg-slate-50' : 'h-screen flex flex-col min-h-0',
       mainContentMargin
     ]">
-      <div v-if="!isLoginPage" class="h-full p-3 sm:p-4 md:p-6" :style="isMobile ? 'padding-top: 4.25rem;' : ''">
-        <div
-          class="h-full w-full bg-white rounded-2xl shadow-card overflow-hidden flex flex-col min-h-0 border border-slate-100">
-          <div class="flex-grow min-h-0 min-w-0 overflow-auto p-3 sm:p-4 text-slate-800">
+      <!-- Desktop View: Fixed height card wrapper -->
+      <div v-if="!isLoginPage && !isMobile" class="h-full p-4 md:p-6">
+        <div class="h-full w-full bg-white rounded-2xl shadow-card overflow-hidden flex flex-col min-h-0 border border-slate-100">
+          <div class="flex-grow min-h-0 min-w-0 overflow-auto p-4 text-slate-800">
             <router-view :selected-farmer="selectedFarmer" />
           </div>
         </div>
       </div>
+      
+      <!-- Mobile View: Smooth natural page-level scrolling, no nested heights -->
+      <div v-else-if="!isLoginPage && isMobile" class="w-full bg-slate-50 px-3 pb-16 pt-[4.25rem] text-slate-800">
+        <router-view :selected-farmer="selectedFarmer" />
+      </div>
+
       <router-view v-else />
     </div>
   </div>
@@ -286,7 +293,7 @@ export default {
       { path: '/Weight', label: 'טבלת נתונים', role: 'admin' },
       { path: '/Fridge', label: 'סידור מקרר 🧊', role: 'user' },
       { path: '/Destination', label: 'הכנה למשלוח', role: 'user' },
-      { path: '/SentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
+      { path: '/sentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
       { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
       { path: '/DestinationsSummary', label: 'סיכום יעדים', role: 'user' },
       { path: '/Settings', label: 'ניהול הגדרות', role: 'admin', isBottom: true },

@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full animate-fade-in">
+    <div class="h-auto lg:h-full animate-fade-in">
         <LoadingState v-if="isLoading" />
         <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="true" :destinationOnly="false"
             title="הכנה למשלוח" subtitle="עריכת יעדים וסימון משטחים" />

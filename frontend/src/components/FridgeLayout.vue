@@ -1,8 +1,28 @@
 <template>
-  <div class="h-full flex flex-col gap-4 animate-fade-in text-right rtl" dir="rtl">
+  <div class="h-auto lg:h-full flex flex-col gap-4 animate-fade-in text-right rtl" dir="rtl">
     
+    <!-- Segmented Mobile Tab Navigation Bar -->
+    <div class="block lg:hidden flex-shrink-0 border-b border-slate-200 pb-2">
+      <div class="flex bg-slate-100 p-1 rounded-xl">
+        <button @click="activeMobileTab = 'map'" 
+          :class="[
+            'flex-1 text-center py-2.5 text-sm font-bold rounded-lg transition-all duration-200',
+            activeMobileTab === 'map' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+          ]">
+          🧊 מפת מקרר
+        </button>
+        <button @click="activeMobileTab = 'stats'" 
+          :class="[
+            'flex-1 text-center py-2.5 text-sm font-bold rounded-lg transition-all duration-200',
+            activeMobileTab === 'stats' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+          ]">
+          📊 נתונים ותפוסה
+        </button>
+      </div>
+    </div>
+
     <!-- ── Header & Analytics Section ────────────────────────────── -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-shrink-0">
+    <div :class="['grid grid-cols-1 lg:grid-cols-3 gap-4 flex-shrink-0', activeMobileTab === 'stats' ? 'grid' : 'hidden lg:grid']">
       
       <!-- Title & Sync Status -->
       <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 text-white flex flex-col justify-between shadow-lg">
@@ -66,7 +86,7 @@
     </div>
 
     <!-- ── Search & Controls Section ──────────────────────────────── -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col gap-3 shadow-sm flex-shrink-0">
+    <div :class="['bg-white border border-slate-200 rounded-2xl p-4 flex flex-col gap-3 shadow-sm flex-shrink-0', activeMobileTab === 'map' ? 'flex' : 'hidden lg:flex']">
       <div class="flex flex-col md:flex-row md:items-center gap-3">
         
         <!-- Search Input -->
@@ -97,6 +117,17 @@
             ביטול
           </button>
         </div>
+
+        <!-- Dynamic Move state banner -->
+        <div v-if="selectedMoveCellId" class="flex-shrink-0 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl py-2 px-3 animate-pulse">
+          <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
+          <span class="text-xs font-bold text-amber-800">
+            נבחר משטח בתא <strong>{{ selectedMoveCellId }}</strong> - לחץ על תא ריק להעברה, או לחץ על פח האשפה למטה להוצאה
+          </span>
+          <button @click="selectedMoveCellId = null" class="text-amber-500 hover:text-amber-700 text-xs font-bold mr-1 bg-white hover:bg-amber-100 border border-amber-300 rounded px-1.5 py-0.5 transition-colors">
+            ביטול
+          </button>
+        </div>
       </div>
 
       <!-- Quick Results Auto-complete List -->
@@ -119,7 +150,7 @@
     </div>
 
     <!-- ── Interactive 5x8 Alphanumeric Fridge Grid ──────────────────── -->
-    <div class="flex-1 min-h-0 bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col shadow-inner select-none relative overflow-y-auto">
+    <div :class="['flex-grow bg-slate-50 border border-slate-200 rounded-2xl p-2 sm:p-4 flex flex-col shadow-inner select-none relative overflow-y-auto min-h-[460px] lg:min-h-0', activeMobileTab === 'map' ? 'flex' : 'hidden lg:flex']" style="touch-action: manipulation;">
       
       <!-- Loading Overlay -->
       <div v-if="isLoading" class="absolute inset-0 bg-slate-50/80 backdrop-blur-sm z-10 flex items-center justify-center flex-col gap-3">
@@ -128,7 +159,7 @@
       </div>
 
       <!-- Column Labels Header (A-E) -->
-      <div class="grid grid-cols-6 gap-2 mb-1.5 flex-shrink-0 text-center text-xs font-extrabold text-slate-400 tracking-wider">
+      <div class="grid grid-cols-6 gap-1.5 sm:gap-2 mb-1.5 flex-shrink-0 text-center text-[10px] sm:text-xs font-extrabold text-slate-400 tracking-wider">
         <div class="flex items-center justify-center">שורה</div>
         <div v-for="col in columns" :key="col" class="py-1 uppercase bg-white/50 border border-slate-200/40 rounded-lg shadow-sm">
           תא {{ col }}
@@ -136,11 +167,11 @@
       </div>
 
       <!-- Grid Body Rows (1-8) -->
-      <div class="flex-grow flex flex-col gap-2 min-h-0">
-        <div v-for="row in rows" :key="row" class="grid grid-cols-6 gap-2 flex-grow min-h-[55px]">
+      <div class="flex-grow flex flex-col gap-1.5 sm:gap-2 flex-shrink-0">
+        <div v-for="row in rows" :key="row" class="grid grid-cols-6 gap-1.5 sm:gap-2 h-[80px] sm:h-[90px] lg:h-[95px] flex-shrink-0">
           
           <!-- Row Label Indicator -->
-          <div class="flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 font-extrabold text-sm shadow-sm">
+          <div class="flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 font-extrabold text-xs sm:text-sm shadow-sm">
             {{ row }}
           </div>
 
@@ -152,51 +183,52 @@
             @click="onCellClick(getCellId(col, row))"
             :id="'cell-' + getCellId(col, row)"
             :class="[
-              'rounded-xl border-2 transition-all duration-300 relative flex flex-col justify-between p-1.5 cursor-pointer shadow-sm',
+              'rounded-xl border-2 transition-all duration-300 relative flex flex-col justify-between p-1.5 sm:p-2 cursor-pointer shadow-sm overflow-hidden',
               isCellOccupied(col, row)
-                ? getFarmerCardColor(getCellPallet(col, row).farmer)
+                ? getFarmerCardColor(getFarmerName(getCellPallet(col, row)))
                 : 'bg-white/80 border-dashed border-slate-300 hover:border-mango-400 hover:bg-mango-50/5',
               selectedMoveCellId === getCellId(col, row) ? 'ring-4 ring-blue-500 ring-offset-1 animate-pulse border-blue-500 z-10' : '',
               draggedOverCellId === getCellId(col, row) ? 'bg-mango-100/50 border-mango-400 border-solid scale-98 shadow-md' : ''
-            ]">
+            ]"
+            style="touch-action: manipulation;">
             
             <!-- Cell Coordinates (e.g., A1) -->
-            <span class="absolute top-1 left-1.5 text-[9px] font-extrabold text-slate-400 font-mono tracking-tight">
+            <span class="absolute top-0.5 left-1 text-[8px] sm:text-[9px] font-extrabold text-slate-400 font-mono tracking-tight">
               {{ getCellId(col, row) }}
             </span>
-
+ 
             <!-- Cell Content (Occupied State) -->
             <div v-if="isCellOccupied(col, row)" class="h-full flex flex-col justify-between pt-2.5 select-none"
-              draggable="true" 
+              :draggable="!isTouchDevice" 
               @dragstart="onDragStart($event, getCellId(col, row))">
               
-              <!-- Pallet Details -->
-              <div class="text-[11px] font-extrabold text-slate-900 leading-tight truncate">
-                {{ getCellPallet(col, row).farmer }}
-              </div>
-              <div class="text-[9px] font-medium text-slate-600 leading-none truncate mt-0.5">
-                {{ getCellPallet(col, row).kind }} - גודל {{ getCellPallet(col, row).size }}
+              <!-- Farmer Name (Bigger & High Contrast) -->
+              <div class="text-[10px] sm:text-xs md:text-sm font-black text-slate-900 leading-tight truncate text-center">
+                {{ getFarmerName(getCellPallet(col, row)) }}
               </div>
               
-              <!-- Pallet Number badge -->
-              <div class="mt-1 flex items-center justify-between">
-                <span class="bg-white/80 border border-black/10 text-slate-900 text-[10px] font-mono font-extrabold px-1 rounded truncate leading-none py-0.5">
-                  #{{ getCellPallet(col, row).palletNumber }}
-                </span>
-                <span class="text-[9px] font-bold text-slate-500 leading-none">
-                  {{ getCellPallet(col, row).boxes }} ארג'
+              <!-- Pallet Number (Bigger Badge & High Contrast) -->
+              <div class="my-0.5 flex justify-center">
+                <span class="bg-slate-900 text-white text-[12px] sm:text-sm md:text-base font-mono font-black px-1.5 py-0.5 rounded-lg shadow-md inline-block leading-none border border-slate-700">
+                  {{ getCellPallet(col, row).palletNumber }}
                 </span>
               </div>
-
+              
+              <!-- Pallet Details (Variety & Boxes) -->
+              <div class="flex items-center justify-between text-[8px] sm:text-[10px] text-slate-600 font-bold leading-none mt-0.5 border-t border-slate-200/50 pt-1">
+                <span class="truncate max-w-[65%] text-slate-700">{{ getCellPallet(col, row).kind }}</span>
+                <span class="text-slate-800">{{ getCellPallet(col, row).boxes }} <span class="text-[7px] sm:text-[9px] text-slate-500">ארג'</span></span>
+              </div>
+ 
               <!-- Unweighed Warning Indicator -->
-              <span v-if="!getCellPallet(col, row).weight" class="absolute top-1.5 right-1.5 text-[9px] leading-none" title="משטח ללא משקל!">⚠️</span>
+              <span v-if="!getCellPallet(col, row).weight" class="absolute top-0.5 right-1 text-[9px] sm:text-[11px] leading-none" title="משטח ללא משקל!">⚠️</span>
             </div>
-
+ 
             <!-- Empty State placeholder -->
-            <div v-else class="h-full flex items-center justify-center text-slate-300 text-xs italic font-medium pt-2 select-none">
+            <div v-else class="h-full flex items-center justify-center text-slate-300 text-[10px] sm:text-xs italic font-medium pt-2.5 select-none">
               פנוי
             </div>
-
+ 
           </div>
 
         </div>
@@ -212,6 +244,7 @@
       @click="onRemoveClick"
       :class="[
         'border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center gap-1 shadow-sm flex-shrink-0 select-none',
+        activeMobileTab === 'map' ? 'flex' : 'hidden lg:flex',
         selectedMoveCellId 
           ? 'bg-rose-50 border-rose-400 text-rose-800 hover:bg-rose-100 hover:scale-[1.01]' 
           : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100',
@@ -256,7 +289,7 @@
 </template>
 
 <script>
-import { ref, watch, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, watch, computed, onMounted, onBeforeUnmount, nextTick, inject } from 'vue';
 import { useNotification } from '../composables/useNotification';
 import { Html5Qrcode } from 'html5-qrcode';
 
@@ -271,9 +304,11 @@ export default {
   },
   setup(props) {
     const { notify } = useNotification();
+    const config = inject('config', { farmers: [] });
     const isLoading = ref(false);
     const isSaving = ref(false);
     const syncStatus = ref('synced'); // 'synced' | 'saving' | 'offline' | 'error'
+    const activeMobileTab = ref('map'); // 'map' | 'stats'
     
     // Grid parameters
     const columns = ['A', 'B', 'C', 'D', 'E'];
@@ -290,6 +325,8 @@ export default {
 
     // Available pallets list fetched from the server
     const allPallets = ref([]);
+
+    const isTouchDevice = ref(false);
 
     // QR Scanner
     const showScanner = ref(false);
@@ -311,7 +348,7 @@ export default {
     });
 
     const occupiedCount = computed(() => {
-      return Object.values(cells.value).filter(cell => cell !== null && cell !== undefined).length;
+      return Object.values(cells.value).filter(cell => cell && typeof cell === 'object' && cell.palletNumber).length;
     });
 
     const occupancyRate = computed(() => {
@@ -336,12 +373,27 @@ export default {
       return c - (occupancyRate.value / 100) * c;
     });
 
+    const getFarmerName = (cell) => {
+      if (!cell) return '';
+      if (cell.farmer) return cell.farmer;
+      if (!cell.palletNumber) return '';
+      const found = allPallets.value.find(p => 
+        String(p.palletNumber) === String(cell.palletNumber) &&
+        (!cell.kind || p.kind === cell.kind) &&
+        (!cell.boxes || String(p.boxes) === String(cell.boxes))
+      );
+      return found ? found.farmer : '';
+    };
+
     // Breakdown counts of pallets per farmer currently in the fridge
     const farmerCounts = computed(() => {
       const counts = {};
       Object.values(cells.value).forEach(pallet => {
-        if (pallet) {
-          counts[pallet.farmer] = (counts[pallet.farmer] || 0) + 1;
+        if (pallet && typeof pallet === 'object' && pallet.palletNumber) {
+          const farmerName = getFarmerName(pallet);
+          if (farmerName) {
+            counts[farmerName] = (counts[farmerName] || 0) + 1;
+          }
         }
       });
       return counts;
@@ -352,14 +404,14 @@ export default {
     const filteredPallets = computed(() => {
       const occupiedPalletNumbers = new Set(
         Object.values(cells.value)
-          .filter(p => p !== null && p !== undefined)
+          .filter(p => p && typeof p === 'object' && p.palletNumber)
           .map(p => String(p.palletNumber))
       );
 
       const query = searchQuery.value.trim().toLowerCase();
       return allPallets.value.filter(pallet => {
-        // Exclude sent or already marked pallets, and pallets already in fridge
-        if (pallet.sent || pallet.mark || occupiedPalletNumbers.has(String(pallet.palletNumber))) {
+        // Exclude sent pallets and pallets already in fridge (marked pallets can still be stored in fridge)
+        if (pallet.sent || occupiedPalletNumbers.has(String(pallet.palletNumber))) {
           return false;
         }
         if (!query) return true;
@@ -373,19 +425,29 @@ export default {
 
     // Helpers
     const getCellId = (col, row) => `${col}${row}`;
-    const isCellOccupied = (col, row) => !!cells.value[getCellId(col, row)];
+    const isCellOccupied = (col, row) => {
+      const cell = cells.value[getCellId(col, row)];
+      return !!(cell && typeof cell === 'object' && cell.palletNumber);
+    };
     const getCellPallet = (col, row) => cells.value[getCellId(col, row)];
 
     const getFarmerCardColor = (farmer) => {
+      if (!farmer || typeof farmer !== 'string') return "bg-slate-50 border-slate-200 hover:bg-slate-100";
       const colors = {
-        "צוברי": "bg-amber-50 border-amber-300 hover:bg-amber-100/70",
-        "אבנר": "bg-emerald-50 border-emerald-300 hover:bg-emerald-100/70",
-        "עידן": "bg-sky-50 border-sky-300 hover:bg-sky-100/70",
-        "פסח": "bg-purple-50 border-purple-300 hover:bg-purple-100/70",
-        "קופלר": "bg-rose-50 border-rose-300 hover:bg-rose-100/70",
-        "שחק": "bg-indigo-50 border-indigo-300 hover:bg-indigo-100/70",
+        "צוברי": "bg-amber-50/90 border-amber-400 text-amber-950 hover:bg-amber-100/90 shadow-sm",
+        "אבנר": "bg-emerald-50/90 border-emerald-400 text-emerald-950 hover:bg-emerald-100/90 shadow-sm",
+        "עידן": "bg-sky-50/90 border-sky-400 text-sky-950 hover:bg-sky-100/90 shadow-sm",
+        "פסח": "bg-purple-50/90 border-purple-400 text-purple-950 hover:bg-purple-100/90 shadow-sm",
+        "קופלר": "bg-rose-50/90 border-rose-400 text-rose-950 hover:bg-rose-100/90 shadow-sm",
+        "שחק": "bg-indigo-50/90 border-indigo-400 text-indigo-950 hover:bg-indigo-100/90 shadow-sm",
       };
-      return colors[farmer] || "bg-slate-50 border-slate-200 hover:bg-slate-100";
+      
+      for (const key in colors) {
+        if (farmer.includes(key)) {
+          return colors[key];
+        }
+      }
+      return "bg-slate-50 border-slate-200 hover:bg-slate-100";
     };
 
     // Web Audio API feedback
@@ -413,17 +475,29 @@ export default {
     };
 
     // Fetch methods
-    const fetchActivePallets = async (farmer) => {
-      if (!farmer) return;
+    const fetchActivePallets = async () => {
+      const farmers = config.farmers || [];
+      if (farmers.length === 0) return;
       try {
-        const hebrewName = encodeURIComponent(farmer);
-        const res = await fetch(`${baseUrl}/api/farmers/${hebrewName}/records`, { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          allPallets.value = data.data || [];
-        }
+        const fetchPromises = farmers.map(async (farmer) => {
+          try {
+            const hebrewName = encodeURIComponent(farmer);
+            const res = await fetch(`${baseUrl}/api/farmers/${hebrewName}/records`, { credentials: 'include' });
+            if (res.ok) {
+              const data = await res.json();
+              const records = data.data || [];
+              return records.map(r => ({ ...r, farmer }));
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch available pallets for ${farmer}:`, err.message);
+          }
+          return [];
+        });
+
+        const results = await Promise.all(fetchPromises);
+        allPallets.value = results.flat();
       } catch (err) {
-        console.warn("Failed to fetch available pallets:", err.message);
+        console.warn("Failed to fetch available pallets for all farmers:", err.message);
       }
     };
 
@@ -716,10 +790,9 @@ export default {
 
     // Lifecycle hooks
     onMounted(async () => {
+      isTouchDevice.value = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
       await loadFridgeLayout();
-      if (props.selectedFarmer) {
-        await fetchActivePallets(props.selectedFarmer);
-      }
+      await fetchActivePallets();
     });
 
     onBeforeUnmount(async () => {
@@ -727,12 +800,15 @@ export default {
     });
 
     // Watchers
-    watch(() => props.selectedFarmer, async (newFarmer) => {
-      if (newFarmer) {
-        clearSelection();
-        await fetchActivePallets(newFarmer);
-      }
+    watch(() => props.selectedFarmer, () => {
+      clearSelection();
     });
+
+    watch(() => config.farmers, async (newFarmers) => {
+      if (newFarmers && newFarmers.length > 0) {
+        await fetchActivePallets();
+      }
+    }, { immediate: true, deep: true });
 
     return {
       isLoading,
@@ -756,6 +832,7 @@ export default {
       isDragOverRemoveZone,
       lastSavedTime,
       showScanner,
+      isTouchDevice,
       getCellId,
       isCellOccupied,
       getCellPallet,
@@ -772,7 +849,9 @@ export default {
       onDropRemove,
       onRemoveClick,
       startScanner,
-      stopScanner
+      stopScanner,
+      activeMobileTab,
+      getFarmerName
     };
   }
 };

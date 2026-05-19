@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full animate-fade-in overflow-auto">
+    <div class="h-auto lg:h-full animate-fade-in overflow-auto">
         <!-- Loading -->
         <LoadingState v-if="isLoading" />
 
