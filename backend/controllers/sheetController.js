@@ -293,16 +293,19 @@ class SheetController {
 
       logger.info(`Successfully updated records for farmer: ${farmer}`);
 
-      // Append audit log entries for each updated pallet (fire-and-forget; failures are silent)
-      for (const pallet of palletsData) {
-        await sheetsService.appendAuditLog(farmer, {
+      // Append audit log entries for each updated pallet — fire-and-forget, parallel
+      Promise.allSettled(palletsData.map(pallet =>
+        sheetsService.appendAuditLog(farmer, {
           recordId: pallet.id,
           palletNumber: pallet.palletNumber,
           action: 'עדכון',
           editedBy,
           editedAt,
-        });
-      }
+        })
+      )).then(results => {
+        const failed = results.filter(r => r.status === 'rejected');
+        if (failed.length) logger.error(`appendAuditLog failed for ${failed.length} pallets in batch update`);
+      });
 
       return res.json({
         message: result.message, // Use the correct message from the response
@@ -383,13 +386,13 @@ class SheetController {
         sheetRecord.toArray()
       );
 
-      await sheetsService.appendAuditLog(farmer, {
+      sheetsService.appendAuditLog(farmer, {
         recordId: parseInt(id),
         palletNumber: req.body.palletNumber,
         action: 'עדכון',
         editedBy,
         editedAt,
-      });
+      }).catch(err => logger.error(`appendAuditLog failed on update: ${err.message}`));
 
       res.json({
         message: "Record updated successfully",
