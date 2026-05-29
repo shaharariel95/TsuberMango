@@ -18,6 +18,13 @@ class GoogleSheetsService {
         
         this.sheets = null;
         this.SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+
+        // In-memory cache storage
+        this.cachedSheetNames = null;               // Array of sheet names
+        this.cachedAuditSheetExists = new Set();    // Set of verified audit sheet names
+        this.cachedFarmerRecords = new Map();       // Map of farmerName -> { records, timestamp }
+        this.activeRecordFetches = new Map();       // Map of farmerName -> Promise (coalescing)
+        this.CACHE_TTL_MS = 5 * 60 * 1000;          // 5 minutes Time-to-Live
     }
 
     async initialize() {
@@ -28,13 +35,20 @@ class GoogleSheetsService {
     }
 
     async validateSheetName(sheetName) {
+        // If sheet names are cached, check in-memory first
+        if (this.cachedSheetNames && this.cachedSheetNames.includes(sheetName)) {
+            logger.info(`[CACHE HIT] Validated sheet name: "${sheetName}" from in-memory cache`);
+            return;
+        }
+
+        logger.info(`[CACHE MISS] Fetching spreadsheet metadata to validate sheet name: "${sheetName}"`);
         const response = await this.sheets.spreadsheets.get({
             spreadsheetId: this.SPREADSHEET_ID
         });
         
-        const sheets = response.data.sheets.map(sheet => sheet.properties.title);
-        if (!sheets.includes(sheetName)) {
-            throw new Error(`Invalid farmer sheet: ${sheetName}. Available sheets: ${sheets.join(', ')}`);
+        this.cachedSheetNames = response.data.sheets.map(sheet => sheet.properties.title);
+        if (!this.cachedSheetNames.includes(sheetName)) {
+            throw new Error(`Invalid farmer sheet: ${sheetName}. Available sheets: ${this.cachedSheetNames.join(', ')}`);
         }
     }
 
@@ -54,7 +68,7 @@ class GoogleSheetsService {
     async appendRow(sheetName, data) {
         await this.initialize();
         await this.validateSheetName(sheetName);
-        
+
         try {
             const id = await this.getNextId(sheetName);
             const rowWithId = [id, ...data];
@@ -67,7 +81,8 @@ class GoogleSheetsService {
                     values: [rowWithId],
                 },
             });
-            
+
+            this.invalidateFarmerCache(sheetName);
             return { success: true, id, data: rowWithId };
         } catch (error) {
             throw new Error(`Failed to append row: ${error.message}`);
@@ -78,38 +93,61 @@ class GoogleSheetsService {
         await this.initialize();
         await this.validateSheetName(sheetName);
         
-        try {
-            const response = await this.sheets.spreadsheets.values.get({
-                spreadsheetId: this.SPREADSHEET_ID,
-                range: `${sheetName}!A:O`,
-            });
-
-            const rows = response.data.values || [];
-            if (rows.length <= 1) return []; // Empty if only header row exists
-
-            // First row is header, so start from index 1
-            return rows.slice(1)
-            .filter(row => row[0] !== undefined && row[0] !== null && row[0] !== '')
-            .map(row => ({
-                id: parseInt(row[0]),
-                shipmentDate: row[1],
-                cardId: row[2],
-                harvestDate: row[3],
-                palletNumber: row[4],
-                kind: row[5],
-                size: row[6],
-                boxes: row[7],
-                weight: row[8],
-                destination: row[9],
-                sent: row[10] == 'TRUE' ? true : false,
-                gidon: row[11] == 'TRUE' ? true : false,
-                mark: row[12] == 'TRUE' ? true : false,
-                editedBy: row[13] || '',
-                editedAt: row[14] || '',
-            }));
-        } catch (error) {
-            throw new Error(`Failed to fetch records: ${error.message}`);
+        // 1. Check in-memory records cache
+        const cached = this.cachedFarmerRecords.get(sheetName);
+        if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL_MS)) {
+            logger.info(`[CACHE HIT] Served ${cached.records.length} records for farmer "${sheetName}" from in-memory cache`);
+            return cached.records;
         }
+
+        // 2. Check active fetches (Promise coalescing/deduplication to solve Dashboard concurrent requests storm)
+        if (this.activeRecordFetches.has(sheetName)) {
+            logger.info(`[CACHE COALESCE] Waiting on active Google Sheets fetch for farmer "${sheetName}"`);
+            return this.activeRecordFetches.get(sheetName);
+        }
+
+        logger.info(`[CACHE MISS] Fetching records from Google Sheets API for farmer: "${sheetName}"`);
+        const fetchPromise = (async () => {
+            try {
+                const response = await this.sheets.spreadsheets.values.get({
+                    spreadsheetId: this.SPREADSHEET_ID,
+                    range: `${sheetName}!A:O`,
+                });
+
+                const rows = response.data.values || [];
+                if (rows.length <= 1) return []; // Empty if only header row exists
+
+                const records = rows.slice(1)
+                    .filter(row => row[0] !== undefined && row[0] !== null && row[0] !== '')
+                    .map(row => ({
+                        id: parseInt(row[0]),
+                        shipmentDate: row[1],
+                        cardId: row[2],
+                        harvestDate: row[3],
+                        palletNumber: row[4],
+                        kind: row[5],
+                        size: row[6],
+                        boxes: row[7],
+                        weight: row[8],
+                        destination: row[9],
+                        sent: row[10] == 'TRUE' ? true : false,
+                        gidon: row[11] == 'TRUE' ? true : false,
+                        mark: row[12] == 'TRUE' ? true : false,
+                        editedBy: row[13] || '',
+                        editedAt: row[14] || '',
+                    }));
+
+                // Update cache
+                this.cachedFarmerRecords.set(sheetName, { records, timestamp: Date.now() });
+                return records;
+            } finally {
+                // Always cleanup active fetch tracker
+                this.activeRecordFetches.delete(sheetName);
+            }
+        })();
+
+        this.activeRecordFetches.set(sheetName, fetchPromise);
+        return fetchPromise;
     }
 
     async getRowsByPallet(sheetName, palletNumber) {
@@ -177,6 +215,12 @@ class GoogleSheetsService {
     async addSheet(sheetName) {
         await this.initialize();
 
+        // Clear caches
+        this.cachedSheetNames = null;
+        this.cachedAuditSheetExists.clear();
+        this.cachedFarmerRecords.clear();
+        this.activeRecordFetches.clear();
+
         // 1. Create the sheet
         await this.sheets.spreadsheets.batchUpdate({
             spreadsheetId: this.SPREADSHEET_ID,
@@ -214,6 +258,12 @@ class GoogleSheetsService {
         const sheetId = await this.getSheetIdByName(sheetName);
         if (!sheetId) throw new Error(`Sheet ${sheetName} not found`);
 
+        // Clear caches
+        this.cachedSheetNames = null;
+        this.cachedAuditSheetExists.clear();
+        this.cachedFarmerRecords.clear();
+        this.activeRecordFetches.clear();
+
         await this.sheets.spreadsheets.batchUpdate({
             spreadsheetId: this.SPREADSHEET_ID,
             requestBody: {
@@ -232,7 +282,7 @@ class GoogleSheetsService {
         await this.initialize();
         await this.validateSheetName(sheetName);
         logger.info(`updateing rows for farmer ${sheetName} with ids: `, ids)
-        
+
         const response = await this.sheets.spreadsheets.values.get({
             spreadsheetId: this.SPREADSHEET_ID,
             range: `${sheetName}!A:O`,
@@ -269,6 +319,7 @@ class GoogleSheetsService {
             });
         }
 
+        this.invalidateFarmerCache(sheetName);
         return { success: true, message: 'Rows updated successfully' };
     }
     
@@ -276,7 +327,7 @@ class GoogleSheetsService {
     async updateRowById(sheetName, id, updatedData) {
         await this.initialize();
         await this.validateSheetName(sheetName);
-        
+
         try {
             const response = await this.sheets.spreadsheets.values.get({
                 spreadsheetId: this.SPREADSHEET_ID,
@@ -302,6 +353,7 @@ class GoogleSheetsService {
                 },
             });
 
+            this.invalidateFarmerCache(sheetName);
             return { success: true, id, data: rowWithId };
         } catch (error) {
             throw new Error(`Failed to update row: ${error.message}`);
@@ -318,7 +370,7 @@ class GoogleSheetsService {
                 spreadsheetId: this.SPREADSHEET_ID,
                 range: `${sheetName}!A:M`,
             });
-            
+
             const rows = response.data.values || [];
             const updates = [];
 
@@ -333,22 +385,23 @@ class GoogleSheetsService {
                     });
                 }
             });
-            
+
             if (!updates.length) {
                 throw new Error('No matching pallet IDs found for update');
             }
-    
+
             // Batch update
             const batchUpdateRequest = {
                 data: updates,
                 valueInputOption: 'USER_ENTERED',
             };
-    
+
             await this.sheets.spreadsheets.values.batchUpdate({
                 spreadsheetId: this.SPREADSHEET_ID,
                 requestBody: batchUpdateRequest,
             });
-    
+
+            this.invalidateFarmerCache(sheetName);
             return updates.map(update => ({
                 id: update.values[0][0],
                 sent: update.values[0][COL_INDEX.SENT],
@@ -368,7 +421,7 @@ class GoogleSheetsService {
                 spreadsheetId: this.SPREADSHEET_ID,
                 range: `${sheetName}!A:M`,
             });
-            
+
             const rows = response.data.values || [];
             const updates = [];
             palletIds.forEach(palletId => {
@@ -381,22 +434,23 @@ class GoogleSheetsService {
                     });
                 }
             });
-            console.log(`updates`, updates)
+
             if (!updates.length) {
                 throw new Error('No matching pallet IDs found for update');
             }
-    
+
             // Batch update
             const batchUpdateRequest = {
                 data: updates,
                 valueInputOption: 'USER_ENTERED',
             };
-    
+
             await this.sheets.spreadsheets.values.batchUpdate({
                 spreadsheetId: this.SPREADSHEET_ID,
                 requestBody: batchUpdateRequest,
             });
-    
+
+            this.invalidateFarmerCache(sheetName);
             return updates.map(update => ({
                 id: update.values[0][0],
                 sent: update.values[0][COL_INDEX.SENT],
@@ -413,17 +467,23 @@ class GoogleSheetsService {
 
             // Ensure the audit sheet exists; create it if not
             let auditExists = true;
-            try {
-                await this.validateSheetName(auditSheetName);
-            } catch (e) {
-                if (e.message.includes('Invalid farmer sheet')) {
-                    auditExists = false;
-                } else {
-                    throw e;
+            if (this.cachedAuditSheetExists.has(auditSheetName)) {
+                logger.info(`[CACHE HIT] Audit sheet "${auditSheetName}" verified from in-memory cache`);
+            } else {
+                try {
+                    await this.validateSheetName(auditSheetName);
+                    this.cachedAuditSheetExists.add(auditSheetName);
+                } catch (e) {
+                    if (e.message.includes('Invalid farmer sheet')) {
+                        auditExists = false;
+                    } else {
+                        throw e;
+                    }
                 }
             }
 
             if (!auditExists) {
+                logger.info(`[CACHE MISS] Creating new audit sheet: "${auditSheetName}"`);
                 await this.sheets.spreadsheets.batchUpdate({
                     spreadsheetId: this.SPREADSHEET_ID,
                     requestBody: {
@@ -449,6 +509,12 @@ class GoogleSheetsService {
                 });
 
                 logger.info(`Created audit sheet: ${auditSheetName}`);
+                
+                // Keep sheet names cache and audit existence cache updated
+                if (this.cachedSheetNames) {
+                    this.cachedSheetNames.push(auditSheetName);
+                }
+                this.cachedAuditSheetExists.add(auditSheetName);
             }
 
             // Get next audit ID
@@ -473,6 +539,13 @@ class GoogleSheetsService {
         } catch (error) {
             logger.error(`appendAuditLog failed for sheet ${sheetName}: ${error.message}`);
             // Do NOT rethrow — audit failures must never break the main flow
+        }
+    }
+
+    invalidateFarmerCache(sheetName) {
+        if (this.cachedFarmerRecords.has(sheetName)) {
+            this.cachedFarmerRecords.delete(sheetName);
+            logger.info(`[CACHE INVALIDATION] Cleared in-memory records cache for farmer: "${sheetName}" due to write operation`);
         }
     }
 

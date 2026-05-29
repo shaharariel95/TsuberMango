@@ -258,6 +258,30 @@ app.post("/api/admin/delete-sheet", ensureAdmin, async (req, res) => {
   }
 });
 
+// 🔄 Manual Cache Refresh Endpoint (Admin only)
+app.post("/api/admin/refresh-cache", ensureAdmin, async (req, res) => {
+  try {
+    const sheetsService = require("./services/googleSheetsService");
+    sheetsService.cachedSheetNames = null;
+    sheetsService.cachedAuditSheetExists.clear();
+    sheetsService.cachedFarmerRecords.clear();
+    sheetsService.activeRecordFetches.clear();
+    await sheetsService.initialize();
+    
+    // Eagerly pre-populate farmer sheet names
+    const response = await sheetsService.sheets.spreadsheets.get({
+      spreadsheetId: sheetsService.SPREADSHEET_ID
+    });
+    sheetsService.cachedSheetNames = response.data.sheets.map(sheet => sheet.properties.title);
+    
+    logger.info("[POST /api/admin/refresh-cache] Backend cache manually refreshed successfully.");
+    res.json({ success: true, message: "זיכרון המטמון רענן בהצלחה" });
+  } catch (error) {
+    logger.error("[POST /api/admin/refresh-cache] Cache refresh failed:", error);
+    res.status(500).json({ error: "Failed to refresh cache", details: error.message });
+  }
+});
+
 // 🔒 Secure Config Management (Proxy for Firestore)
 app.post("/api/admin/config", ensureAdmin, async (req, res) => {
   try {
@@ -327,4 +351,14 @@ app.delete("/api/admin/users/:email", ensureAdmin, async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+
+  // Warm the sheet name cache so the first real request doesn't pay the miss cost
+  const sheetsService = require('./services/googleSheetsService');
+  sheetsService.initialize()
+    .then(() => sheetsService.sheets.spreadsheets.get({ spreadsheetId: sheetsService.SPREADSHEET_ID }))
+    .then(response => {
+      sheetsService.cachedSheetNames = response.data.sheets.map(s => s.properties.title);
+      logger.info(`[STARTUP] Sheet name cache warmed — ${sheetsService.cachedSheetNames.length} sheets cached`);
+    })
+    .catch(err => logger.error(`[STARTUP] Failed to warm sheet name cache: ${err.message}`));
 });

@@ -24,6 +24,7 @@ class ShippingLabelsService {
         });
 
         this.sheets = null;
+        this.cachedBaseSheetIds = new Map(); // spreadsheetId -> base sheet's sheetId (immutable)
     }
     async initialize() {
         if (!this.sheets) {
@@ -80,17 +81,18 @@ class ShippingLabelsService {
         const spreadsheetId = getSpreadsheetIdByFarmer(farmer);
 
         try {
-            logger.info(`Fetching spreadsheet details to copy sheet "${baseSheetName}"...`);
-            // Fetch the spreadsheet details
-            const response = await this.sheets.spreadsheets.get({
-                spreadsheetId,
-            });
-
-            const sheets = response.data.sheets;
-            const baseSheet = sheets.find(sheet => sheet.properties.title === baseSheetName);
-
-            if (!baseSheet) {
-                throw new Error(`Sheet "${baseSheetName}" not found.`);
+            // Resolve base sheet ID from cache to avoid a redundant spreadsheets.get call
+            let baseSheetId = this.cachedBaseSheetIds.get(spreadsheetId);
+            if (baseSheetId === undefined) {
+                logger.info(`[CACHE MISS] Fetching spreadsheet details to resolve base sheet ID for "${baseSheetName}"...`);
+                const response = await this.sheets.spreadsheets.get({ spreadsheetId });
+                const baseSheet = response.data.sheets.find(s => s.properties.title === baseSheetName);
+                if (!baseSheet) throw new Error(`Sheet "${baseSheetName}" not found.`);
+                baseSheetId = baseSheet.properties.sheetId;
+                this.cachedBaseSheetIds.set(spreadsheetId, baseSheetId);
+                logger.info(`[CACHE SET] Cached base sheet ID ${baseSheetId} for spreadsheet ${spreadsheetId}`);
+            } else {
+                logger.info(`[CACHE HIT] Using cached base sheet ID ${baseSheetId} for "${baseSheetName}"`);
             }
 
             logger.info(`Found sheet "${baseSheetName}", starting duplication process...`);
@@ -101,7 +103,7 @@ class ShippingLabelsService {
                     requests: [
                         {
                             duplicateSheet: {
-                                sourceSheetId: baseSheet.properties.sheetId,
+                                sourceSheetId: baseSheetId,
                                 newSheetName,
                             },
                         },
