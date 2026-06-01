@@ -11,14 +11,16 @@
 
         <!-- Table -->
         <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="false"
-            title="משטחים שנשלחו" subtitle="היסטוריית משטחים שנשלחו" />
+            title="משטחים שנשלחו" subtitle="היסטוריית משטחים שנשלחו"
+            :highlighted-ids="highlightedIds" />
     </div>
 </template>
 
 <script>
-import { ref, watch } from 'vue'
+import { ref, watch, inject } from 'vue'
 import PalletTable from './PalletTable.vue'
 import { useNotification } from '../composables/useNotification'
+import { useFarmerEvents } from '../composables/useFarmerEvents'
 import LoadingState from './shared/LoadingState.vue'
 import ErrorState from './shared/ErrorState.vue'
 import EmptyState from './shared/EmptyState.vue'
@@ -44,6 +46,10 @@ export default {
         const isLoading = ref(false)
         const farmerName = ref('')
         const { notify } = useNotification()
+        const currentUserEmail = inject('currentUserEmail', ref(''))
+        const { highlightedIds } = useFarmerEvents(farmerName, pallets, {
+          currentUserEmail, filter: p => p.sent === true
+        })
 
         const getPallets = async (farmer) => {
             if (!farmer) return;
@@ -76,7 +82,7 @@ export default {
             }
         }, { immediate: true })
 
-        return { pallets, showError, errorMessage, isLoading, farmerName, getPallets }
+        return { pallets, showError, errorMessage, isLoading, farmerName, getPallets, highlightedIds }
     }
 }
 </script>

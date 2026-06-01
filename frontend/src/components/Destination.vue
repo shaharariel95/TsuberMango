@@ -2,14 +2,16 @@
     <div class="h-full animate-fade-in">
         <LoadingState v-if="isLoading" />
         <PalletTable v-else v-model:pallets="pallets" :farmer="farmerName" :isEditable="true" :destinationOnly="false"
-            title="הכנה למשלוח" subtitle="עריכת יעדים וסימון משטחים" />
+            title="הכנה למשלוח" subtitle="עריכת יעדים וסימון משטחים"
+            :highlighted-ids="highlightedIds" />
     </div>
 </template>
 
 <script>
-import { ref, watch } from 'vue'
+import { ref, watch, inject } from 'vue'
 import PalletTable from './PalletTable.vue'
 import LoadingState from './shared/LoadingState.vue'
+import { useFarmerEvents } from '../composables/useFarmerEvents'
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
@@ -29,6 +31,10 @@ export default {
         const error = ref(null)
         const isLoading = ref(false)
         const farmerName = ref('')
+        const currentUserEmail = inject('currentUserEmail', ref(''))
+        const { highlightedIds } = useFarmerEvents(farmerName, pallets, {
+          currentUserEmail, filter: p => p.mark === true
+        })
 
         const getPallets = async (farmer) => {
             if (!farmer) return;
@@ -58,7 +64,7 @@ export default {
             }
         }, { immediate: true })
 
-        return { pallets, showError, error, isLoading, farmerName }
+        return { pallets, showError, error, isLoading, farmerName, highlightedIds }
     }
 }
 </script>

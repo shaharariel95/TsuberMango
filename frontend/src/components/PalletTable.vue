@@ -92,7 +92,8 @@
                     <tr v-for="pallet in sortedPallets" :key="pallet.id" :data-id="pallet.id"
                         :class="[
                             'text-center text-sm transition-colors duration-100 bg-white hover:bg-mango-50/40',
-                            highlightMissingWeight && !pallet.weight ? 'bg-amber-50' : ''
+                            highlightMissingWeight && !pallet.weight ? 'bg-amber-50' : '',
+                            highlightedIds.has(pallet.id) ? 'pallet-flash' : ''
                         ]"
                         :style="getMixStyle(pallet)">
                         <template v-if="editingId === pallet.id">
@@ -274,6 +275,10 @@ export default {
             type: Boolean,
             required: false,
             default: false
+        },
+        highlightedIds: {
+            type: Object,
+            default: () => new Set()
         }
     },
     inject: ['config'],
@@ -751,6 +756,13 @@ export default {
 </script>
 
 <style scoped>
+@keyframes palletFlash {
+    0%   { background-color: #fef08a; }
+    60%  { background-color: #fef9c3; }
+    100% { background-color: inherit; }
+}
+.pallet-flash { animation: palletFlash 3s ease-out forwards; }
+
 @media (max-width: 1366px) {
     .toolbar-identity {
         display: none;

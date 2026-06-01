@@ -232,6 +232,7 @@ export default {
     });
     provide('config', config);
     provide('selectedFarmer', selectedFarmer);
+    provide('currentUserEmail', computed(() => user.value?.email || ''));
 
     const isActiveLink = (path) => {
       return route.path === path;

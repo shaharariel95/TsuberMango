@@ -32,17 +32,19 @@
                 <PalletTable v-model:pallets="message" :farmer="farmerName"
                     title="טבלת נתונים" subtitle="כל המשטחים של המגדל"
                     :filter-missing-weight="filterMissingWeight"
-                    :highlight-missing-weight="true" />
+                    :highlight-missing-weight="true"
+                    :highlighted-ids="highlightedIds" />
             </div>
         </div>
     </div>
 </template>
 
 <script>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import PalletTable from './PalletTable.vue'
 import { useNotification } from '../composables/useNotification'
+import { useFarmerEvents } from '../composables/useFarmerEvents'
 import LoadingState from './shared/LoadingState.vue'
 import ErrorState from './shared/ErrorState.vue'
 import EmptyState from './shared/EmptyState.vue'
@@ -71,6 +73,8 @@ export default {
         const filterMissingWeight = ref(route.query.filter === 'missingWeight')
         const missingWeightCount = computed(() => message.value.filter(r => !r.weight).length)
         const { notify } = useNotification()
+        const currentUserEmail = inject('currentUserEmail', ref(''))
+        const { highlightedIds } = useFarmerEvents(farmerName, message, { currentUserEmail })
 
         const getPallets = async (farmer) => {
             if (!farmer) return;
@@ -104,7 +108,7 @@ export default {
             }
         }, { immediate: true })
 
-        return { message, showError, errorMessage, isLoading, farmerName, getPallets, filterMissingWeight, missingWeightCount }
+        return { message, showError, errorMessage, isLoading, farmerName, getPallets, filterMissingWeight, missingWeightCount, highlightedIds }
     }
 }
 </script>
