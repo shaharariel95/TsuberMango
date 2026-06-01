@@ -3,6 +3,7 @@ const SheetModel = require("../models/sheetModel");
 const sheetsService = require("../services/googleSheetsService");
 const backupService = require("../services/backupService");
 const logger = require("../utils/logger");
+const firestoreEventService = require("../services/firestoreEventService");
 
 class SheetController {
   async createRecord(req, res) {
@@ -57,6 +58,8 @@ class SheetController {
         editedBy,
         editedAt,
       }).catch(err => logger.error(`appendAuditLog failed on create: ${err.message}`));
+
+      firestoreEventService.emitCreate(farmer, { id: result.id, ...sheetRecord }, editedBy);
 
       res.status(201).json({
         message: "Record added successfully",
@@ -307,6 +310,15 @@ class SheetController {
         if (failed.length) logger.error(`appendAuditLog failed for ${failed.length} pallets in batch update`);
       });
 
+      const emitPallets = palletsData.map(p => ({
+        id: p.id, shipmentDate: p.shipmentDate, cardId: p.cardId,
+        harvestDate: p.harvestDate, palletNumber: p.palletNumber,
+        kind: p.kind, size: p.size, boxes: p.boxes, weight: p.weight,
+        destination: p.destination, sent: p.sent, gidon: p.gidon,
+        mark: p.mark ?? false, editedBy, editedAt,
+      }));
+      firestoreEventService.emitBulkUpdate(farmer, emitPallets, editedBy);
+
       return res.json({
         message: result.message, // Use the correct message from the response
       });
@@ -394,6 +406,8 @@ class SheetController {
         editedAt,
       }).catch(err => logger.error(`appendAuditLog failed on update: ${err.message}`));
 
+      firestoreEventService.emitUpdate(farmer, { id: parseInt(id), ...sheetRecord }, editedBy);
+
       res.json({
         message: "Record updated successfully",
         data: result,
@@ -431,6 +445,8 @@ class SheetController {
         false
       );
 
+      firestoreEventService.emitResetSent(farmer, palletIds, req.user?.email || 'unknown');
+
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {
       return res
@@ -462,6 +478,8 @@ class SheetController {
         false
       );
 
+      firestoreEventService.emitMarkDestination(farmer, palletsData, false, req.user?.email || 'unknown');
+
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {
       return res
@@ -492,6 +510,8 @@ class SheetController {
         palletIds,
         true
       );
+
+      firestoreEventService.emitMarkDestination(farmer, palletsData, true, req.user?.email || 'unknown');
 
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {

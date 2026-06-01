@@ -31,9 +31,10 @@ TsuberMango is a full-stack web application for managing mango pallet records, w
 
 ### Frontend (`/frontend`)
 
-- `src/main.js` — App entry point; initializes Vue, Router, Axios (`withCredentials: true`), and Firebase.
+- `src/main.js` — App entry point; initializes Vue, Router, Axios (`withCredentials: true`), and Firebase. Exports `db` (Firestore instance).
 - `src/router.js` — All routes + `beforeEach` guard (calls `/api/auth/me` to verify session).
 - `src/components/` — All page-level components (see Routes section).
+- `src/composables/useFarmerEvents.js` — Real-time update composable. Subscribes to `farmer_events/{farmer}` via `onSnapshot`, applies deltas to the caller's `pallets` ref in-place, and returns a reactive `highlightedIds` Set for flash animations. See Real-Time Updates section.
 - `src/data/data.js` — Static fallback data: mango kinds, sizes, destinations, farmerConfigs.
 - `src/data/printData.js` — Sticker PDF generation using pdfmake. **Lazy-loaded**: pdfmake and vfs_fonts are dynamically imported inside `createStickerPDF()` so they don't block initial page load.
 - `fonts/vfs_fonts.js` — Custom Rubik font embedded as a VFS blob for pdfmake (~750 kB). Exports the font map directly as default; assign with `pdfMake.vfs = pdfFonts` (not `pdfFonts.vfs`).
@@ -44,9 +45,10 @@ TsuberMango is a full-stack web application for managing mango pallet records, w
 
 - `server.js` — Express entry: CORS, sessions, Passport OAuth, dev-bypass route, Firebase Admin init.
 - `routes/sheetRoutes.js` — All `/api/*` sheet endpoints.
-- `controllers/sheetController.js` — Pallet record CRUD logic.
+- `controllers/sheetController.js` — Pallet record CRUD logic. Each write emits a fire-and-forget Firestore event after the Sheets write succeeds.
 - `controllers/labelController.js` — Shipping label generation logic.
 - `services/googleSheetsService.js` — Google Sheets API wrapper (primary data store).
+- `services/firestoreEventService.js` — Emits real-time events to `farmer_events/{farmer}` in Firestore. All functions are fire-and-forget (`emit().catch(logger.error)`). See Real-Time Updates section.
 - `services/shippingLabelsService.js` — Per-farmer shipping label spreadsheet management.
 - `models/sheetModel.js` — Pallet data model + validation + `toArray()` for Sheets.
 - `utils/logger.js` — Winston logger (`logger.info`, `logger.error`), console transport.
@@ -95,6 +97,12 @@ All `/api/*` routes require `ensureAuthenticated`. Admin-only routes additionall
 | POST | `/api/admin/create-sheet` | — | Admin: create farmer sheet |
 | POST | `/api/admin/delete-sheet` | — | Admin: delete farmer sheet |
 | POST | `/api/admin/config` | — | Admin: save config to Firestore |
+| GET | `/api/admin/users` | — | Admin: list all users |
+| POST | `/api/admin/users` | — | Admin: add user |
+| DELETE | `/api/admin/users/:email` | — | Admin: remove user |
+| POST | `/api/admin/refresh-cache` | — | Admin: clear all in-memory caches |
+| GET | `/api/admin/backups` | — | Admin: list recent backups from Firestore |
+| POST | `/api/admin/backup` | — | Admin: trigger manual backup |
 
 ---
 
@@ -115,7 +123,7 @@ All `/api/*` routes require `ensureAuthenticated`. Admin-only routes additionall
 
 All pallet data lives in Google Sheets. There is **no SQL/NoSQL DB**. One sheet per farmer inside the main spreadsheet.
 
-### Main Spreadsheet Columns (A–M)
+### Main Spreadsheet Columns (A–O)
 
 | Col | Index | Field | Notes |
 |---|---|---|---|
@@ -132,8 +140,14 @@ All pallet data lives in Google Sheets. There is **no SQL/NoSQL DB**. One sheet 
 | K | 10 | נשלח | Sent (boolean) |
 | L | 11 | גדעון | Gidon flag (boolean) |
 | M | 12 | סימון | Mark (boolean) |
+| N | 13 | editedBy | Last editor (user email) |
+| O | 14 | editedAt | Last edit timestamp (ISO string) |
 
 Columns 10 (`sent`) and 12 (`mark`) are the two bulk-update targets used most frequently.
+
+### Audit Log Sheets
+
+Each farmer has a companion sheet named `{farmerName}_audit`. `appendAuditLog()` in `googleSheetsService.js` auto-creates it on first use. Fields: ID, recordId, palletNumber, action (`קליטה` for create / `עדכון` for update), editedBy, editedAt. All writes are fire-and-forget and do not block the main response.
 
 ### Shipping Labels Spreadsheets
 
@@ -147,9 +161,26 @@ Each farmer has a dedicated spreadsheet for shipping labels (IDs in `.env`). Lab
 
 ## Firebase
 
-- **Firestore** (frontend + backend): Stores dynamic config — lists of kinds, sizes, destinations, and farmer settings. Admin settings UI writes here.
 - **Firebase Hosting**: Serves the built frontend (`dist/`) with SPA rewrite (`/* → /index.html`).
-- **Firebase Admin SDK** (backend): Initialized with `SheetsCred.env.json` service account.
+- **Firebase Admin SDK** (backend): Initialized in `server.js` with `SheetsCred.env.json` service account. `const db = admin.firestore()` is available throughout the server.
+
+### Firestore Collections
+
+| Collection | Doc ID | Purpose | Written by |
+|---|---|---|---|
+| `config` | `global` | Dynamic lists: kinds, sizes, destinations, farmers + farmerConfigs | Admin SDK via `POST /api/admin/config` |
+| `users` | user email | Role map (`{ role: 'admin' \| 'user' }`). Seeded from `users.json` on startup if empty | Admin SDK (seed + user management endpoints) |
+| `backups` | auto-id | Backup metadata: timestamp, filename, farmerCount, rowCount, triggeredBy | `backupService.js` after each backup run |
+| `farmer_events` | farmer name | Real-time pallet update events. One document per farmer, overwritten on each write — no accumulation | `firestoreEventService.js` (Admin SDK, fire-and-forget) |
+
+**Firestore security rules** — `config` and `farmer_events` allow `read: if true` (cookie-based auth means `request.auth` is null for all client reads; Admin SDK writes bypass rules entirely). All other writes are `if false`.
+
+**Frontend Firestore usage:** `App.vue` and `Settings.vue` call `onSnapshot()` on `config/global` to keep dynamic config live. `App.vue` provides reactive values to all children:
+- `provide('config', config)` — kinds, sizes, destinations, farmerConfigs
+- `provide('selectedFarmer', selectedFarmer)` — currently selected farmer
+- `provide('currentUserEmail', computed(() => user.value?.email || ''))` — used by `useFarmerEvents` for echo suppression
+
+Children inject with `inject('config')`, `inject('selectedFarmer')`, `inject('currentUserEmail')`.
 
 ---
 
@@ -159,7 +190,67 @@ Each farmer has a dedicated spreadsheet for shipping labels (IDs in `.env`). Lab
 
 Required fields: `harvestDate`, `palletNumber`, `boxes`, `kind`, `size`. Throws `Error` if any are missing.
 
-`toArray()` returns a 12-element array (columns B–M; ID in column A is auto-assigned by the service).
+`toArray()` returns a 14-element array (columns B–O; ID in column A is auto-assigned by the service).
+
+---
+
+## Caching
+
+`googleSheetsService.js` maintains four in-memory caches (reset on process restart):
+
+| Cache | Type | TTL | Purpose |
+|---|---|---|---|
+| `cachedSheetNames` | `Array` | None (manual) | Validated farmer sheet names — avoids metadata API call on every request |
+| `cachedFarmerRecords` | `Map<name, {records, timestamp}>` | 5 minutes | Per-farmer pallet records — primary read cache |
+| `cachedAuditSheetExists` | `Set<name>` | None (manual) | Tracks which audit sheets have been verified to exist |
+| `activeRecordFetches` | `Map<name, Promise>` | Per-request | Request coalescing — concurrent fetches for the same farmer share one in-flight Promise |
+
+`invalidateFarmerCache(farmerName)` clears `cachedFarmerRecords` for that farmer and is called by every write method (`appendRow`, `updateRowById`, `updateRowsByIds`, `updateSentStatusForPallets`, `updateSendToDestinationPallets`). `POST /api/admin/refresh-cache` clears all four caches and re-warms `cachedSheetNames`.
+
+---
+
+## Real-Time Updates
+
+After every backend write, `firestoreEventService.js` writes an event document to `farmer_events/{farmerName}` in Firestore (fire-and-forget — never blocks the HTTP response). All connected clients hold an `onSnapshot` listener via `useFarmerEvents.js`. When the document changes, the composable applies the delta to the caller's `pallets` ref in-place and flashes affected rows yellow for 3 seconds.
+
+**Why Firestore instead of WebSockets:** Cloud Run scales to 0. Open WebSocket connections keep the instance alive and billed. Firestore's SDK manages all connection infrastructure externally — Cloud Run is only woken by actual HTTP requests.
+
+### Event Types
+
+| type | payload | What the composable does |
+|---|---|---|
+| `create` | `pallet` | Append to bottom if passes filter |
+| `update` | `pallet` | Update in-place if passes filter; remove if no longer qualifies |
+| `bulk_update` | `pallets[]` | Per-row: update in-place / remove / ignore |
+| `reset_sent` | `palletIds[]` | Set `sent: false` in-place; remove if view filters on sent |
+| `mark_destination` | `pallets[]`, `newValue` | Only updates `mark` field on existing rows; appends if view filters on mark |
+
+### `useFarmerEvents(farmer, pallets, options)` Composable
+
+- `farmer` — `Ref<string>` — reactive farmer name; composable re-subscribes automatically on change
+- `pallets` — `Ref<Array>` — the page's data array; mutated in-place (new rows appended, existing rows patched, removed rows spliced)
+- `options.currentUserEmail` — `Ref<string>` — echo suppression: events where `updatedBy === currentUserEmail` are skipped
+- `options.filter` — `(pallet) => boolean` — which rows belong in this view
+
+Returns `{ highlightedIds }` — a `ref(new Set())` of pallet IDs currently flashing.
+
+**Key implementation details:**
+- First `onSnapshot` fire is skipped (`isFirstSnapshot` guard) — prevents replaying a stale event from before the session opened
+- The snapshot callback wraps `applyEvent` in try-catch — a malformed event logs to console and exits without corrupting the array
+- `mark_destination` only updates the `mark` field on existing rows (other fields are not overwritten with potentially stale req.body data)
+
+### Per-View Filter
+
+| Component | pallets ref | filter |
+|---|---|---|
+| `Weight.vue` | `message` | none (all pallets) |
+| `SentPallets.vue` | `pallets` | `p => p.sent === true` |
+| `sentPalletsForMark.vue` | `pallets` | `p => p.sent === true` |
+| `Destination.vue` | `pallets` | `p => p.mark === true` |
+
+### PalletTable Flash Prop
+
+`PalletTable.vue` accepts a `highlightedIds` prop (type `Object`, default `new Set()`). Pass `highlightedIds` (not `highlightedIds.value`) — Vue auto-unwraps refs from `setup()` in templates. The `<tr>` receives class `pallet-flash` when `highlightedIds.has(pallet.id)` is true. The `@keyframes palletFlash` animation runs 3s ease-out and ends at `background-color: inherit` so missing-weight rows (amber-50) restore correctly.
 
 ---
 
