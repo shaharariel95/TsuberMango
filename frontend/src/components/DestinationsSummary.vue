@@ -95,7 +95,7 @@ export default {
     const error = ref(null);
     const shipmentDates = ref([]);
     const selectedDate = ref("");
-    const allPallets = ref([]); // This will now store only pallets with a shipmentDate
+    const allPallets = ref([]);
 
     function normalizeDestination(dest) {
       if (!dest) return "לא ידוע";
@@ -130,23 +130,19 @@ export default {
     };
 
     const fetchDestinations = async (farmer) => {
+      if (!farmer) return;
       isLoading.value = true;
       error.value = null;
       try {
-        let url = `${baseUrl}/api/records/destinations`;
-        if (farmer) {
-          const hebrewName = encodeURIComponent(farmer);
-          url = `${baseUrl}/api/farmers/${hebrewName}/records/destinations`;
-        }
+        const hebrewName = encodeURIComponent(farmer);
+        const url = `${baseUrl}/api/farmers/${hebrewName}/records`;
         const res = await fetch(url, { credentials: "include" });
         if (!res.ok) throw new Error("Failed to fetch destinations");
         const rawData = await res.json();
-        // Filter out pallets without a shipmentDate HERE
-        allPallets.value = (rawData.data || []).filter(p => p.shipmentDate);
+        allPallets.value = (rawData.data || []).filter(p => p.sent === true);
 
-        // shipmentDates will now only be derived from pallets that have a shipmentDate
         shipmentDates.value = [
-          ...new Set(allPallets.value.map((p) => p.shipmentDate)), // .filter(Boolean) is no longer strictly needed here but doesn't hurt
+          ...new Set(allPallets.value.map((p) => p.shipmentDate).filter(Boolean)),
         ]
           .sort()
           .reverse();

@@ -80,7 +80,7 @@
                                     {{ col.key === sortField ? (sortDirection === 'asc' ? '▲' : '▼') : '⇅' }}
                                 </span>
                                 <input v-if="col.key === 'selected'" type="checkbox" @change="toggleSelectAll"
-                                    :checked="selectedPallets.length === filteredPallets.length && filteredPallets.length > 0"
+                                    :checked="selectedPallets.length === selectablePallets.length && selectablePallets.length > 0"
                                     class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                             </div>
                         </th>
@@ -93,9 +93,13 @@
                         :class="[
                             'text-center text-sm transition-colors duration-100 bg-white hover:bg-mango-50/40',
                             highlightMissingWeight && !pallet.weight ? 'bg-amber-50' : '',
-                            highlightedIds.has(pallet.id) ? 'pallet-flash' : ''
+                            highlightedIds.has(pallet.id) ? 'pallet-flash' : '',
+                            pallet._isContext ? 'opacity-50 italic' : '',
+                            (pallet._isGroupLeader || pallet._isContext) ? 'cursor-pointer' : ''
                         ]"
-                        :style="getMixStyle(pallet)">
+                        :title="pallet._isContext ? 'מוצג כחלק ממשטח מעורב' : undefined"
+                        :style="getMixStyle(pallet)"
+                        @click="(pallet._isGroupLeader || pallet._isContext) && toggleCollapse(pallet.palletNumber)">
                         <template v-if="editingId === pallet.id">
                             <td v-for="col in columns" :key="col.key" class="border-b border-slate-300 px-2 py-1.5">
                                 <template v-if="col.editable">
@@ -160,19 +164,26 @@
                         <template v-else>
                             <td v-for="col in columns" :key="col.key" class="border-b border-slate-200 px-3 py-2.5">
                                 <template v-if="col.key === 'selected'">
-                                    <input type="checkbox" v-model="selectedPallets" :value="pallet.id"
+                                    <input v-if="!pallet._isContext" type="checkbox" v-model="selectedPallets" :value="pallet.id"
+                                        @click.stop
                                         class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                                 </template>
                                 <template v-if="col.key === 'sent'">
-                                    <span :class="[
-                                        'inline-flex items-center justify-center w-3 h-3 rounded-full',
-                                        pallet[col.key] ? 'bg-emerald-400 shadow-sm shadow-emerald-200' : 'bg-slate-300'
-                                    ]"></span>
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <span :class="[
+                                            'inline-flex items-center justify-center w-3 h-3 rounded-full flex-shrink-0',
+                                            pallet[col.key] ? 'bg-emerald-400 shadow-sm shadow-emerald-200' : 'bg-slate-300'
+                                        ]"></span>
+                                        <span v-if="pallet._isGroupLeader"
+                                            class="text-xs font-medium text-slate-400 select-none">
+                                            {{ collapsedPallets.has(String(pallet.palletNumber)) ? `+${pallet._contextCount}` : '▼' }}
+                                        </span>
+                                    </div>
                                 </template>
                                 <template v-else>{{ pallet[col.key] }}</template>
                             </td>
                             <td class="border-b border-slate-200 px-3 py-2.5" v-if="isEditable">
-                                <div class="flex items-center justify-center gap-1.5">
+                                <div class="flex items-center justify-center gap-1.5" @click.stop>
                                     <div v-if="pallet.editedBy" class="relative group flex-shrink-0">
                                         <span class="text-slate-400 hover:text-slate-600 cursor-default text-sm leading-none select-none">ⓘ</span>
                                         <div class="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-10 hidden group-hover:block w-52 bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-lg pointer-events-none text-right">
@@ -182,7 +193,7 @@
                                             <p class="text-slate-300">{{ formatEditedAt(pallet.editedAt) }}</p>
                                         </div>
                                     </div>
-                                    <button @click="startEditing(pallet)"
+                                    <button v-if="!pallet._isContext" @click="startEditing(pallet)"
                                         class="text-xs text-mango-600 hover:text-mango-800 font-medium hover:bg-mango-50 px-3 py-1.5 rounded transition-colors min-h-[32px]">
                                         ערוך
                                     </button>
@@ -334,6 +345,7 @@ export default {
             sentView: false,
             destinationFilterText: '',
             searchText: '',
+            collapsedPallets: new Set(),
             confirmModal: {
                 show: false,
                 toSend: true,
@@ -346,7 +358,12 @@ export default {
     watch: {
         farmer() {
             this.searchText = '';
-        }
+        },
+        filterBy: {
+            deep: true,
+            handler() { this.collapsedPallets = new Set(); }
+        },
+        searchText() { this.collapsedPallets = new Set(); }
     },
 
     computed: {
@@ -356,45 +373,66 @@ export default {
         isCreateLabelAllowed() {
             return this.selectedPallets.length === 0 || this.selectedPallets.length > 13
         },
+        globalMixedPalletNumbers() {
+            const counts = {};
+            for (const p of this.pallets) {
+                const k = String(p.palletNumber);
+                counts[k] = (counts[k] || 0) + 1;
+            }
+            return new Set(Object.keys(counts).filter(k => counts[k] > 1));
+        },
+        hasActiveFilter() {
+            const { kind, size, destination, gidon } = this.filterBy;
+            return !!(kind || size || destination || gidon || this.searchText.trim() || this.filterMissingWeight || this.sentView);
+        },
+        selectablePallets() {
+            return this.filteredPallets.filter(p => !p._isContext);
+        },
         filteredPallets() {
             const search = this.searchText.trim().toLowerCase();
-            return this.pallets.filter(pallet => {
-                const matchesSent = this.sentView ? pallet.sent === false : true;
 
+            const passesFilter = (pallet) => {
+                if (this.sentView && pallet.sent !== false) return false;
                 if (this.filterMissingWeight && pallet.weight) return false;
-
                 if (search) {
                     const hit = ['palletNumber', 'cardId', 'shipmentDate', 'harvestDate', 'kind', 'size', 'boxes', 'weight', 'destination'].some(
                         f => String(pallet[f] ?? '').toLowerCase().includes(search)
                     );
                     if (!hit) return false;
                 }
-
-                let allFiltersMatch = true;
-
-                if (this.filterBy.gidon !== undefined && this.filterBy.gidon !== null) {
-                    if (this.filterBy.gidon === "גדעון") {
-                        if (!pallet.gidon) return false;
-                    } else if (this.filterBy.gidon === "אין הערה") {
-                        if (pallet.gidon) return false;
-                    }
-                }
-
+                if (this.filterBy.gidon === "גדעון" && !pallet.gidon) return false;
+                if (this.filterBy.gidon === "אין הערה" && pallet.gidon) return false;
                 for (const [key, value] of Object.entries(this.filterBy)) {
                     if (key === 'gidon') continue;
-                    if (value && pallet[key] !== value) {
-                        allFiltersMatch = false;
-                        break;
-                    }
+                    if (value && pallet[key] !== value) return false;
                 }
+                return true;
+            };
 
-                return matchesSent && allFiltersMatch;
-            }).map(pallet => {
-                // Create a new object with modified gidon
-                const result = { ...pallet };
-                result.gidon = pallet.gidon ? "גדעון" : "";
+            const withGidon = (pallet, isContext = false) => {
+                const result = { ...pallet, gidon: pallet.gidon ? "גדעון" : "" };
+                if (isContext) result._isContext = true;
                 return result;
-            });
+            };
+
+            const matched = this.pallets.filter(passesFilter).map(p => withGidon(p));
+
+            if (!this.hasActiveFilter) return matched;
+
+            const matchedIds = new Set(matched.map(p => p.id));
+            const mixedMatchedNumbers = new Set(
+                matched
+                    .filter(p => this.globalMixedPalletNumbers.has(String(p.palletNumber)))
+                    .map(p => String(p.palletNumber))
+            );
+
+            if (mixedMatchedNumbers.size === 0) return matched;
+
+            const contextRows = this.pallets
+                .filter(p => mixedMatchedNumbers.has(String(p.palletNumber)) && !matchedIds.has(p.id))
+                .map(p => withGidon(p, true));
+
+            return [...matched, ...contextRows];
         },
         filteredDestinations() {
             if (!this.destinationFilterText) return this.destinations;
@@ -405,20 +443,52 @@ export default {
             return this.isCreatingLabel
         },
         sortedPallets() {
-            return [...this.filteredPallets].sort((a, b) => {
+            const sorted = [...this.filteredPallets].sort((a, b) => {
                 const aVal = a[this.sortField];
                 const bVal = b[this.sortField];
 
+                let cmp;
                 if (this.sortField === 'palletNumber') {
-                    return this.sortDirection === 'asc'
+                    cmp = this.sortDirection === 'asc'
                         ? parseInt(aVal) - parseInt(bVal)
                         : parseInt(bVal) - parseInt(aVal);
+                } else {
+                    cmp = this.sortDirection === 'asc'
+                        ? String(aVal ?? '').localeCompare(String(bVal ?? ''))
+                        : String(bVal ?? '').localeCompare(String(aVal ?? ''));
                 }
 
-                return this.sortDirection === 'asc'
-                    ? aVal.localeCompare(bVal)
-                    : bVal.localeCompare(aVal);
+                if (cmp !== 0) return cmp;
+                if (!!a._isContext !== !!b._isContext) return a._isContext ? 1 : -1;
+                return 0;
             });
+
+            // Count context siblings per palletNumber
+            const contextCount = {};
+            for (const p of sorted) {
+                if (p._isContext) {
+                    const k = String(p.palletNumber);
+                    contextCount[k] = (contextCount[k] || 0) + 1;
+                }
+            }
+
+            // Build output: annotate group leaders, skip collapsed context rows
+            const seenLeaders = new Set();
+            const result = [];
+            for (const p of sorted) {
+                const k = String(p.palletNumber);
+                if (p._isContext) {
+                    if (!this.collapsedPallets.has(k)) result.push(p);
+                    continue;
+                }
+                if (contextCount[k] && !seenLeaders.has(k)) {
+                    seenLeaders.add(k);
+                    result.push({ ...p, _isGroupLeader: true, _contextCount: contextCount[k] });
+                } else {
+                    result.push(p);
+                }
+            }
+            return result;
         },
         AmountOfPallets() {
             const uniquePalletNumbers = new Set(this.filteredPallets.map(pallet => pallet.palletNumber));
@@ -436,7 +506,7 @@ export default {
                 { border: '#ef4444', bg: 'rgba(239,68,68,0.09)' },
             ];
             const counts = {};
-            for (const p of this.filteredPallets) {
+            for (const p of this.pallets) {
                 const k = String(p.palletNumber);
                 counts[k] = (counts[k] || 0) + 1;
             }
@@ -453,6 +523,15 @@ export default {
     },
 
     methods: {
+        toggleCollapse(palletNumber) {
+            const k = String(palletNumber);
+            if (this.collapsedPallets.has(k)) {
+                this.collapsedPallets.delete(k);
+            } else {
+                this.collapsedPallets.add(k);
+            }
+        },
+
         getMixStyle(pallet) {
             const mixInfo = this.mixPalletColorMap[String(pallet.palletNumber)];
             if (!mixInfo) return {};
@@ -597,9 +676,9 @@ export default {
         },
 
         toggleSelectAll() {
-            this.selectedPallets = this.selectedPallets.length === this.filteredPallets.length
+            this.selectedPallets = this.selectedPallets.length === this.selectablePallets.length
                 ? []
-                : this.filteredPallets.map(p => p.id);
+                : this.selectablePallets.map(p => p.id);
         },
 
         toggleSentView() {
