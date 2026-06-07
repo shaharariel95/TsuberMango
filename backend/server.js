@@ -55,9 +55,18 @@ app.set('trust proxy', 1);
 const USERS = require("./users.json"); // Contains emails and roles
 
 const session = require("express-session");
+const FirestoreStore = require("firestore-store")(session);
+const firestoreSessionParser = {
+  read: (doc) => JSON.parse(doc.session),
+  save: (doc) => ({
+    session: JSON.stringify(doc),
+    expires: doc.cookie?.expires ? new Date(doc.cookie.expires) : new Date(Date.now() + 24 * 60 * 60 * 1000),
+  }),
+};
 
 app.use(
   session({
+    store: new FirestoreStore({ database: db, parser: firestoreSessionParser }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
