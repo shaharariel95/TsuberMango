@@ -168,16 +168,18 @@ if (process.env.NODE_ENV === 'development' && process.env.DEV_BYPASS_AUTH === 't
 // Unauthorized route: clear session and cookies, redirect to login
 app.get("/api/auth/unauthorized", (req, res) => {
   req.logout(() => {
-    req.session = null;
-    res.clearCookie("connect.sid");
-    res.redirect(`${process.env.FRONT}/login`);
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.redirect(`${process.env.FRONT}/login`);
+    });
   });
 });
 
 app.get("/api/auth/logout", (req, res) => {
   req.logout(() => {
-    req.session = null;
-    res.json({ success: true });
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
   });
 });
 
