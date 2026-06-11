@@ -9,6 +9,7 @@ const FARMER_SPREADSHEET_IDS = {
     'גמליאל': process.env.SHIPPING_LABELS_ID_PESAH,
     'קופלר': process.env.SHIPPING_LABELS_ID_KOPLER,
     'עטר שחק': process.env.SHIPPING_LABELS_ID_SHAHAK,
+    'ברק מלצר': process.env.SHIPPING_LABELS_ID_MELTZER,
 };
 
 function getSpreadsheetIdByFarmer(farmer) {

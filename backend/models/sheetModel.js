@@ -12,9 +12,9 @@ class SheetModel {
         this.boxes = boxes;
         this.weight = weight || '';
         this.destination = destination || '';
-        this.sent = sent || false;
-        this.gidon = gidon || false;
-        this.mark = mark || false;
+        this.sent = !!sent;
+        this.gidon = !!gidon;
+        this.mark = !!mark;
         this.editedBy = editedBy || '';
         this.editedAt = editedAt || '';
     }

@@ -556,10 +556,11 @@ export default {
 
         startEditing(pallet) {
             this.editingId = pallet.id;
+            const raw = this.pallets.find(p => p.id === pallet.id) || pallet;
             this.editingPallet = {
-                ...pallet,
-                sent: !!pallet.sent,
-                gidon: !!pallet.gidon
+                ...raw,
+                sent: !!raw.sent,
+                gidon: !!raw.gidon
             };
             this.$nextTick(() => {
                 const row = this.$el.querySelector(`tr[data-id="${pallet.id}"]`);
@@ -615,11 +616,12 @@ export default {
         async savePallet() {
             const originalPallet = { ...this.pallets.find(p => p.id === this.editingId) };
             this.isLoading = true
-            // Ensure numeric fields are numbers
             this.editingPallet.palletNumber = Number(this.editingPallet.palletNumber);
             if (this.editingPallet.cardId !== undefined) this.editingPallet.cardId = Number(this.editingPallet.cardId);
             if (this.editingPallet.boxes !== undefined) this.editingPallet.boxes = Number(this.editingPallet.boxes);
             if (this.editingPallet.weight !== undefined) this.editingPallet.weight = Number(this.editingPallet.weight);
+            this.editingPallet.gidon = !!this.editingPallet.gidon;
+            this.editingPallet.sent = !!this.editingPallet.sent;
 
             try {
                 const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/${this.editingId}`, {
@@ -718,9 +720,10 @@ export default {
                 }
                 // Update selected pallets with the new label name and sent status
                 const palletsToUpdate = selectedPalletsData.map(pallet => ({
-                    ...pallet,               // Spread the original pallet
-                    cardId: Number(res['result'].name), // Assign the new cardId
-                    sent: true,               // Set sent to true
+                    ...pallet,
+                    gidon: !!pallet.gidon,
+                    cardId: Number(res['result'].name),
+                    sent: true,
                     mark: false,
                 }));
                 console.log(`paleltsToUpdate: `, palletsToUpdate)
