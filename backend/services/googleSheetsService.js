@@ -25,6 +25,9 @@ class GoogleSheetsService {
         this.cachedFarmerRecords = new Map();       // Map of farmerName -> { records, timestamp }
         this.activeRecordFetches = new Map();       // Map of farmerName -> Promise (coalescing)
         this.CACHE_TTL_MS = 5 * 60 * 1000;          // 5 minutes Time-to-Live
+        // Per-farmer append locks: serializes concurrent appendRow calls so getNextId
+        // never races against an in-flight write from the same process instance.
+        this.appendLocks = new Map();               // Map of farmerName -> Promise
     }
 
     async initialize() {
@@ -69,11 +72,15 @@ class GoogleSheetsService {
         await this.initialize();
         await this.validateSheetName(sheetName);
 
-        try {
+        // Serialize appends per farmer: each call waits for the previous one to
+        // finish before running getNextId, so two concurrent creates can never
+        // read the same max ID and produce duplicate row IDs.
+        const prev = this.appendLocks.get(sheetName) || Promise.resolve();
+        const current = prev.then(async () => {
             const id = await this.getNextId(sheetName);
             const rowWithId = [id, ...data];
 
-            const response = await this.sheets.spreadsheets.values.append({
+            await this.sheets.spreadsheets.values.append({
                 spreadsheetId: this.SPREADSHEET_ID,
                 range: `${sheetName}!A:N`,
                 valueInputOption: 'USER_ENTERED',
@@ -84,6 +91,14 @@ class GoogleSheetsService {
 
             this.invalidateFarmerCache(sheetName);
             return { success: true, id, data: rowWithId };
+        });
+
+        // Store the chain but swallow rejections so a failed append doesn't
+        // permanently break the lock for this farmer.
+        this.appendLocks.set(sheetName, current.catch(() => {}));
+
+        try {
+            return await current;
         } catch (error) {
             throw new Error(`Failed to append row: ${error.message}`);
         }
