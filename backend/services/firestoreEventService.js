@@ -1,11 +1,13 @@
 const admin = require('firebase-admin')
 const logger = require('../utils/logger')
+const { CENTER_ID } = require('../config/center')
 
-const COL = 'farmer_events'
 const db = () => admin.firestore()
+const eventDoc = (farmer) =>
+  db().collection('centers').doc(CENTER_ID).collection('farmer_events').doc(farmer)
 
 function emit(farmer, payload) {
-  db().collection(COL).doc(farmer).set({
+  eventDoc(farmer).set({
     ...payload,
     farmer,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
