@@ -22,8 +22,8 @@ const BACKUPS_COLLECTION = 'backups';
  */
 async function getFarmerNames() {
     const db = admin.firestore();
-    // TODO(task 7): namespaced config path
-    const snap = await db.collection('config').doc('global').get();
+    const { CENTER_ID } = require('../config/center');
+    const snap = await db.collection('centers').doc(CENTER_ID).collection('config').doc('global').get();
     if (!snap.exists) {
         logger.info('[backupService] config/global not found — no farmers to back up');
         return [];

@@ -21,10 +21,15 @@ try {
 }
 const db = admin.firestore();
 
+const { CENTER_ID } = require('./config/center');
+const centerRef = () => db.collection('centers').doc(CENTER_ID);
+const usersCol = () => centerRef().collection('users');
+const configDoc = () => centerRef().collection('config').doc('global');
+
 // 🌱 Seed Firestore users collection from users.json on startup (if empty)
 async function seedUsersIfEmpty() {
   try {
-    const snapshot = await db.collection("users").limit(1).get();
+    const snapshot = await usersCol().limit(1).get();
     if (!snapshot.empty) {
       logger.info("Firestore users collection already seeded — skipping.");
       return;
@@ -32,7 +37,7 @@ async function seedUsersIfEmpty() {
     const SEED_USERS = require("./users.json");
     const batch = db.batch();
     for (const [email, role] of Object.entries(SEED_USERS)) {
-      batch.set(db.collection("users").doc(email), { role });
+      batch.set(usersCol().doc(email), { role });
     }
     await batch.commit();
     logger.info(`Firestore users collection seeded with ${Object.keys(SEED_USERS).length} users.`);
@@ -98,7 +103,7 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       const email = profile.emails[0].value;
       try {
-        const docSnap = await db.collection("users").doc(email).get();
+        const docSnap = await usersCol().doc(email).get();
         if (docSnap.exists) {
           const { role } = docSnap.data();
           logger.info(`Google OAuth login: ${email} (role: ${role})`);
@@ -185,7 +190,7 @@ app.get("/api/auth/logout", (req, res) => {
 
 app.get("/api/auth/me", (req, res) => {
   if (req.isAuthenticated()) {
-    res.json(req.user);
+    res.json({ ...req.user, centerId: CENTER_ID });
   } else {
     res.status(401).json({ message: "Not logged in" });
   }
@@ -296,7 +301,7 @@ app.post("/api/admin/refresh-cache", ensureAdmin, async (req, res) => {
 // 🔒 Secure Config Management (Proxy for Firestore)
 app.post("/api/admin/config", ensureAdmin, async (req, res) => {
   try {
-    await db.collection("config").doc("global").set(req.body);
+    await configDoc().set(req.body);
     res.json({ success: true, message: "Configuration saved to Firestore via Backend" });
   } catch (error) {
     console.error("Firebase Admin Error:", error);
@@ -313,7 +318,7 @@ app.get('/api/admin/backups', ensureAdmin, sheetController.listBackups.bind(shee
 // 👥 User Management Endpoints
 app.get("/api/admin/users", ensureAdmin, async (req, res) => {
   try {
-    const snapshot = await db.collection("users").get();
+    const snapshot = await usersCol().get();
     const users = snapshot.docs.map(doc => ({ email: doc.id, ...doc.data() }));
     logger.info(`[GET /api/admin/users] Returned ${users.length} users`);
     res.json(users);
@@ -332,7 +337,7 @@ app.post("/api/admin/users", ensureAdmin, async (req, res) => {
     return res.status(400).json({ error: "role must be 'admin' or 'user'" });
   }
   try {
-    await db.collection("users").doc(email).set({ role });
+    await usersCol().doc(email).set({ role });
     logger.info(`[POST /api/admin/users] Upserted user: ${email} (role: ${role})`);
     res.json({ success: true, email, role });
   } catch (err) {
@@ -345,13 +350,13 @@ app.delete("/api/admin/users/:email", ensureAdmin, async (req, res) => {
   const email = decodeURIComponent(req.params.email);
   try {
     // Prevent deleting the last admin
-    const snapshot = await db.collection("users").where("role", "==", "admin").get();
+    const snapshot = await usersCol().where("role", "==", "admin").get();
     const adminDocs = snapshot.docs;
     if (adminDocs.length === 1 && adminDocs[0].id === email) {
       logger.info(`[DELETE /api/admin/users] Blocked deletion of last admin: ${email}`);
       return res.status(400).json({ error: "לא ניתן למחוק את המנהל האחרון במערכת" });
     }
-    await db.collection("users").doc(email).delete();
+    await usersCol().doc(email).delete();
     logger.info(`[DELETE /api/admin/users] Deleted user: ${email}`);
     res.json({ success: true });
   } catch (err) {
