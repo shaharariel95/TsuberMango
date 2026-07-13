@@ -70,6 +70,7 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
   function subscribe(farmerName) {
     if (unsubscribe) { unsubscribe(); unsubscribe = null }
     if (!farmerName) return
+    if (!centerId.value) return
     const docRef = doc(db, 'centers', centerId.value, 'farmer_events', farmerName)
     let isFirstSnapshot = true
     unsubscribe = onSnapshot(
@@ -87,7 +88,7 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
     )
   }
 
-  watch(() => isRef(farmer) ? farmer.value : farmer, subscribe, { immediate: true })
+  watch([() => isRef(farmer) ? farmer.value : farmer, centerId], ([f]) => subscribe(f), { immediate: true })
   onUnmounted(() => { if (unsubscribe) unsubscribe() })
 
   return { highlightedIds }

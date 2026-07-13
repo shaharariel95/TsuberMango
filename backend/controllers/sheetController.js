@@ -4,6 +4,60 @@ const repo = require("../repositories");
 const backupService = require("../services/backupService");
 const logger = require("../utils/logger");
 const firestoreEventService = require("../services/firestoreEventService");
+const admin = require("firebase-admin");
+const { CENTER_ID } = require("../config/center");
+
+// In-memory TTL cache for the known-farmer-names lookup, so write endpoints
+// don't hit Firestore on every request.
+const KNOWN_FARMERS_TTL_MS = 5 * 60 * 1000;
+let knownFarmersCache = { names: null, fetchedAt: 0 };
+
+/**
+ * Read known farmer names from centers/{CENTER_ID}/config/global (field `farmers`,
+ * array of { name, allowGidon }). Cached for KNOWN_FARMERS_TTL_MS.
+ * Fails OPEN: returns null on a read error so writes are never blocked by a
+ * transient Firestore issue.
+ *
+ * @returns {Promise<string[]|null>}
+ */
+async function getKnownFarmerNames() {
+  const now = Date.now();
+  if (knownFarmersCache.names !== null && (now - knownFarmersCache.fetchedAt) < KNOWN_FARMERS_TTL_MS) {
+    return knownFarmersCache.names;
+  }
+
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection('centers').doc(CENTER_ID).collection('config').doc('global').get();
+    if (!snap.exists) {
+      knownFarmersCache = { names: [], fetchedAt: now };
+      return [];
+    }
+    const data = snap.data();
+    const farmers = data.farmers || [];
+    const names = farmers.map(f => f.name).filter(Boolean);
+    knownFarmersCache = { names, fetchedAt: now };
+    return names;
+  } catch (error) {
+    logger.error(`[getKnownFarmerNames] Failed to read config/global: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Returns an error message string if `farmer` is not a known farmer, or null if it's
+ * valid / validation could not be performed (fail-open on transient read errors).
+ *
+ * @param {string} farmer
+ * @returns {Promise<string|null>}
+ */
+async function assertKnownFarmer(farmer) {
+  const names = await getKnownFarmerNames();
+  if (names !== null && !names.includes(farmer)) {
+    return `Unknown farmer: ${farmer}`;
+  }
+  return null;
+}
 
 class SheetController {
   async createRecord(req, res) {
@@ -24,6 +78,11 @@ class SheetController {
 
       if (!farmer) {
         return res.status(400).json({ error: "Farmer name is required" });
+      }
+
+      const farmerError = await assertKnownFarmer(farmer);
+      if (farmerError) {
+        return res.status(400).json({ error: farmerError });
       }
 
       const editedBy = req.user?.email || 'unknown';
@@ -63,9 +122,7 @@ class SheetController {
         data: result,
       });
     } catch (error) {
-      if (error.message.includes("Invalid farmer sheet")) {
-        return res.status(400).json({ error: error.message });
-      } else if (error.message.includes("Missing required fields")) {
+      if (error.message.includes("Missing required fields")) {
         return res.status(400).json({ error: error.message });
       } else {
         return res
@@ -206,6 +263,11 @@ class SheetController {
         return res.status(400).json({ error: "Farmer name is required" });
       }
 
+      const farmerError = await assertKnownFarmer(farmer);
+      if (farmerError) {
+        return res.status(400).json({ error: farmerError });
+      }
+
       const palletsData = req.body; // Array of pallets data
       if (!Array.isArray(palletsData) || palletsData.length === 0) {
         logger.warn("Invalid or missing pallets data.");
@@ -322,9 +384,7 @@ class SheetController {
 
       if (!res.headersSent) {
         // ✅ Prevent multiple responses
-        if (error.message.includes("Invalid farmer sheet")) {
-          return res.status(400).json({ error: error.message });
-        } else if (
+        if (
           error.message.includes("Row with ID") &&
           error.message.includes("not found")
         ) {
@@ -348,6 +408,11 @@ class SheetController {
         return res
           .status(400)
           .json({ error: "Farmer name and record ID are required" });
+      }
+
+      const farmerError = await assertKnownFarmer(farmer);
+      if (farmerError) {
+        return res.status(400).json({ error: farmerError });
       }
 
       const {
@@ -402,9 +467,7 @@ class SheetController {
         data: result,
       });
     } catch (error) {
-      if (error.message.includes("Invalid farmer sheet")) {
-        return res.status(400).json({ error: error.message });
-      } else if (
+      if (
         error.message.includes("Row with ID") &&
         error.message.includes("not found")
       ) {

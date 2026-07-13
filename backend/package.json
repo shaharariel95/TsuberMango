@@ -17,7 +17,8 @@
   "description": "Tsuberi Mango backend",
   "main": "server.js",
   "scripts": {
-    "test": "vitest run",
+    "test": "firebase emulators:exec --only firestore --project demo-tsuber \"vitest run\"",
+    "test:unit": "vitest run",
     "test:watch": "vitest",
     "test:emulator": "firebase emulators:exec --only firestore --project demo-tsuber \"vitest run\"",
     "start": "node server.js",
