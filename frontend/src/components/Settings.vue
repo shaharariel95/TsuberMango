@@ -242,7 +242,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, defineComponent } from 'vue';
+import { ref, reactive, onMounted, watch, defineComponent } from 'vue';
 import { db } from '../main';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { centerId } from '../composables/useCenter';
@@ -369,15 +369,26 @@ export default {
       });
     };
 
-    onMounted(() => {
-      // Listen to config
-      if (!centerId.value) return;
-      const docRef = doc(db, "centers", centerId.value, "config", "global");
-      onSnapshot(docRef, (snap) => {
+    let unsubscribeConfig = null;
+    const subscribeConfig = (id) => {
+      if (unsubscribeConfig) return; // already subscribed
+      const docRef = doc(db, "centers", id, "config", "global");
+      unsubscribeConfig = onSnapshot(docRef, (snap) => {
         if (snap.exists()) {
           Object.assign(localConfig, snap.data());
         }
       });
+    };
+
+    // centerId is populated asynchronously by App.vue's /api/auth/me fetch,
+    // which resolves AFTER this child's onMounted on a fresh direct load of
+    // /Settings. Watch it so the subscription starts as soon as it's known,
+    // whether that's immediately (in-app navigation) or later (direct load).
+    watch(centerId, (id) => {
+      if (id) subscribeConfig(id);
+    }, { immediate: true });
+
+    onMounted(() => {
       // Load users
       fetchUsers();
       // Load backups
