@@ -2,7 +2,7 @@
 const { Storage } = require('@google-cloud/storage');
 const path = require('path');
 const admin = require('firebase-admin');
-const sheetsService = require('./googleSheetsService');
+const repo = require('../repositories');
 const logger = require('../utils/logger');
 
 // GCS client — reuses the same service-account key already present for Sheets/Firebase.
@@ -22,6 +22,7 @@ const BACKUPS_COLLECTION = 'backups';
  */
 async function getFarmerNames() {
     const db = admin.firestore();
+    // TODO(task 7): namespaced config path
     const snap = await db.collection('config').doc('global').get();
     if (!snap.exists) {
         logger.info('[backupService] config/global not found — no farmers to back up');
@@ -60,7 +61,7 @@ async function runBackup(triggeredBy) {
 
     for (const farmer of farmerNames) {
         try {
-            const records = await sheetsService.getAllRecords(farmer);
+            const records = await repo.getRecords(farmer);
             farmersData[farmer] = records;
             totalRows += records.length;
             logger.info(`[backupService] Fetched ${records.length} rows for farmer: ${farmer}`);

@@ -1,6 +1,6 @@
 // sheetController.js
 const SheetModel = require("../models/sheetModel");
-const sheetsService = require("../services/googleSheetsService");
+const repo = require("../repositories");
 const backupService = require("../services/backupService");
 const logger = require("../utils/logger");
 const firestoreEventService = require("../services/firestoreEventService");
@@ -46,12 +46,9 @@ class SheetController {
         editedAt
       );
 
-      const result = await sheetsService.appendRow(
-        farmer,
-        sheetRecord.toArray()
-      );
+      const result = await repo.appendRecord(farmer, { ...sheetRecord });
 
-      sheetsService.appendAuditLog(farmer, {
+      repo.appendAuditLog(farmer, {
         recordId: result.id,
         palletNumber,
         action: 'קליטה',
@@ -85,7 +82,7 @@ class SheetController {
         return res.status(400).json({ error: "Farmer name is required" });
       }
 
-      const records = await sheetsService.getAllRecords(farmer);
+      const records = await repo.getRecords(farmer);
 
       res.json({
         message: "Records retrieved successfully",
@@ -111,7 +108,7 @@ class SheetController {
         return res.status(400).json({ error: "Farmer name is required" });
       }
 
-      const records = await sheetsService.getAllRecords(farmer);
+      const records = await repo.getRecords(farmer);
       // get all records where column 12 is true
       const filteredRecords = records.filter(record => record['mark'] === true);
       
@@ -137,7 +134,7 @@ class SheetController {
           .json({ error: "Farmer name and pallet number are required" });
       }
 
-      const records = await sheetsService.getRowsByPallet(farmer, palletNumber);
+      const records = await repo.getRecordsByPallet(farmer, palletNumber);
 
       if (records.length === 0) {
         return res.status(404).json({
@@ -174,7 +171,7 @@ class SheetController {
     }
 
     try {
-      const result = await sheetsService.getLastPallet(farmer);
+      const result = await repo.getLastPallet(farmer);
       console.log(
         `[getLastPallet] Successfully fetched last pallet for farmer: ${farmer}, result:`,
         result
@@ -221,7 +218,7 @@ class SheetController {
       const editedAt = new Date().toISOString();
 
       const ids = [];
-      const updatedDataArray = [];
+      const updatedObjects = [];
 
       for (const pallet of palletsData) {
         const {
@@ -275,17 +272,13 @@ class SheetController {
           editedAt
         );
 
-        updatedDataArray.push(sheetRecord.toArray());
+        updatedObjects.push({ ...sheetRecord });
       }
 
       logger.info(`Updating ${ids.length} records for farmer: ${farmer}`);
 
       // Call the batch update function
-      const result = await sheetsService.updateRowsByIds(
-        farmer,
-        ids,
-        updatedDataArray
-      );
+      const result = await repo.updateRecords(farmer, ids, updatedObjects);
 
       if (!result || result.success !== true) {
         logger.error(`Update function failed: ${JSON.stringify(result)}`);
@@ -298,7 +291,7 @@ class SheetController {
 
       // Append audit log entries for each updated pallet — fire-and-forget, parallel
       Promise.allSettled(palletsData.map(pallet =>
-        sheetsService.appendAuditLog(farmer, {
+        repo.appendAuditLog(farmer, {
           recordId: pallet.id,
           palletNumber: pallet.palletNumber,
           action: 'עדכון',
@@ -392,21 +385,17 @@ class SheetController {
         editedAt
       );
 
-      const result = await sheetsService.updateRowById(
-        farmer,
-        parseInt(id),
-        sheetRecord.toArray()
-      );
+      const result = await repo.updateRecord(farmer, id, { ...sheetRecord });
 
-      sheetsService.appendAuditLog(farmer, {
-        recordId: parseInt(id),
+      repo.appendAuditLog(farmer, {
+        recordId: id,
         palletNumber: req.body.palletNumber,
         action: 'עדכון',
         editedBy,
         editedAt,
       }).catch(err => logger.error(`appendAuditLog failed on update: ${err.message}`));
 
-      firestoreEventService.emitUpdate(farmer, { id: parseInt(id), ...sheetRecord }, editedBy);
+      firestoreEventService.emitUpdate(farmer, { id, ...sheetRecord }, editedBy);
 
       res.json({
         message: "Record updated successfully",
@@ -439,11 +428,7 @@ class SheetController {
         return res.status(400).json({ error: "Invalid pallet IDs" });
       }
       // Bulk update logic
-      const results = await sheetsService.updateSentStatusForPallets(
-        farmer,
-        palletIds,
-        false
-      );
+      const results = await repo.updateSentStatus(farmer, palletIds, false);
 
       firestoreEventService.emitResetSent(farmer, palletIds, req.user?.email || 'unknown');
 
@@ -472,11 +457,7 @@ class SheetController {
       }
       const palletIds = palletsData.map(pallet => pallet.id); // Extract the 'id' field from each pallet
       // Bulk update logic
-      const results = await sheetsService.updateSendToDestinationPallets(
-        farmer,
-        palletIds,
-        false
-      );
+      const results = await repo.updateMarkStatus(farmer, palletIds, false);
 
       firestoreEventService.emitMarkDestination(farmer, palletsData, false, req.user?.email || 'unknown');
 
@@ -505,11 +486,7 @@ class SheetController {
       }
       const palletIds = palletsData.map(pallet => pallet.id); // Extract the 'id' field from each pallet
       // Bulk update logic
-      const results = await sheetsService.updateSendToDestinationPallets(
-        farmer,
-        palletIds,
-        true
-      );
+      const results = await repo.updateMarkStatus(farmer, palletIds, true);
 
       firestoreEventService.emitMarkDestination(farmer, palletsData, true, req.user?.email || 'unknown');
 
