@@ -60,7 +60,7 @@ This adds exactly one constraint, and it is **comfortably met**: 15 + 16 must la
 | 0 | ~~Refresh CLAUDE.md — it was stale~~ | P0 | ~0.5d | **DONE** |
 | 0.1 | ~~Safe dependency refresh — `npm update` (in-major only; incl. axios security patch)~~ | P0 | ~0.5d | **DONE** (smoke test owed) |
 | 1 | ~~CR#5 — Centered "problem" modals (blocking alerts)~~ | P0 | ~0.5d | **DONE** |
-| 15+16 | **★ Firestore records layer** — interface + `FirestoreRepository` + full Phase 1 namespacing (**merged**; no SheetsRepository; auto-string IDs). Spec: `docs/superpowers/specs/2026-07-13-firestore-records-layer-design.md` | ★ TOP (was P3) | ~1–1.5wk | — |
+| 15+16 | ~~**★ Firestore records layer** — interface + `FirestoreRepository` + full Phase 1 namespacing (merged; no SheetsRepository; auto-string IDs)~~ | ★ TOP (was P3) | ~1–1.5wk | **DONE** (see `done.md`) |
 | 23 | **★ Firebase Auth migration + lock down Firestore rules** (pulled in alongside 16, not parked) | ★ TOP (was P1) | ~3–4d | alongside 16 |
 | 20 | **★ Shipping labels off Sheets** — dynamic docs, log, archive & bulk download | ★ TOP (was P3) | ~1–2wk | 16, 7 (soft — see flag above), 4 (soft — see flag above) |
 | 2 | CR#2 — Intake: drop shipment date, enforce harvest date | P0 | ~0.5d | 1 (soft) |
@@ -101,6 +101,8 @@ This adds exactly one constraint, and it is **comfortably met**: 15 + 16 must la
 
 See the "Priority decision" section above for the full rationale. This block executes **before** the customer CRs below.
 
+> **✅ DONE 2026-07-13 — cutover verified live on Firestore.** See `done.md` for the shipped summary. Records, audit, config, users, and farmer_events all live under `centers/tsuberi/…`; write-path farmer validation added; interim Firestore rules deployed (`frontend/firestore.rules`). **Residuals still on Sheets (by design):** `googleSheetsService.js` is retained for farmer provisioning (`create-sheet`/`delete-sheet`), `refresh-cache`, and startup cache-warming → **task 6** removes it; shipping labels → **task 20**. Real centerId resolution + Firestore-rule lockdown → **task 23**. The rest of this block is kept as historical detail.
+>
 > **★ 15 + 16 are now executed as ONE merged workstream** (brainstormed 2026-07-13 → spec: `docs/superpowers/specs/2026-07-13-firestore-records-layer-design.md`). Task numbers stay canonical for cross-references, but there is **no separate `SheetsRepository`** — fresh-start means Firestore is the first and only implementation, so the interface (15) and `FirestoreRepository` (16) land together. Locked decisions: **full Phase 1 namespacing** (records + audit **and** config, users, farmer_events all move under `centers/tsuberi/…`), **auto-string record IDs** (no counter; `id` becomes opaque), **records cache dropped**, centerId a constant via `/api/auth/me` (real resolution → 23), farmer provisioning → task 6, a minimal Vitest+emulator test down-payment. **Combined effort ~1–1.5wk.** The 15 and 16 cards below are kept for history; the spec supersedes them where they differ.
 
 ### 15 — Repository layer — abstract data access
