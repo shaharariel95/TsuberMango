@@ -16,6 +16,22 @@ class FirestoreRepository extends RecordRepository {
   farmerDoc(farmer) { return this.centerDoc().collection('farmers').doc(farmer); }
   recordsCol(farmer) { return this.farmerDoc(farmer).collection('records'); }
   auditCol(farmer) { return this.farmerDoc(farmer).collection('audit'); }
+
+  async getRecords(farmer) {
+    const snap = await this.recordsCol(farmer).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  async getRecordsByPallet(farmer, palletNumber) {
+    const all = await this.getRecords(farmer);
+    return all.filter(r => String(r.palletNumber) === String(palletNumber));
+  }
+
+  async getLastPallet(farmer) {
+    const all = await this.getRecords(farmer);
+    const nums = all.map(r => parseInt(r.palletNumber)).filter(n => !isNaN(n));
+    return nums.length ? Math.max(...nums) : 0;
+  }
 }
 
 module.exports = FirestoreRepository;
