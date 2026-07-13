@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// INTERIM cutover rules for the centers/{centerId} namespacing (tasks 15+16).
+//
+// Auth is still cookie/session based, so client requests carry request.auth = null.
+// The frontend reads only two things via the client SDK — the tenant config doc
+// and the real-time farmer_events docs — so those get open read, mirroring the
+// pre-namespacing posture (old top-level config/farmer_events were `read: if true`).
+// Everything else (records, audit, users, sessions, backups, buyers, documents,
+// periods, counters) is written AND read exclusively through the Admin SDK on the
+// backend, which bypasses rules entirely — so clients get no access.
+//
+// Real per-tenant / per-user lockdown (request.auth via Firebase Auth) is task 23.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Tenant config doc (kinds, sizes, destinations, farmers, farmerConfigs).
+    match /centers/{centerId}/config/{doc} {
+      allow read: if true;
+      allow write: if false; // Admin SDK only (POST /api/admin/config)
+    }
+
+    // Real-time pallet update events, one doc per farmer, overwritten per write.
+    match /centers/{centerId}/farmer_events/{farmer} {
+      allow read: if true;
+      allow write: if false; // Admin SDK only (firestoreEventService)
+    }
+
+    // Deny all other client access. Admin SDK bypasses this.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
