@@ -52,6 +52,35 @@ class FirestoreRepository extends RecordRepository {
     await batch.commit();
     return { success: true, message: 'Rows updated successfully' };
   }
+
+  async updateSentStatus(farmer, ids, value) {
+    const batch = this.db.batch();
+    ids.forEach(id => batch.update(this.recordsCol(farmer).doc(id), { sent: value }));
+    await batch.commit();
+    return ids.map(id => ({ id, sent: value }));
+  }
+
+  async updateMarkStatus(farmer, ids, value) {
+    const batch = this.db.batch();
+    ids.forEach(id => batch.update(this.recordsCol(farmer).doc(id), { mark: value }));
+    await batch.commit();
+    return ids.map(id => ({ id, mark: value }));
+  }
+
+  async appendAuditLog(farmer, entry) {
+    // Never rethrow — audit must not break the main flow.
+    try {
+      await this.auditCol(farmer).add({
+        recordId: entry.recordId,
+        palletNumber: entry.palletNumber,
+        action: entry.action,
+        editedBy: entry.editedBy,
+        editedAt: entry.editedAt,
+      });
+    } catch (err) {
+      // logged by caller context; swallow here to match legacy behavior
+    }
+  }
 }
 
 module.exports = FirestoreRepository;

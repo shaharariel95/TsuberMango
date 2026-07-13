@@ -92,3 +92,31 @@ describe('writes', () => {
     expect(back.map(r => r.destination)).toEqual(['X', 'Y']);
   });
 });
+
+describe('bulk status + audit', () => {
+  const rec = (extra) => ({ palletNumber: '1', sent: false, mark: false, ...extra });
+
+  it('updateSentStatus flips sent on the given ids only', async () => {
+    const a = await repo.appendRecord(FARMER, rec());
+    const b = await repo.appendRecord(FARMER, rec());
+    const out = await repo.updateSentStatus(FARMER, [a.id], true);
+    expect(out).toEqual([{ id: a.id, sent: true }]);
+    const back = await repo.getRecords(FARMER);
+    expect(back.find(r => r.id === a.id).sent).toBe(true);
+    expect(back.find(r => r.id === b.id).sent).toBe(false);
+  });
+
+  it('updateMarkStatus flips mark on the given ids', async () => {
+    const a = await repo.appendRecord(FARMER, rec());
+    const out = await repo.updateMarkStatus(FARMER, [a.id], true);
+    expect(out).toEqual([{ id: a.id, mark: true }]);
+    expect((await repo.getRecords(FARMER))[0].mark).toBe(true);
+  });
+
+  it('appendAuditLog writes an audit doc', async () => {
+    await repo.appendAuditLog(FARMER, { recordId: 'r1', palletNumber: '1', action: 'קליטה', editedBy: 'a@b.c', editedAt: '2026-07-13T00:00:00Z' });
+    const snap = await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('audit').get();
+    expect(snap.size).toBe(1);
+    expect(snap.docs[0].data().action).toBe('קליטה');
+  });
+});
