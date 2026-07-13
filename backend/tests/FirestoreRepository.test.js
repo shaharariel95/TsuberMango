@@ -63,3 +63,32 @@ describe('reads', () => {
     expect(await repo.getLastPallet(FARMER)).toBe(11);
   });
 });
+
+describe('writes', () => {
+  const rec = () => ({ palletNumber: '1', kind: 'mango', size: 'L', boxes: 10, weight: 200, sent: false, gidon: false, mark: false, harvestDate: '2026-07-13', shipmentDate: '', cardId: '', destination: '', editedBy: 'a@b.c', editedAt: '2026-07-13T00:00:00Z' });
+
+  it('appendRecord assigns a string id and stores the object', async () => {
+    const out = await repo.appendRecord(FARMER, rec());
+    expect(typeof out.id).toBe('string');
+    const back = await repo.getRecords(FARMER);
+    expect(back).toHaveLength(1);
+    expect(back[0].id).toBe(out.id);
+    expect(back[0].kind).toBe('mango');
+  });
+
+  it('updateRecord overwrites the doc at id', async () => {
+    const { id } = await repo.appendRecord(FARMER, rec());
+    await repo.updateRecord(FARMER, id, { ...rec(), weight: 999 });
+    const back = await repo.getRecords(FARMER);
+    expect(back[0].weight).toBe(999);
+  });
+
+  it('updateRecords batch-overwrites multiple docs', async () => {
+    const a = await repo.appendRecord(FARMER, rec());
+    const b = await repo.appendRecord(FARMER, rec());
+    const res = await repo.updateRecords(FARMER, [a.id, b.id], [{ ...rec(), destination: 'X' }, { ...rec(), destination: 'Y' }]);
+    expect(res.success).toBe(true);
+    const back = (await repo.getRecords(FARMER)).sort((x, y) => x.destination.localeCompare(y.destination));
+    expect(back.map(r => r.destination)).toEqual(['X', 'Y']);
+  });
+});

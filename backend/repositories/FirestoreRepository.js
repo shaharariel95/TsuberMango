@@ -32,6 +32,26 @@ class FirestoreRepository extends RecordRepository {
     const nums = all.map(r => parseInt(r.palletNumber)).filter(n => !isNaN(n));
     return nums.length ? Math.max(...nums) : 0;
   }
+
+  async appendRecord(farmer, record) {
+    const ref = this.recordsCol(farmer).doc(); // auto-id
+    const data = { ...record };
+    await ref.set(data);
+    return { id: ref.id, ...data };
+  }
+
+  async updateRecord(farmer, id, record) {
+    const data = { ...record };
+    await this.recordsCol(farmer).doc(id).set(data); // full overwrite (mirrors updateRowById)
+    return { id, ...data };
+  }
+
+  async updateRecords(farmer, ids, records) {
+    const batch = this.db.batch();
+    ids.forEach((id, i) => batch.set(this.recordsCol(farmer).doc(id), { ...records[i] }));
+    await batch.commit();
+    return { success: true, message: 'Rows updated successfully' };
+  }
 }
 
 module.exports = FirestoreRepository;
