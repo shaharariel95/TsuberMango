@@ -245,6 +245,7 @@
 import { ref, reactive, onMounted, defineComponent } from 'vue';
 import { db } from '../main';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { centerId } from '../composables/useCenter';
 import axios from 'axios';
 // import { kinds, sizes, destinations, farmerConfigs } from '../data/data';
 import ListEditor from './ListEditor.vue';
@@ -370,7 +371,8 @@ export default {
 
     onMounted(() => {
       // Listen to config
-      const docRef = doc(db, "config", "global");
+      if (!centerId.value) return;
+      const docRef = doc(db, "centers", centerId.value, "config", "global");
       onSnapshot(docRef, (snap) => {
         if (snap.exists()) {
           Object.assign(localConfig, snap.data());

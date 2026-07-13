@@ -1,6 +1,7 @@
 import { ref, watch, onUnmounted, isRef } from 'vue'
 import { db } from '../main'
 import { doc, onSnapshot } from 'firebase/firestore'
+import { centerId } from './useCenter'
 
 export function useFarmerEvents(farmer, pallets, options = {}) {
   // options.currentUserEmail — Ref<string>, used for echo suppression
@@ -69,7 +70,7 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
   function subscribe(farmerName) {
     if (unsubscribe) { unsubscribe(); unsubscribe = null }
     if (!farmerName) return
-    const docRef = doc(db, 'farmer_events', farmerName)
+    const docRef = doc(db, 'centers', centerId.value, 'farmer_events', farmerName)
     let isFirstSnapshot = true
     unsubscribe = onSnapshot(
       docRef,

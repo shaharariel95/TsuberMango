@@ -177,6 +177,7 @@ import { ref, reactive, provide, computed, watch, onMounted, onBeforeUnmount } f
 import { useRoute, useRouter } from 'vue-router';
 import { db } from './main';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { setCenterId, centerId } from './composables/useCenter';
 import { farmerConfigs } from './data/data'; // Fallback for initial load
 import NotificationList from './components/NotificationList.vue'
 import ErrorToast from './components/shared/ErrorToast.vue'
@@ -238,6 +239,7 @@ export default {
     provide('config', config);
     provide('selectedFarmer', selectedFarmer);
     provide('currentUserEmail', computed(() => user.value?.email || ''));
+    provide('centerId', centerId);
 
     const isActiveLink = (path) => {
       return route.path === path;
@@ -321,46 +323,47 @@ export default {
       window.addEventListener('offline', handleOffline);
       window.addEventListener('online', handleOnline);
 
-      // 1. Fetch User Info
+      // 1. Fetch User Info, then subscribe to the tenant's config
       fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, { credentials: 'include' })
         .then(res => res.json())
         .then(data => {
           if (data.email) user.value = data;
+          if (data.centerId) {
+            setCenterId(data.centerId);
+            const configRef = doc(db, "centers", data.centerId, "config", "global");
+            onSnapshot(configRef, (snapshot) => {
+              if (snapshot.exists()) {
+                const data = snapshot.data();
+                kinds.value = data.kinds || [];
+                sizes.value = data.sizes || [];
+                destinations.value = data.destinations || [];
+
+                // Map farmer list
+                const farmersList = data.farmers || [];
+                farmers.value = farmersList.map(f => f.name);
+
+                // Map farmer configs
+                const fConfigs = {};
+                farmersList.forEach(f => {
+                  fConfigs[f.name] = { allowGidon: f.allowGidon };
+                });
+                dynamicFarmerConfigs.value = fConfigs;
+
+                // Sync the shared reactive config object
+                config.kinds = data.kinds || [];
+                config.sizes = data.sizes || [];
+                config.destinations = data.destinations || [];
+                config.farmers = farmers.value;
+                config.farmerConfigs = fConfigs;
+
+                if (!selectedFarmer.value && farmers.value.length > 0) {
+                  selectedFarmer.value = farmers.value[0];
+                }
+              }
+            });
+          }
         })
         .catch(err => console.error("Not logged in"));
-
-      // 2. Listen to Firestore Config
-      const configDoc = doc(db, "config", "global");
-      onSnapshot(configDoc, (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          kinds.value = data.kinds || [];
-          sizes.value = data.sizes || [];
-          destinations.value = data.destinations || [];
-
-          // Map farmer list
-          const farmersList = data.farmers || [];
-          farmers.value = farmersList.map(f => f.name);
-
-          // Map farmer configs
-          const fConfigs = {};
-          farmersList.forEach(f => {
-            fConfigs[f.name] = { allowGidon: f.allowGidon };
-          });
-          dynamicFarmerConfigs.value = fConfigs;
-
-          // Sync the shared reactive config object
-          config.kinds = data.kinds || [];
-          config.sizes = data.sizes || [];
-          config.destinations = data.destinations || [];
-          config.farmers = farmers.value;
-          config.farmerConfigs = fConfigs;
-
-          if (!selectedFarmer.value && farmers.value.length > 0) {
-            selectedFarmer.value = farmers.value[0];
-          }
-        }
-      });
     });
 
     onBeforeUnmount(() => {

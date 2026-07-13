@@ -402,13 +402,8 @@ export default {
             statusMessage.value = ''
 
             try {
-                const formattedData = {
-                    ...formData,
-                    shipmentDate: formData.shipmentDate ?
-                        new Date(formData.shipmentDate).toLocaleDateString('en-GB') : '',
-                    harvestDate: new Date(formData.harvestDate)
-                        .toLocaleDateString('en-GB').slice(0, 5),
-                }
+                // The <input type="date"> already yields canonical ISO yyyy-mm-dd.
+                const formattedData = { ...formData };
                 const response = await fetch(`${baseUrl}/api/records`, {
                     method: 'POST',
                     headers: {
