@@ -24,12 +24,12 @@
                         </svg>
                         הפק מדבקה
                     </SpinnerButton>
-                    <SpinnerButton v-if="isEditable" @click="requestConfirm(true)"
+                    <SpinnerButton v-if="isEditable" @click="confirmBulkAction(true)"
                         :loading="isCreatingLabel" :disabled="selectedPallets.length === 0"
                         class="btn-primary text-sm bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 min-h-[36px] px-3">
                         העבר למשלוח
                     </SpinnerButton>
-                    <SpinnerButton v-if="isEditable" @click="requestConfirm(false)"
+                    <SpinnerButton v-if="isEditable" @click="confirmBulkAction(false)"
                         :loading="isCreatingLabel" :inverted="false" :disabled="selectedPallets.length === 0"
                         class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
                         הורד ממשלוח
@@ -205,28 +205,6 @@
             </table>
         </div>
 
-        <!-- Bulk Action Confirmation Modal -->
-        <ConfirmModal
-            :show="confirmModal.show"
-            title="אישור פעולה"
-            :icon-variant="confirmModal.toSend ? 'emerald' : 'amber'"
-            confirm-text="אשר"
-            cancel-text="ביטול"
-            :confirm-variant="confirmModal.toSend ? 'emerald' : 'amber'"
-            @confirm="() => { confirmModal.show = false; updateToDestinations(confirmModal.toSend); }"
-            @cancel="confirmModal.show = false"
-        >
-            <template v-if="confirmModal.toSend">
-                האם להעביר <strong>{{ confirmModal.count }} משטחים</strong> למשלוח?
-            </template>
-            <template v-else>
-                האם להוריד <strong>{{ confirmModal.count }} משטחים</strong> מהמשלוח?
-            </template>
-            <p v-if="confirmModal.destinations.length" class="text-slate-400 text-xs mt-1">
-                יעדים: {{ confirmModal.destinations.join(', ') }}
-            </p>
-        </ConfirmModal>
-
         <!-- Error Toast -->
         <ErrorToast :error="error" @dismiss="error = null" />
     </div>
@@ -236,13 +214,13 @@
 import { kinds, sizes, destinations, farmerConfigs as staticFarmerConfigs } from '../data/data.js';
 import { inject } from 'vue';
 import createStickerPDF from '../data/printData.js';
-import ConfirmModal from './shared/ConfirmModal.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
 import ErrorToast from './shared/ErrorToast.vue';
+import { requestAlert, requestConfirm } from '../composables/useDialogs';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
-    components: { ConfirmModal, SpinnerButton, ErrorToast },
+    components: { SpinnerButton, ErrorToast },
     props: {
         pallets: {
             type: Array,
@@ -346,12 +324,6 @@ export default {
             destinationFilterText: '',
             searchText: '',
             collapsedPallets: new Set(),
-            confirmModal: {
-                show: false,
-                toSend: true,
-                count: 0,
-                destinations: []
-            }
         }
     },
 
@@ -572,10 +544,15 @@ export default {
             this.editingId = null;
             this.editingPallet = null;
         },
-        requestConfirm(toSend) {
+        async confirmBulkAction(toSend) {
             const selectedData = this.filteredPallets.filter(p => this.selectedPallets.includes(p.id));
             const destinations = [...new Set(selectedData.map(p => p.destination).filter(Boolean))];
-            this.confirmModal = { show: true, toSend, count: selectedData.length, destinations };
+            const message = toSend
+                ? `האם להעביר ${selectedData.length} משטחים למשלוח?`
+                : `האם להוריד ${selectedData.length} משטחים מהמשלוח?`;
+            const details = destinations.length ? `יעדים: ${destinations.join(', ')}` : '';
+            const ok = await requestConfirm({ message, details, variant: toSend ? 'emerald' : 'amber' });
+            if (ok) this.updateToDestinations(toSend);
         },
 
         async updateToDestinations(toSend) {
@@ -752,12 +729,14 @@ export default {
                 this.selectedPallets = [];
                 this.isCreatingLabel = false
             } catch (err) {
-                this.error = err.message;
-                setTimeout(() => {
-                    this.error = null;
-                    this.selectedPallets = [];
-                    this.isCreatingLabel = false;
-                }, 5000);
+                const isValidation = typeof err.message === 'string' && err.message.startsWith('שדות חסרים');
+                this.selectedPallets = [];
+                this.isCreatingLabel = false;
+                await requestAlert({
+                    title: isValidation ? 'לא ניתן להפיק תעודה' : 'שגיאה',
+                    message: err.message,
+                    variant: isValidation ? 'warning' : 'error',
+                });
             }
         },
 

@@ -167,6 +167,9 @@
 
   <!-- ── Error Toast ───────────────────────────────── -->
   <ErrorToast :error="showError ? error : null" @dismiss="error = null" />
+
+  <!-- ── Blocking Dialogs (alert / confirm) ────────── -->
+  <DialogHost />
 </template>
 
 <script>
@@ -177,11 +180,13 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { farmerConfigs } from './data/data'; // Fallback for initial load
 import NotificationList from './components/NotificationList.vue'
 import ErrorToast from './components/shared/ErrorToast.vue'
+import DialogHost from './components/shared/DialogHost.vue'
 
 export default {
   components: {
     NotificationList,
-    ErrorToast
+    ErrorToast,
+    DialogHost
   },
   setup() {
     const showError = ref(false);

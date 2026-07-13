@@ -280,6 +280,7 @@ import { inject, ref, reactive, watch, computed, nextTick } from 'vue'
 import createStickerPDF from '../data/printData.js';
 import ConfirmModal from './shared/ConfirmModal.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
+import { useDialogs } from '../composables/useDialogs';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
@@ -292,6 +293,7 @@ export default {
     },
 
     setup(props) {
+        const { requestAlert } = useDialogs()
         const isSubmitting = ref(false)
         const submitStatus = ref('')
         const statusMessage = ref('')
@@ -432,9 +434,8 @@ export default {
                     palletNumberInput.value?.focus()
                 }
             } catch (error) {
-                submitStatus.value = 'error'
-                statusMessage.value = error.message
                 console.error('Submit error:', error)
+                await requestAlert({ title: 'שגיאה', message: error.message, variant: 'error' })
             } finally {
                 isSubmitting.value = false
             }

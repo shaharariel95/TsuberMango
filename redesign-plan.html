@@ -93,7 +93,7 @@
     <tbody>
       <tr style="opacity:.62"><td><strong>0</strong></td><td><strong>Refresh CLAUDE.md — it is stale (run before ANY agent session)</strong> <span class="pill done">DONE</span></td><td>P0</td><td>~0.5d</td><td>do first</td></tr>
       <tr style="opacity:.62"><td><strong>0.1</strong></td><td>Safe dependency refresh — <code>npm update</code> (in-major only; incl. axios security patch) <span class="pill done">DONE</span></td><td>P0</td><td>~0.5d</td><td>—</td></tr>
-      <tr><td>1</td><td>CR#5 — Centered "problem" modals (blocking alerts)</td><td>P0</td><td>~0.5d</td><td>0</td></tr>
+      <tr style="opacity:.62"><td><strong>1</strong></td><td>CR#5 — Centered "problem" modals (blocking alerts) <span class="pill done">DONE</span></td><td>P0</td><td>~0.5d</td><td>0</td></tr>
       <tr><td>2</td><td>CR#2 — Intake: drop shipment date, enforce harvest date</td><td>P0</td><td>~0.5d</td><td>1 (soft — see card)</td></tr>
       <tr><td>21</td><td>Standardize date format (canonical ISO) — pre-req for 3 &amp; 11</td><td>P0</td><td>~1&ndash;2d</td><td>before 3</td></tr>
       <tr><td>3</td><td>CR#1 — Shipment prep: pick date once + "apply to all"</td><td>P0</td><td>~1d</td><td>1, 21</td></tr>
@@ -170,15 +170,18 @@
     </div>
   </div>
 
-  <div class="card p0">
-    <div class="head"><span class="num">1</span><h3>Centered "problem" modals — blocking alert dialogs</h3>
-      <div class="meta"><span class="tag">CR#5</span><span class="pill p0">P0</span><span class="tag">~0.5d</span></div></div>
+  <div class="card p0" style="border-left-color:var(--done);background:#101a14">
+    <div class="head"><span class="num" style="background:#0f2a1c">1</span><h3>Centered "problem" modals — blocking alert dialogs</h3>
+      <div class="meta"><span class="tag">CR#5</span><span class="pill done">DONE</span><span class="tag">~0.5d</span></div></div>
     <p class="he">חלונות קופצים באמצע המסך שנראה אם יש בעיה.</p>
     <div class="body">
-      <p><strong>What:</strong> A center-screen, backdrop-blur modal for problems/errors that must be acknowledged — distinct from the existing corner toasts (<code>NotificationList</code>) which are easy to miss.</p>
-      <p><strong>How:</strong> There is already a <code>ConfirmModal.vue</code> pattern. Add an <code>AlertModal.vue</code> shared component (single "הבנתי / סגור" button, optional variant: <code>error | warning | info</code>) and a matching <code>requestAlert()</code>. <span class="stale">Correction:</span> <code>requestConfirm()</code> today lives <em>inside</em> <code>PalletTable.vue</code> (component-local), not in <code>useNotification.js</code> — so part of this task is promoting confirm/alert into a shared, app-level mechanism (composable or a provided singleton) so every page can call it. Route hard failures (label creation error, validation blockers, mixed-destination error) through it.</p>
-      <p class="files">Files: new <code>frontend/src/components/shared/AlertModal.vue</code>; a shared <code>useDialogs</code> composable (extract the existing <code>requestConfirm</code> out of <code>PalletTable.vue</code>); wire in <code>App.vue</code>; adopt in <code>PalletTable.vue</code> + <code>PalletInput.vue</code>.</p>
-      <p class="why"><strong>Why first:</strong> it is the smallest task and becomes the standard error surface CR#3 and CR#4 lean on.</p>
+      <p><strong>Resolved</strong> — promoted confirm/alert into an app-level shared mechanism. New <code>composables/useDialogs.js</code> (module singleton, promise-based <code>requestAlert()</code> / <code>requestConfirm()</code> with <code>{title, message, details, variant}</code>; one dialog at a time). New <code>shared/AlertModal.vue</code> (single <code>הבנתי</code> button, <code>error | warning | info</code> variants) styled as a twin of the existing <code>ConfirmModal.vue</code>. New <code>shared/DialogHost.vue</code> mounted once in <code>App.vue</code> renders the active modal, resolves the promise, and handles backdrop-click + <kbd class="kbd">Esc</kbd> dismissal.</p>
+      <ul>
+        <li>✅ Extracted the bulk-destination confirm out of <code>PalletTable.vue</code> — removed the inline <code>&lt;ConfirmModal&gt;</code>, the local <code>confirmModal</code> state, and the <code>requestConfirm</code> method; <code>confirmBulkAction</code> now awaits the shared <code>requestConfirm</code> (emerald/amber preserved).</li>
+        <li>✅ Routed hard failures through <code>requestAlert</code>: label-creation error + validation blockers (<code>שדות חסרים</code>, mixed-destination) in <code>sendSelectedPallets</code>, and <code>PalletInput</code>'s server submit error — replacing easy-to-miss corner toasts.</li>
+        <li>✅ Verified live (isolated harness): centered render, backdrop blur, RTL, variant colors, and button/backdrop/Escape resolution for both confirm outcomes. Prod build passes.</li>
+      </ul>
+      <p class="why" style="border-color:var(--done)"><strong>Tests deferred:</strong> no Vitest harness yet — automated coverage for <code>useDialogs</code> lands with task&nbsp;22. Spec: <code>docs/superpowers/specs/2026-07-13-blocking-dialogs-design.md</code>. This is now the standard error surface CR#3/CR#4 lean on.</p>
     </div>
   </div>
 
