@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const RecordRepository = require('./RecordRepository');
 const { CENTER_ID } = require('../config/center');
+const logger = require('../utils/logger');
 
 class FirestoreRepository extends RecordRepository {
   constructor(db = null, centerId = CENTER_ID) {
@@ -78,7 +79,8 @@ class FirestoreRepository extends RecordRepository {
         editedAt: entry.editedAt,
       });
     } catch (err) {
-      // logged by caller context; swallow here to match legacy behavior
+      logger.error(`appendAuditLog failed for farmer "${farmer}": ${err.message}`);
+      // swallowed — audit failures must never break the main flow
     }
   }
 }
