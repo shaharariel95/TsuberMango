@@ -43,7 +43,7 @@ async function ensureAdmin(req, res, next) {
     }
     res.status(403).json({ message: 'Forbidden' });
   } catch (err) {
-    logger.error('[ensureAdmin] role lookup failed:', err.message);
+    logger.error(`[ensureAdmin] role lookup failed: ${err.message}`);
     res.status(500).json({ message: 'Role check failed' });
   }
 }
