@@ -31,34 +31,7 @@
           <span>התחבר עם Google</span>
         </button>
 
-        <!-- 🔧 Dev Login (only in dev mode) -->
-        <template v-if="isDevMode">
-          <div class="h-px bg-gradient-to-l from-transparent via-amber-500/50 to-transparent my-5"></div>
-
-          <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
-            <p class="text-amber-400 text-xs font-semibold mb-3">⚡ Dev Mode</p>
-
-            <!-- Role Toggle -->
-            <div class="flex gap-2 mb-3 justify-center">
-              <button v-for="r in ['admin', 'user']" :key="r"
-                @click="devRole = r"
-                :class="[
-                  'px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-200',
-                  devRole === r
-                    ? 'bg-amber-500 text-slate-900'
-                    : 'bg-slate-700/50 text-slate-400 hover:text-white'
-                ]">
-                {{ r }}
-              </button>
-            </div>
-
-            <button @click="devLogin"
-              class="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-2.5 px-4 rounded-xl shadow-lg hover:shadow-amber-500/25 hover:-translate-y-0.5 transition-all duration-200 text-sm">
-              <span>🔧</span>
-              <span>Dev Login ({{ devRole }})</span>
-            </button>
-          </div>
-        </template>
+        <p v-if="errorMsg" class="text-red-400 text-xs mt-4">{{ errorMsg }}</p>
 
         <!-- Footer -->
         <p class="text-slate-500 text-xs mt-6">גישה מורשית בלבד</p>
@@ -69,15 +42,31 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import axios from 'axios';
+import { auth } from '../main';
+
+const router = useRouter();
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
-const isDevMode = import.meta.env.VITE_DEV_MODE === 'true';
-const devRole = ref('admin');
+const errorMsg = ref('');
 
-const login = () => {
-    window.location.href = `${baseUrl}/api/auth/google`;
-};
-
-const devLogin = () => {
-    window.location.href = `${baseUrl}/api/auth/dev-login?role=${devRole.value}`;
+const login = async () => {
+  errorMsg.value = '';
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+    // Authorize against the Firestore users collection.
+    const res = await axios.get(`${baseUrl}/api/auth/me`);
+    // A freshly-minted claim needs a token refresh before Firestore reads work.
+    if (res.data.refreshToken) await auth.currentUser.getIdToken(true);
+    router.push(res.data.role === 'admin' ? '/Dashboard' : '/Destination');
+  } catch (err) {
+    if (err.response && err.response.status === 403) {
+      errorMsg.value = 'החשבון אינו מורשה לגישה למערכת';
+    } else {
+      errorMsg.value = 'ההתחברות נכשלה, נסה שוב';
+    }
+    await signOut(auth).catch(() => {});
+  }
 };
 </script>
