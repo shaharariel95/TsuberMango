@@ -24,13 +24,14 @@ function mockRes() {
 }
 
 beforeEach(async () => {
-  // syncUserClaims tests also write to the 'test' center — clean both so state
-  // doesn't leak between tests (a center doc only "exists" implicitly via its
-  // subcollections, so this must be cleared per-collection, not per-doc).
+  // syncUserClaims tests write to the 'test' center and to the legacy TOP-LEVEL
+  // users collection too — clear all three so state doesn't leak between tests.
   for (const centerId of ['tsuberi', 'test']) {
     const snap = await db.collection('centers').doc(centerId).collection('users').get();
     await Promise.all(snap.docs.map(d => d.ref.delete()));
   }
+  const topSnap = await db.collection('users').get();
+  await Promise.all(topSnap.docs.map(d => d.ref.delete()));
   vi.restoreAllMocks();
 });
 
@@ -119,5 +120,22 @@ describe('syncUserClaims', () => {
     const changed = await syncUserClaims('a@b.com');
     expect(changed).toBe(false);
     expect(setClaims).not.toHaveBeenCalled();
+  });
+
+  it('excludes a legacy top-level users/{email} doc from the centers claim', async () => {
+    // seedCenterNamespace.js may leave a legacy TOP-LEVEL users/{email} doc
+    // coexisting with the namespaced centers/{c}/users/{email} doc. The
+    // collectionGroup('users') scan picks up both; the d.ref.parent.parent
+    // guard must drop the top-level one (its grandparent is null).
+    await db.collection('users').doc('a@b.com').set({ role: 'admin' });
+    await db.collection('centers').doc('tsuberi').collection('users').doc('a@b.com').set({ role: 'admin' });
+    const setClaims = vi.fn().mockResolvedValue();
+    vi.spyOn(admin, 'auth').mockReturnValue({
+      getUserByEmail: vi.fn().mockResolvedValue({ uid: 'u1', customClaims: {} }),
+      setCustomUserClaims: setClaims,
+    });
+    const changed = await syncUserClaims('a@b.com');
+    expect(changed).toBe(true);
+    expect(setClaims.mock.calls[0][1].centers).toEqual(['tsuberi']);
   });
 });
