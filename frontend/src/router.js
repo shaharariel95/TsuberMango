@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import axios from "axios";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./main";
 
 import PalletInput from "./components/PalletInput.vue";
 import Weight from "./components/Weight.vue";
@@ -70,33 +72,35 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach(async (to, from, next) => {
-  if (to.path === "/login") {
-    return next();
+// Resolve Firebase's initial auth state once (avoids a hard-reload race).
+function currentUser() {
+  return new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
+  });
+}
+
+router.beforeEach(async (to) => {
+  const user = auth.currentUser || (await currentUser());
+
+  if (!user) return to.path === "/login" ? true : "/login";
+  if (to.path === "/login") return "/Destination"; // signed in; leave login
+
+  // Admin gate + role-home redirect for bare/unknown paths.
+  if (to.meta.requiresAdmin || to.matched.length === 0 || to.path === "/") {
+    try {
+      const res = await axios.get(`${baseUrl}/api/auth/me`);
+      const role = res.data.role;
+      if (to.matched.length === 0 || to.path === "/") {
+        return role === "admin" ? "/Dashboard" : "/Destination";
+      }
+      if (to.meta.requiresAdmin && role !== "admin") return "/Destination";
+    } catch (err) {
+      if (err.response && err.response.status === 401) return "/login";
+      console.warn("Auth role check failed:", err.message);
+      if (to.matched.length === 0) return "/login";
+    }
   }
-  try {
-    const res = await axios.get(`${baseUrl}/api/auth/me`, { withCredentials: true });
-    const user = res.data;
-
-    // Unknown route or bare root → role-appropriate home
-    if (to.matched.length === 0 || to.path === "/") {
-      return next(user.role === "admin" ? "/Dashboard" : "/Destination");
-    }
-
-    if (to.meta.requiresAdmin && user.role !== "admin") {
-      return next("/Destination");
-    }
-
-    next();
-  } catch (error) {
-    if (error.response && error.response.status === 401) {
-      return next("/login");
-    }
-    // Server down — let existing routes through, send unknown routes to login as fallback
-    console.warn("Auth check failed (server may be down):", error.message);
-    if (to.matched.length === 0 || to.path === "/") return next("/login");
-    next();
-  }
+  return true;
 });
 
 export default router;
