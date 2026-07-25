@@ -13,13 +13,20 @@ const { syncUserClaims } = require('../middleware/auth');
 const db = admin.firestore();
 
 (async () => {
-  const centersSnap = await db.collection('centers').get();
+  // Discover users via a single `users` collection-group scan rather than
+  // `db.collection('centers').get()` + per-center `users`. A `centers/{id}`
+  // doc only "exists" for a top-level `.collection('centers').get()` if it was
+  // ever written directly, so centers that are implied purely by their
+  // subcollections (e.g. `centers/test` from seedTestCenter.js) would be
+  // silently skipped. Scanning the `users` collection group finds every user
+  // doc regardless — this mirrors syncUserClaims's own approach (see
+  // middleware/auth.js). The group also picks up any legacy top-level
+  // `users/*` docs; we dedupe by email, and syncUserClaims computes the
+  // correct per-email centers list (excluding those legacy docs) itself.
+  const usersSnap = await db.collectionGroup('users').get();
   const emails = new Set();
-  for (const c of centersSnap.docs) {
-    const users = await c.ref.collection('users').get();
-    users.docs.forEach(u => emails.add(u.id));
-  }
-  logger.info(`[backfill] ${emails.size} distinct users across ${centersSnap.size} centers`);
+  usersSnap.docs.forEach(u => emails.add(u.id));
+  logger.info(`[backfill] ${emails.size} distinct users across ${usersSnap.size} user docs`);
   for (const email of emails) {
     try { await syncUserClaims(email); }
     catch (err) { logger.error(`[backfill] ${email} failed: ${err.message}`); }
