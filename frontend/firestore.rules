@@ -1,38 +1,17 @@
 rules_version = '2';
 
-// INTERIM cutover rules for the centers/{centerId} namespacing (tasks 15+16).
-//
-// Auth is still cookie/session based, so client requests carry request.auth = null.
-// The frontend reads only two things via the client SDK — the tenant config doc
-// and the real-time farmer_events docs — so those get open read, mirroring the
-// pre-namespacing posture. Everything else (records, audit, users, sessions,
-// backups, ...) is read AND written exclusively through the Admin SDK on the
-// backend, which bypasses rules — clients get no access (default deny).
-//
-// The legacy top-level matches are kept during cutover so nothing breaks while
-// old and new data coexist; delete them once the namespaced cutover is verified.
-// Real per-tenant / per-user lockdown (request.auth via Firebase Auth) is task 23.
+// Client SDK reads only the tenant config doc and the real-time farmer_events.
+// Firebase Auth provides request.auth; the `centers` custom claim lists the
+// centers a user may read. Everything else is Admin-SDK-only (default deny).
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Namespaced (current) — what the app reads now.
     match /centers/{centerId}/config/{document=**} {
-      allow read: if true;
+      allow read: if request.auth != null && centerId in request.auth.token.centers;
       allow write: if false; // Admin SDK only (POST /api/admin/config)
     }
     match /centers/{centerId}/farmer_events/{farmerId} {
-      allow read: if true;
+      allow read: if request.auth != null && centerId in request.auth.token.centers;
       allow write: if false; // Admin SDK only (firestoreEventService)
-    }
-
-    // Legacy top-level (pre-namespacing) — safe to delete after cutover is verified.
-    match /config/{document=**} {
-      allow read: if true;
-      allow write: if false;
-    }
-    match /farmer_events/{farmerId} {
-      allow read: if true;
-      allow write: if false;
     }
   }
 }

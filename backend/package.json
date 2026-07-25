@@ -31,6 +31,8 @@
   },
   "homepage": "https://github.com/shaharariel95/TsuberMango#readme",
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "firebase": "^12.16.0",
     "firebase-tools": "^14.18.0",
     "nodemon": "^3.1.7",
     "vitest": "^4.1.10"
