@@ -175,7 +175,9 @@
 <script>
 import { ref, reactive, provide, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { db } from './main';
+import axios from 'axios';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { db, auth } from './main';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { setCenterId, centerId } from './composables/useCenter';
 import { farmerConfigs } from './data/data'; // Fallback for initial load
@@ -278,11 +280,11 @@ export default {
 
     const logout = async () => {
       try {
-        await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, { credentials: 'include' });
+        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`);
       } catch (err) {
-        // Session is cleared server-side regardless — proceed with client-side logout
-        console.warn('Logout request error (session still cleared):', err);
+        console.warn('Logout revoke error (signing out locally anyway):', err);
       }
+      await signOut(auth).catch(() => {});
       user.value = null;
       if (isMobile.value) mobileOpen.value = false;
       router.push('/login');
@@ -323,47 +325,42 @@ export default {
       window.addEventListener('offline', handleOffline);
       window.addEventListener('online', handleOnline);
 
-      // 1. Fetch User Info, then subscribe to the tenant's config
-      fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.email) user.value = data;
+      // Drive user state + tenant config from Firebase auth state.
+      onAuthStateChanged(auth, async (fbUser) => {
+        if (!fbUser) { user.value = null; return; }
+        try {
+          const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`);
+          const data = res.data;
+          if (data.refreshToken) await auth.currentUser.getIdToken(true);
+          user.value = { email: data.email, role: data.role };
           if (data.centerId) {
             setCenterId(data.centerId);
             const configRef = doc(db, "centers", data.centerId, "config", "global");
             onSnapshot(configRef, (snapshot) => {
-              if (snapshot.exists()) {
-                const data = snapshot.data();
-                kinds.value = data.kinds || [];
-                sizes.value = data.sizes || [];
-                destinations.value = data.destinations || [];
-
-                // Map farmer list
-                const farmersList = data.farmers || [];
-                farmers.value = farmersList.map(f => f.name);
-
-                // Map farmer configs
-                const fConfigs = {};
-                farmersList.forEach(f => {
-                  fConfigs[f.name] = { allowGidon: f.allowGidon };
-                });
-                dynamicFarmerConfigs.value = fConfigs;
-
-                // Sync the shared reactive config object
-                config.kinds = data.kinds || [];
-                config.sizes = data.sizes || [];
-                config.destinations = data.destinations || [];
-                config.farmers = farmers.value;
-                config.farmerConfigs = fConfigs;
-
-                if (!selectedFarmer.value && farmers.value.length > 0) {
-                  selectedFarmer.value = farmers.value[0];
-                }
+              if (!snapshot.exists()) return;
+              const cfg = snapshot.data();
+              kinds.value = cfg.kinds || [];
+              sizes.value = cfg.sizes || [];
+              destinations.value = cfg.destinations || [];
+              const farmersList = cfg.farmers || [];
+              farmers.value = farmersList.map(f => f.name);
+              const fConfigs = {};
+              farmersList.forEach(f => { fConfigs[f.name] = { allowGidon: f.allowGidon }; });
+              dynamicFarmerConfigs.value = fConfigs;
+              config.kinds = cfg.kinds || [];
+              config.sizes = cfg.sizes || [];
+              config.destinations = cfg.destinations || [];
+              config.farmers = farmers.value;
+              config.farmerConfigs = fConfigs;
+              if (!selectedFarmer.value && farmers.value.length > 0) {
+                selectedFarmer.value = farmers.value[0];
               }
             });
           }
-        })
-        .catch(err => console.error("Not logged in"));
+        } catch (err) {
+          console.warn('Failed to load user/config:', err?.message);
+        }
+      });
     });
 
     onBeforeUnmount(() => {
