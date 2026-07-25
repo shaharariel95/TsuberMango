@@ -1,12 +1,11 @@
 require("dotenv").config();
 const express = require("express");
-const passport = require("passport");
-const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const cors = require("cors");
 const sheetRoutes = require("./routes/sheetRoutes");
 const admin = require("firebase-admin");
 const path = require("path");
 const logger = require("./utils/logger");
+const { verifyFirebaseToken, ensureCenterAccess, ensureAdmin, syncUserClaims } = require('./middleware/auth');
 
 // 🔒 Initialize Firebase Admin for Secure Config Management
 try {
@@ -51,155 +50,42 @@ const app = express();
 
 app.use(
   cors({
-    origin: process.env.FRONT_CORS.split(","), // Your Vue dev server
-    credentials: true, // Allow cookies to be sent
+    origin: process.env.FRONT_CORS.split(","),
+    credentials: false, // Bearer tokens, not cookies
   })
 );
 app.use(express.json());
 app.set('trust proxy', 1);
 const USERS = require("./users.json"); // Contains emails and roles
 
-const session = require("express-session");
-const FirestoreStore = require("firestore-store")(session);
-const firestoreSessionParser = {
-  read: (doc) => JSON.parse(doc.session),
-  save: (doc) => ({
-    session: JSON.stringify(doc),
-    expires: doc.cookie?.expires ? new Date(doc.cookie.expires) : new Date(Date.now() + 24 * 60 * 60 * 1000),
-  }),
-};
-
-app.use(
-  session({
-    store: new FirestoreStore({ database: db, parser: firestoreSessionParser }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-      secure: process.env.NODE_ENV === "production", // cookies only over HTTPS in production
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    },
-  })
-);
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
-passport.deserializeUser((user, done) => {
-  done(null, user);
-});
-
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL,
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      const email = profile.emails[0].value;
-      try {
-        const docSnap = await usersCol().doc(email).get();
-        if (docSnap.exists) {
-          const { role } = docSnap.data();
-          logger.info(`Google OAuth login: ${email} (role: ${role})`);
-          return done(null, { email, role });
-        } else {
-          logger.info(`Google OAuth login rejected — not authorized: ${email}`);
-          return done(null, false, { message: "User not authorized" });
-        }
-      } catch (err) {
-        logger.error(`Error checking Firestore for user ${email}:`, err);
-        return done(err);
-      }
-    }
-  )
-);
-
-// 🔐 Middleware to protect routes
-const ensureAuthenticated = (req, res, next) => {
-  console.log(
-    `[ensureAuthenticated] isAuthenticated: ${req.isAuthenticated()}`
-  );
-  console.log(`[ensureAuthenticated] User:`, req.user);
-  if (req.isAuthenticated()) return next();
-  res.status(401).json({ message: "Unauthorized" });
-};
-
-// 🎩 Middleware for admin only
-const ensureAdmin = (req, res, next) => {
-  if (req.isAuthenticated() && req.user.role === "admin") return next();
-  res.status(403).json({ message: "Forbidden" });
-};
-
-// 🛣️ Routes
-app.get(
-  "/api/auth/google",
-  passport.authenticate("google", { scope: ["email", "profile"] })
-);
-
-app.get(
-  "/api/auth/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: "/api/auth/unauthorized",
-  }), (req, res) => {
-    console.log(`[Google Callback] User:`, req.user);
-    req.session.save(() => {
-      res.redirect(process.env.FRONT); // Redirect to Frontend after successful login
-    });
+// Current user — role read live from Firestore; keeps claims in sync.
+app.get("/api/auth/me", verifyFirebaseToken, async (req, res) => {
+  try {
+    const snap = await usersCol().doc(req.user.email).get();
+    if (!snap.exists) return res.status(403).json({ message: "User not authorized" });
+    const changed = await syncUserClaims(req.user.email);
+    res.json({ email: req.user.email, role: snap.data().role, centerId: CENTER_ID, refreshToken: changed });
+  } catch (err) {
+    logger.error("[/api/auth/me] failed:", err.message);
+    res.status(500).json({ message: "Failed to load user" });
   }
-);
-
-// 🔧 Dev Mode: Auto-login without Google OAuth
-if (process.env.NODE_ENV === 'development' && process.env.DEV_BYPASS_AUTH === 'true') {
-  console.warn('⚠️  DEV_BYPASS_AUTH is ON — authentication is bypassed for /api/auth/dev-login');
-
-  app.get('/api/auth/dev-login', (req, res) => {
-    const role = req.query.role || 'admin';
-    const email = req.query.email || Object.keys(USERS)[0];
-    req.login({ email, role }, (err) => {
-      if (err) return res.status(500).json({ error: 'Dev login failed' });
-      req.session.save(() => {
-        res.redirect(process.env.FRONT);
-      });
-    });
-  });
-}
-
-// Unauthorized route: clear session and cookies, redirect to login
-app.get("/api/auth/unauthorized", (req, res) => {
-  req.logout(() => {
-    req.session.destroy(() => {
-      res.clearCookie("connect.sid");
-      res.redirect(`${process.env.FRONT}/login`);
-    });
-  });
 });
 
-app.get("/api/auth/logout", (req, res) => {
-  req.logout(() => {
-    req.session.destroy(() => {
-      res.json({ success: true });
-    });
-  });
-});
-
-app.get("/api/auth/me", (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({ ...req.user, centerId: CENTER_ID });
-  } else {
-    res.status(401).json({ message: "Not logged in" });
+// Logout — revoke refresh tokens so the session cannot be silently resumed.
+app.post("/api/auth/logout", verifyFirebaseToken, async (req, res) => {
+  try {
+    await admin.auth().revokeRefreshTokens(req.user.uid);
+    res.json({ success: true });
+  } catch (err) {
+    logger.error("[/api/auth/logout] revoke failed:", err.message);
+    res.json({ success: true }); // client signs out regardless
   }
 });
 
 const PORT = process.env.PORT || 3000;
 
 // 🕛 Internal endpoint for Cloud Scheduler — OIDC token auth, no session required
-// Must be defined BEFORE the global app.use("/api", ensureAuthenticated) block
+// Must be defined BEFORE the global app.use("/api", verifyFirebaseToken, ...) block
 const backupService = require('./services/backupService');
 const { OAuth2Client } = require('google-auth-library');
 const oidcClient = new OAuth2Client();
@@ -239,11 +125,9 @@ app.post('/api/internal/backup', async (req, res) => {
 
 app.use(
   "/api",
-  ensureAuthenticated,
-  (req, res, next) => {
-    console.log(`got req = `, req.url);
-    next();
-  },
+  verifyFirebaseToken,
+  ensureCenterAccess,
+  (req, res, next) => { logger.info(`API ${req.method} ${req.url}`); next(); },
   sheetRoutes
 );
 
@@ -338,6 +222,7 @@ app.post("/api/admin/users", ensureAdmin, async (req, res) => {
   }
   try {
     await usersCol().doc(email).set({ role });
+    await syncUserClaims(email).catch(err => logger.error('[admin/users] claim sync failed:', err.message));
     logger.info(`[POST /api/admin/users] Upserted user: ${email} (role: ${role})`);
     res.json({ success: true, email, role });
   } catch (err) {
@@ -357,6 +242,7 @@ app.delete("/api/admin/users/:email", ensureAdmin, async (req, res) => {
       return res.status(400).json({ error: "לא ניתן למחוק את המנהל האחרון במערכת" });
     }
     await usersCol().doc(email).delete();
+    await syncUserClaims(email).catch(err => logger.error('[admin/users] claim sync failed:', err.message));
     logger.info(`[DELETE /api/admin/users] Deleted user: ${email}`);
     res.json({ success: true });
   } catch (err) {
