@@ -5,3 +5,7 @@
 *firebase*
 firestore-debug.log
 ui-debug.log
+
+# Claude Code — local-only; skills and shared config are committed
+.claude/worktrees/
+.claude/settings.local.json
