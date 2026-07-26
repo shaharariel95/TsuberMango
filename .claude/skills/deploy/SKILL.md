@@ -47,9 +47,9 @@ cd frontend
 
 ## Gotchas — all of these have actually bitten
 
-- **The service is `backend-service`, NOT `tsuberi-backend`.** `backend/CLOUD_SCHEDULER.md` has the
-  wrong name in its setup commands. Deploying to a wrong name silently *creates a new empty service*
-  with no env vars, which then crash-loops on `FRONT_CORS`.
+- **The service is `backend-service`, NOT `tsuberi-backend`.** Deploying to a wrong name silently
+  *creates a new empty service* with no env vars, which then crash-loops on `FRONT_CORS`. (This name
+  was wrong in `backend/CLOUD_SCHEDULER.md` until 2026-07-27 — older notes may still repeat it.)
 - A second, stale `backend-service` exists in **`me-west1`**, unused since 2025-04-26. Ignore it.
 - **Pinned traffic blocks promotion.** If Cloud Run traffic has been pinned to a revision (which
   `update-traffic --to-revisions=...` does), `gcloud run deploy` builds a new revision but does

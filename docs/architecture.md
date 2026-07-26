@@ -218,6 +218,7 @@ known farmer names read from `centers/{centerId}/config/global`.
 | `FRONT_CORS` | Comma-separated allowed CORS origins |
 | `FIREBASE_PROJECT_ID` | Firebase project |
 | `CLOUD_RUN_SERVICE_URL` | Expected audience when verifying the Cloud Scheduler OIDC token (`/api/internal/backup`) |
+| `GCS_BACKUP_BUCKET` | GCS bucket backups are written to (`tsuberi-mangos-backups`). `backupService.js` throws if unset |
 | `CRON_SECRET` | Dev-only shared secret accepted by `/api/internal/backup` when `NODE_ENV≠production` |
 
 **Removed by the Firebase Auth migration (task 23) — no longer read anywhere in the codebase:**
