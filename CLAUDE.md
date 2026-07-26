@@ -12,9 +12,9 @@ TsuberMango is a full-stack web application for managing mango pallet records, w
 |---|---|
 | Frontend | Vue 3.5 + Vite 5, Vue Router 4, Tailwind CSS 3, Axios |
 | Backend | Node.js + Express 5 |
-| Primary DB | Firebase Firestore — pallet records, audit, config, users, sessions, real-time events (all under `centers/{centerId}/…`) |
+| Primary DB | Firebase Firestore — pallet records, audit, config, users, real-time events (all under `centers/{centerId}/…`) |
 | Legacy DB | Google Sheets API (googleapis) — now only shipping-label spreadsheets + farmer-sheet provisioning |
-| Auth | Google OAuth 2.0 (passport-google-oauth20); Firestore-backed express sessions |
+| Auth | Firebase Auth (Google provider) — ID tokens; Firestore `users` collection for authorization |
 | PDF | pdfmake |
 | Logging | winston |
 | Hosting | Firebase Hosting (frontend), Google Cloud Run (backend) |
@@ -31,9 +31,10 @@ TsuberMango is a full-stack web application for managing mango pallet records, w
 
 ### Frontend (`/frontend`)
 
-- `src/main.js` — App entry point; initializes Vue, Router, Axios (`withCredentials: true`), and Firebase. Exports `db` (Firestore instance).
-- `src/router.js` — All routes + `beforeEach` guard (calls `/api/auth/me` to verify session).
-- `src/App.vue` — App shell: sidebar/layout, live `centers/{centerId}/config/global` `onSnapshot` subscription (started inside the `/api/auth/me` `.then`, once `centerId` is known), and the `provide()`s consumed by every page (see Firebase section).
+- `src/main.js` — App entry point; initializes Vue, Router, Firebase (`getAuth` + `getFirestore`, emulator wiring behind `VITE_USE_EMULATORS`), and a global Axios request interceptor that attaches `Authorization: Bearer <idToken>` from the current Firebase user to every request. Exports `db` (Firestore instance) and `auth` (Firebase Auth instance).
+- `src/router.js` — All routes + `beforeEach` guard keyed off Firebase auth state (`onAuthStateChanged`/`auth.currentUser`), calling `/api/auth/me` only for the admin-gate/role-home checks.
+- `src/utils/auth.js` — `getToken()` — awaits a valid (auto-refreshed) Firebase ID token for callers that don't go through the axios interceptor (raw `fetch()` calls).
+- `src/App.vue` — App shell: sidebar/layout, `onAuthStateChanged` listener that resolves the user + starts the live `centers/{centerId}/config/global` `onSnapshot` subscription (once `centerId` is known from `/api/auth/me`), logout (revokes the refresh token server-side via `POST /api/auth/logout`, then signs out locally regardless), and the `provide()`s consumed by every page (see Firebase section).
 - `src/components/` — All page-level components (see Routes section). `Dashboard.vue` is the admin landing page (cross-farmer season totals, recent pallets, today's-activity feed).
 - `src/components/shared/` — Reusable UI primitives: `ConfirmModal.vue`, `LoadingState.vue`, `ErrorState.vue`, `EmptyState.vue`, `SpinnerButton.vue`, `ErrorToast.vue`.
 - `src/composables/useFarmerEvents.js` — Real-time update composable. Subscribes to `centers/{centerId}/farmer_events/{farmer}` via `onSnapshot` (re-subscribes when either the farmer ref or `centerId` changes), applies deltas to the caller's `pallets` ref in-place, and returns a reactive `highlightedIds` Set for flash animations. See Real-Time Updates section.
@@ -47,8 +48,9 @@ TsuberMango is a full-stack web application for managing mango pallet records, w
 
 ### Backend (`/backend`)
 
-- `server.js` — Express entry: CORS, Firestore-backed sessions (`firestore-store`), Passport OAuth, dev-bypass route, Firebase Admin init, `users` collection seeding, admin/auth/backup endpoints. Auth, admin, and internal endpoints are defined directly here (not in a route file).
-- `routes/sheetRoutes.js` — The `/api/*` sheet + shipping + destination endpoints (mounted under the `ensureAuthenticated` guard).
+- `server.js` — Express entry: CORS (`credentials: false` — Bearer tokens, not cookies), Firebase Admin init, `users` collection seeding, `/api/*` guarded by `verifyFirebaseToken` + `ensureCenterAccess` (admin-only routes additionally by `ensureAdmin`), `/api/auth/me` and `/api/auth/logout`, admin/backup endpoints. No Passport, no express-session, no dev-bypass route. Auth, admin, and internal endpoints are defined directly here (not in a route file).
+- `middleware/auth.js` — `verifyFirebaseToken` (verifies the `Authorization: Bearer <idToken>` header via `admin.auth().verifyIdToken`, sets `req.user = {email, uid, centers}`), `ensureCenterAccess` (403 unless `CENTER_ID` is in the token's `centers` claim), `ensureAdmin` (reads the role **live** from Firestore `centers/{CENTER_ID}/users/{email}` — not from the claim, so role changes take effect immediately), `syncUserClaims(email)` (computes the set of centers a user belongs to via a `users` collection-group scan and stamps a minimal `{centers}` custom claim; returns whether it changed).
+- `routes/sheetRoutes.js` — The `/api/*` sheet + shipping + destination endpoints (mounted under the `verifyFirebaseToken` + `ensureCenterAccess` guard).
 - `controllers/sheetController.js` — Pallet record CRUD logic + backup trigger/list handlers. Depends on the `RecordRepository` (via `require('../repositories')`), **not** on Sheets directly. Each write emits a fire-and-forget Firestore event after the repository write succeeds. Write endpoints validate the farmer against `config.farmers` (`assertKnownFarmer` → 400 on unknown; 5-min cached, fail-open on config-read error).
 - `controllers/labelController.js` — Shipping label generation logic.
 - `repositories/RecordRepository.js` — Storage-agnostic contract for pallet-record persistence (`getRecords`, `getRecordsByPallet`, `getLastPallet`, `appendRecord`, `updateRecord(s)`, `updateSentStatus`, `updateMarkStatus`, `appendAuditLog`). `repositories/index.js` exports the active implementation singleton.
@@ -59,6 +61,8 @@ TsuberMango is a full-stack web application for managing mango pallet records, w
 - `services/shippingLabelsService.js` — Per-farmer shipping label spreadsheet management (still Google Sheets — see task 20).
 - `services/backupService.js` — Backs up all active-season records (now read from the Firestore repository) and records metadata in the Firestore `backups` collection. Invoked by the manual admin endpoint and by Cloud Scheduler (see `CLOUD_SCHEDULER.md`).
 - `scripts/seedCenterNamespace.js` — One-time idempotent carry-over: copies top-level `config/global` + `users/*` into `centers/{centerId}/`. `scripts/addTestFarmers.js` — appends test farmers to the namespaced config.
+- `scripts/backfillAuthClaims.js` — One-time, idempotent: scans the `users` collection group for every distinct email and calls `syncUserClaims(email)` on each, stamping/correcting the `centers` custom claim. **Must run before `firestore.rules` is deployed** (the new rules require the claim to be present). Run: `node scripts/backfillAuthClaims.js`.
+- `scripts/seedTestCenter.js` — Idempotent: stands up `centers/test` (config, one admin user, one fake farmer + record) for local emulator smoke-testing. Run: `node scripts/seedTestCenter.js <admin-email>`.
 - `models/sheetModel.js` — Pallet data model + required-field validation + boolean coercion. Controllers pass a `SheetModel` object (spread) to the repository; `toArray()` (the old Sheets row serializer) is no longer used on the write path.
 - `utils/logger.js` — Winston logger (`logger.info`, `logger.error`), console transport.
 - `users.json` — Seed-only email → role map. Copied into the Firestore `users` collection on first startup if that collection is empty; the live authorization source is Firestore, not this file (see Authentication Flow).
@@ -81,11 +85,11 @@ TsuberMango is a full-stack web application for managing mango pallet records, w
 | `/Destination` | Destination | Auth required |
 | `/DestinationsSummary` | DestinationsSummary | Auth required |
 
-There is no `/` route. The `beforeEach` guard in `router.js` hits `/api/auth/me` on every navigation; bare `/` and any unmatched path redirect to the role's home — admins to `/Dashboard`, everyone else to `/Destination`. A non-admin hitting an admin-only route is sent to `/Destination`; a `401` sends the user to `/login`. If the auth check fails for another reason (server down), already-matched routes are let through and only unmatched paths fall back to `/login`.
+There is no `/` route. The `beforeEach` guard in `router.js` first resolves Firebase's current auth state (`auth.currentUser`, or one `onAuthStateChanged` tick if it hasn't hydrated yet) — no Firebase user means an immediate redirect to `/login`, no network round-trip needed. It hits `/api/auth/me` only for the admin gate and bare/unmatched-path role-home redirect: admins to `/Dashboard`, everyone else to `/Destination`. A non-admin hitting an admin-only route is sent to `/Destination`; a `401` from that call sends the user to `/login`. If the call fails for another reason (server down), already-matched routes are let through and only unmatched paths fall back to `/login`.
 
 ### Backend API Endpoints
 
-All `/api/*` routes require `ensureAuthenticated`. Admin-only routes additionally require `ensureAdmin`.
+All `/api/*` routes require `verifyFirebaseToken` + `ensureCenterAccess`. Admin-only routes additionally require `ensureAdmin`.
 
 | Method | Path | Controller | Notes |
 |---|---|---|---|
@@ -100,10 +104,8 @@ All `/api/*` routes require `ensureAuthenticated`. Admin-only routes additionall
 | POST | `/api/shipping/newlabel/` | `createNewShippingLabel` | Create shipping label sheet |
 | POST | `/api/farmers/:farmer/destinations/toSend` | `sendToDestination` | Set mark=true |
 | POST | `/api/farmers/:farmer/destinations/Sent` | `removeFromDestination` | Set mark=false |
-| GET | `/api/auth/google` | — | OAuth initiation |
-| GET | `/api/auth/google/callback` | — | OAuth callback |
-| GET | `/api/auth/me` | — | Current user info |
-| GET | `/api/auth/logout` | — | Logout |
+| GET | `/api/auth/me` | — | Current user info — `{email, role, centerId, refreshToken}`; role read live from Firestore |
+| POST | `/api/auth/logout` | — | Logout — revokes the user's Firebase refresh tokens server-side |
 | POST | `/api/admin/create-sheet` | — | Admin: create farmer sheet |
 | POST | `/api/admin/delete-sheet` | — | Admin: delete farmer sheet |
 | POST | `/api/admin/config` | — | Admin: save config to Firestore |
@@ -113,25 +115,30 @@ All `/api/*` routes require `ensureAuthenticated`. Admin-only routes additionall
 | POST | `/api/admin/refresh-cache` | — | Admin: clear the legacy Sheets caches (records are uncached — read live from Firestore) |
 | GET | `/api/admin/backups` | — | Admin: list recent backups from Firestore |
 | POST | `/api/admin/backup` | — | Admin: trigger manual backup |
-| GET | `/api/auth/unauthorized` | — | Clears session on rejected login, redirects to `/login` |
-| POST | `/api/internal/backup` | — | Cloud Scheduler backup trigger. **Not** session-auth'd — verifies a Google OIDC token (or `CRON_SECRET` in dev). Defined before the `ensureAuthenticated` block. |
+| POST | `/api/internal/backup` | — | Cloud Scheduler backup trigger. **Not** token-auth'd — verifies a Google OIDC token (or `CRON_SECRET` in dev). Defined before the `verifyFirebaseToken`/`ensureCenterAccess` block. |
 
 ---
 
 ## Authentication Flow
 
-1. User hits `/login` → clicks "Sign in with Google".
-2. Redirected to `GET /api/auth/google` (Passport initiates OAuth).
-3. Google redirects to `GET /api/auth/google/callback`.
-4. Backend looks up the email in the Firestore `users` collection. If the doc doesn't exist → redirected to `/api/auth/unauthorized` (session cleared). The role comes from that doc.
-5. If authorized → session created `{email, role}` → redirected to frontend.
-6. Frontend router guard calls `/api/auth/me` on every navigation to verify.
+Auth is Firebase Auth ID tokens over a Bearer header — there is no server-side session, cookie, or Passport strategy.
 
-**Session storage**: Sessions are stored in Firestore via `firestore-store` (not in-memory), so they survive Cloud Run restarts and are shared across instances. Cookie `maxAge` is 1 day; `secure`/`sameSite=none` in production.
+1. User hits `/login` → clicks "Sign in with Google" → `Login.vue` calls `signInWithPopup(auth, new GoogleAuthProvider())` (Firebase client SDK — still Google as the identity provider, just no server-side OAuth dance).
+2. On success, the frontend calls `GET /api/auth/me` to authorize. A global Axios request interceptor (`main.js`) attaches `Authorization: Bearer <idToken>` (from `auth.currentUser.getIdToken()`) to every outgoing request automatically; raw `fetch()` calls use `utils/auth.js`'s `getToken()` instead.
+3. Backend: `verifyFirebaseToken` middleware verifies the token via `admin.auth().verifyIdToken()` and sets `req.user = {email, uid, centers}` (`centers` comes from the token's custom claims). `ensureCenterAccess` then 403s unless `CENTER_ID` is in `req.user.centers`. The `/api/auth/me` handler looks up `centers/{CENTER_ID}/users/{email}` in Firestore — if the doc doesn't exist, 403 ("User not authorized"); otherwise it returns `{email, role, centerId, refreshToken}`, with **role read live from Firestore** (not from the token) so a role change takes effect on the next call, no re-login needed.
+4. `/api/auth/me` also calls `syncUserClaims(email)` on every hit, which recomputes the user's `centers` claim from a live `users` collection-group scan and re-stamps it if it changed. `refreshToken: true` in the response tells the client a freshly-minted claim needs a token refresh before Firestore client reads (which check the claim in `firestore.rules`) will pass — `Login.vue` calls `auth.currentUser.getIdToken(true)` in that case.
+5. `ensureAdmin` (used on admin-only routes) does its own live Firestore role lookup rather than trusting a claim — same live-role guarantee as `/api/auth/me`.
+6. Frontend router guard (`router.js`) keys off Firebase's own auth state (`onAuthStateChanged`) for the signed-in/signed-out gate, and calls `/api/auth/me` only for the admin gate / role-home redirect (see Frontend Routes above).
 
-**Startup seeding**: On boot, `seedUsersIfEmpty()` copies `users.json` into the Firestore `users` collection **only if that collection is empty**. After first boot, add/remove users through the admin UI / `POST /api/admin/users` — editing `users.json` has no effect on an already-seeded database.
+**Claim model — deliberately minimal**: the only custom claim is `{centers: [...]}`, used solely so `ensureCenterAccess` (backend) and `firestore.rules` (client reads) can gate on tenant membership without a Firestore round-trip. **Role is never in the claim** — it's always read live from Firestore (`ensureAdmin`, `/api/auth/me`), so revoking admin access takes effect immediately rather than waiting for a token refresh. `syncUserClaims(email)` is what stamps the claim: on `/api/auth/me` (self-heal), on `POST/DELETE /api/admin/users` (immediately after a user is added/removed), and via the one-time `scripts/backfillAuthClaims.js` for cutover.
 
-**Dev bypass**: When `NODE_ENV=development` and `DEV_BYPASS_AUTH=true`, `GET /api/auth/dev-login?role=admin&email=...` skips OAuth entirely. Never enable this in production.
+**Logout**: `App.vue`'s `logout()` calls `POST /api/auth/logout`, which revokes the user's Firebase refresh tokens server-side (`admin.auth().revokeRefreshTokens(uid)`) so the session can't be silently resumed even if a stale ID token is replayed; the client then calls `signOut(auth)` and clears local state regardless of whether the revoke call succeeded.
+
+**Startup seeding**: On boot, `seedUsersIfEmpty()` copies `users.json` into the Firestore `users` collection **only if that collection is empty**. After first boot, add/remove users through the admin UI / `POST /api/admin/users` — editing `users.json` has no effect on an already-seeded database. Adding/removing a user there also calls `syncUserClaims(email)` to keep the claim in sync.
+
+**Emulators**: `VITE_USE_EMULATORS=true` (frontend `.env.development`) wires `main.js` to `connectAuthEmulator`/`connectFirestoreEmulator` against `localhost:9099`/`8080` for local development against `scripts/seedTestCenter.js`'s `centers/test` tenant, without touching the production Firebase project.
+
+**Removed with this migration**: Passport (`passport-google-oauth20`), `express-session` + `firestore-store`, `GET /api/auth/google`, `GET /api/auth/google/callback`, `GET /api/auth/unauthorized`, and the `DEV_BYPASS_AUTH`/`GET /api/auth/dev-login` dev bypass. None of these exist in the codebase anymore.
 
 ---
 
@@ -184,7 +191,7 @@ Each farmer has a dedicated spreadsheet for shipping labels (IDs in `.env`). Lab
 
 ### Firestore tree
 
-All tenant data is namespaced under `centers/{centerId}` (currently the single center `tsuberi`). `sessions` stays top-level (it is infra, not tenant data).
+All tenant data is namespaced under `centers/{centerId}` (currently the single center `tsuberi`; `test` also exists for emulator smoke-testing via `scripts/seedTestCenter.js`). There is no server-side session store — Firebase Auth ID tokens replaced it, so nothing app-specific lives top-level except `backups`.
 
 ```
 centers/{centerId}/
@@ -194,7 +201,6 @@ centers/{centerId}/
     records/{autoId}            pallet record fields (see Database section)
     audit/{autoId}              recordId, palletNumber, action, editedBy, editedAt
   farmer_events/{farmer}        real-time delta doc, overwritten per write
-sessions/{sid}                  express session store (firestore-store) — TOP-LEVEL
 backups/{autoId}                backup metadata: timestamp, filename, farmerCount, rowCount, triggeredBy
 ```
 
@@ -205,10 +211,9 @@ backups/{autoId}                backup metadata: timestamp, filename, farmerCoun
 | `centers/{c}/farmers/{f}/records/{id}` | Pallet records — the primary data store | Admin SDK via `FirestoreRepository` |
 | `centers/{c}/farmers/{f}/audit/{id}` | Per-record audit trail | `FirestoreRepository.appendAuditLog` (fire-and-forget) |
 | `centers/{c}/farmer_events/{f}` | Real-time pallet update events, one doc per farmer, overwritten each write — no accumulation | `firestoreEventService.js` (fire-and-forget) |
-| `sessions/{sid}` | Express session store | `firestore-store` middleware |
 | `backups/{id}` | Backup metadata | `backupService.js` after each run |
 
-**Firestore security rules** (`frontend/firestore.rules`, version-controlled + deployed) — the only client (SDK) reads are the tenant config doc and the real-time events, so `centers/{centerId}/config/**` and `centers/{centerId}/farmer_events/{farmer}` allow `read: if true` (legacy top-level `config`/`farmer_events` matches are kept during cutover). Everything else is default-deny; all writes are Admin-SDK-only (which bypasses rules). This is the **interim** posture — cookie-based auth means `request.auth` is null client-side; real per-tenant/per-user `request.auth` lockdown is **deferred to task 23**.
+**Firestore security rules** (`frontend/firestore.rules`, version-controlled) — the only client (SDK) reads are the tenant config doc and the real-time events: `centers/{centerId}/config/**` and `centers/{centerId}/farmer_events/{farmer}` now require `request.auth != null && centerId in request.auth.token.centers` — an authed Firebase user whose `centers` custom claim includes the tenant being read. The legacy top-level `config`/`farmer_events` matches (kept "during cutover" in the old open-rules posture) have been removed. Everything else remains default-deny; all writes stay Admin-SDK-only (bypasses rules). **This closes the interim open-read posture** — real per-tenant `request.auth` lockdown, previously deferred to task 23, is now implemented in code. **Not yet deployed to production**: the rules file must be pushed with `firebase deploy --only firestore:rules` **after** `scripts/backfillAuthClaims.js` has run (a user with no `centers` claim yet would otherwise fail these rules) — see Known Issues/Deferrals.
 
 **Frontend Firestore usage:** `App.vue` and `Settings.vue` call `onSnapshot()` on `centers/{centerId}/config/global` (config subscription starts only after `centerId` is known — from `/api/auth/me`). `App.vue` provides reactive values to all children:
 - `provide('config', config)` — kinds, sizes, destinations, farmerConfigs
@@ -294,7 +299,7 @@ Returns `{ highlightedIds }` — a `ref(new Set())` of pallet IDs currently flas
 ## Known Issues / Deferrals
 
 - **Google Sheets is not fully removed.** `googleSheetsService.js` is retained for shipping-label provisioning and the admin `create-sheet`/`delete-sheet`/`refresh-cache` + startup cache-warm paths — deleting it would break server boot. Its removal + Firestore-based farmer provisioning is **task 6**; shipping labels off Sheets is **task 20**.
-- **`centerId` is the constant `'tsuberi'`.** Real per-subdomain / Firebase-Auth custom-claims resolution and the Firestore-rule lockdown (real client `request.auth`) are **task 23**. Client reads of `config`/`farmer_events` are currently open (`read: if true`).
+- **`centerId` is still the constant `'tsuberi'`** (env-resolved via `config/center.js`, not per-subdomain). Task 23 shipped the Firebase-Auth/claim side of the story — client reads of `config`/`farmer_events` are now authed + center-matched via `request.auth.token.centers` (no longer `read: if true`), and `ensureCenterAccess` gates every backend request the same way — but real per-subdomain center *resolution* (mapping a hostname to a `centerId` instead of reading an env var) is still not implemented; that remains open. **Task 23 status: code-complete on branch `arch-redesign`, production cutover pending** — see `done.md` for the full cutover checklist (Firebase Console Google provider + authorized domains, run `backfillAuthClaims.js`, deploy `firestore.rules` *after* the backfill, deploy backend + frontend, live E2E, retire the now-dead auth env vars). **Deliberately deferred, not oversights:** putting `role` in the custom claim (role stays live-read from Firestore instead — see Authentication Flow) and running staging on a separate Firebase project (still the same project as production for now).
 - **Minor dead code:** a couple of `error.message.includes("Invalid farmer sheet")` catch branches remain in read-only controller handlers — harmless, since the repository no longer throws that string.
 
 ---
@@ -308,6 +313,7 @@ Returns `{ highlightedIds }` — a `ref(new Set())` of pallet IDs currently flas
 | `VITE_API_BASE_URL` | Backend base URL (`http://localhost:3000` / `https://api.tsuberi.com`) |
 | `VITE_DEV_MODE` | Enables dev-specific UI behavior |
 | `VITE_FIREBASE_*` | Firebase SDK config (API key, project ID, etc.) |
+| `VITE_USE_EMULATORS` | `true` connects the Firebase Auth + Firestore clients to local emulators (`localhost:9099`/`8080`) instead of the real project — local dev against `centers/test` only, never set in production |
 
 ### Backend (`.env`)
 
@@ -315,18 +321,16 @@ Returns `{ highlightedIds }` — a `ref(new Set())` of pallet IDs currently flas
 |---|---|
 | `PORT` | Express port (3000) |
 | `NODE_ENV` | `development` / `production` |
-| `DEV_BYPASS_AUTH` | `true` enables dev login bypass — never in production |
 | `SPREADSHEET_ID` | Legacy pallet-sheets spreadsheet — now only farmer-sheet provisioning (records live in Firestore) |
 | `SHIPPING_LABELS_ID_*` | Per-farmer shipping label spreadsheets |
-| `CENTER_ID` | Tenant id (optional; defaults to `tsuberi`) |
-| `GOOGLE_CLIENT_ID/SECRET` | OAuth credentials |
-| `GOOGLE_CALLBACK_URL` | OAuth redirect URI |
-| `SESSION_SECRET` | Express session secret |
+| `CENTER_ID` | Tenant id (optional; defaults to `tsuberi`) — drives which Firestore `centers/{id}` tree the backend reads/writes and which id `ensureCenterAccess` checks against the token's `centers` claim. Still env-resolved, not subdomain-derived (see Known Issues/Deferrals) |
 | `FRONT` | Frontend base URL for post-login/logout redirects |
 | `FRONT_CORS` | Comma-separated allowed CORS origins |
 | `FIREBASE_PROJECT_ID` | Firebase project |
 | `CLOUD_RUN_SERVICE_URL` | Expected audience when verifying the Cloud Scheduler OIDC token (`/api/internal/backup`) |
 | `CRON_SECRET` | Dev-only shared secret accepted by `/api/internal/backup` when `NODE_ENV≠production` |
+
+**Removed by the Firebase Auth migration (task 23) — no longer read anywhere in the codebase:** `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`, `DEV_BYPASS_AUTH`. Safe to delete from `.env`/Cloud Run config, but that retirement is one of the still-open cutover steps (see Known Issues/Deferrals and `done.md`) — they may still be present in the deployed production environment until cutover happens.
 
 ---
 
@@ -347,7 +351,7 @@ The Vite dev server proxies `/api/*` to `localhost:3000`, so no CORS issues in d
 ## Rules to Follow
 
 1. **Records go through the `RecordRepository`** (Firestore), not Sheets. Controllers depend on `require('../repositories')`, never on `googleSheetsService` directly. When adding a record field, update `SheetModel` and the record-fields table. Keep the repository interface storage-agnostic so the parked Postgres option stays a mechanical swap.
-2. **Auth checks** — backend endpoints need `ensureAuthenticated`; admin ones also need `ensureAdmin`. Frontend routes use `meta: { requiresAuth, requiresAdmin }`.
+2. **Auth checks** — backend endpoints need `verifyFirebaseToken` + `ensureCenterAccess`; admin ones also need `ensureAdmin`. Frontend routes use `meta: { requiresAuth, requiresAdmin }`.
 3. **Tailwind only** — use Tailwind utility classes; avoid scoped vanilla CSS unless truly necessary.
 4. **Logging** — add `logger.info` / `logger.error` calls in any new controller or service method.
 5. **Users live in Firestore** — the `users` collection is the authorization source. Add/remove users via the admin UI or the `/api/admin/users` endpoints. `users.json` is only a first-boot seed; editing it does not change an already-seeded database.

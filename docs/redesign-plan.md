@@ -61,7 +61,7 @@ This adds exactly one constraint, and it is **comfortably met**: 15 + 16 must la
 | 0.1 | ~~Safe dependency refresh — `npm update` (in-major only; incl. axios security patch)~~ | P0 | ~0.5d | **DONE** (smoke test owed) |
 | 1 | ~~CR#5 — Centered "problem" modals (blocking alerts)~~ | P0 | ~0.5d | **DONE** |
 | 15+16 | ~~**★ Firestore records layer** — interface + `FirestoreRepository` + full Phase 1 namespacing (merged; no SheetsRepository; auto-string IDs)~~ | ★ TOP (was P3) | ~1–1.5wk | **DONE** (see `done.md`) |
-| 23 | **★ Firebase Auth migration + lock down Firestore rules** (pulled in alongside 16, not parked) | ★ TOP (was P1) | ~3–4d | alongside 16 |
+| 23 | ~~**★ Firebase Auth migration + lock down Firestore rules** (pulled in alongside 16, not parked)~~ | ★ TOP (was P1) | ~3–4d | **CODE-COMPLETE on branch `arch-redesign`, CUTOVER PENDING** (see `done.md`) |
 | 20 | **★ Shipping labels off Sheets** — dynamic docs, log, archive & bulk download | ★ TOP (was P3) | ~1–2wk | 16, 7 (soft — see flag above), 4 (soft — see flag above) |
 | 2 | CR#2 — Intake: drop shipment date, enforce harvest date | P0 | ~0.5d | 1 (soft) |
 | 3 | CR#1 — Shipment prep: pick date once + "apply to all" | P0 | ~1d | 1; date format already canonical (via 16) |
@@ -125,6 +125,8 @@ Implement `FirestoreRepository` against the interface from task 15, with all dat
 Files: `backend/repositories/FirestoreRepository.js`, `middleware/resolveCenterId` (custom-claims based), `frontend/src/utils/dates.js` (ISO formatting helper); `useFarmerEvents.js` + `App.vue` path updates; `Dashboard.vue`.
 
 ### 23 — Firebase Auth migration + lock down Firestore rules
+
+> **🟡 CODE-COMPLETE on branch `arch-redesign`, CUTOVER PENDING — not yet deployed to production.** See `done.md` for the full shipped summary and the outstanding cutover checklist (Console config, `backfillAuthClaims.js`, rules deploy, backend+frontend deploy, live E2E). Client reads of `config`/`farmer_events` are now authed + center-matched (`request.auth != null && centerId in request.auth.token.centers`), replacing the old `read: if true`. **One deviation from the original spec below:** `centerId` stays env-resolved (`CENTER_ID`, constant `'tsuberi'`) rather than derived from the subdomain — the `centers` custom claim gates which centers a user *may* read/access (claim-guarded), but it does not perform hostname→tenant resolution. Subdomain resolution remains open/deferred. The rest of this card is kept as the original spec for history.
 
 **Pulled in alongside 16** (2026-07-13 decision — not left parked). Firestore rules leave `config` and `farmer_events` `read: if true` — world-readable. Fine for one customer, a real leak the moment there's a second tenant. Cookie-based sessions are why `request.auth` is null client-side today, which forced the open rules.
 
