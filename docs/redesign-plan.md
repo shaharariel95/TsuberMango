@@ -61,7 +61,7 @@ This adds exactly one constraint, and it is **comfortably met**: 15 + 16 must la
 | 0.1 | ~~Safe dependency refresh — `npm update` (in-major only; incl. axios security patch)~~ | P0 | ~0.5d | **DONE** (smoke test owed) |
 | 1 | ~~CR#5 — Centered "problem" modals (blocking alerts)~~ | P0 | ~0.5d | **DONE** |
 | 15+16 | ~~**★ Firestore records layer** — interface + `FirestoreRepository` + full Phase 1 namespacing (merged; no SheetsRepository; auto-string IDs)~~ | ★ TOP (was P3) | ~1–1.5wk | **DONE** (see `done.md`) |
-| 23 | ~~**★ Firebase Auth migration + lock down Firestore rules** (pulled in alongside 16, not parked)~~ | ★ TOP (was P1) | ~3–4d | **CODE-COMPLETE on branch `arch-redesign`, CUTOVER PENDING** (see `done.md`) |
+| 23 | ~~**★ Firebase Auth migration + lock down Firestore rules** (pulled in alongside 16, not parked)~~ | ★ TOP (was P1) | ~3–4d | **DONE — shipped to production 2026-07-26** (see `done.md`) |
 | 20 | **★ Shipping labels off Sheets** — dynamic docs, log, archive & bulk download | ★ TOP (was P3) | ~1–2wk | 16, 7 (soft — see flag above), 4 (soft — see flag above) |
 | 2 | CR#2 — Intake: drop shipment date, enforce harvest date | P0 | ~0.5d | 1 (soft) |
 | 3 | CR#1 — Shipment prep: pick date once + "apply to all" | P0 | ~1d | 1; date format already canonical (via 16) |
@@ -89,6 +89,7 @@ This adds exactly one constraint, and it is **comfortably met**: 15 + 16 must la
 | 33 | Driver manifest PDF (per destination/truck) | P2 | ~1–2d | — |
 | 34 | Frontend toolchain majors — Vite 8 / plugin-vue 6, then Tailwind 4 (two PRs) | P2 | ~4–6d | after CRs, before 9 |
 | 35 | Remaining major bumps — pdfmake 0.3 · vue-router 5 · firebase 12/admin 14 · googleapis · dotenv 17 | P2 | ~3–5d spread | anytime (maint.) |
+| 36 | Naming cleanup — files/classes named for Sheets that no longer touch Sheets | P2 | ~0.5–1d | **6 and 20** (hard — see card) |
 | 17 | Schema-as-data — record types & field definitions | P3 — **parked/deprioritized** | ~1–2wk | 16, builds on 6–8 |
 | 18 | Schema-driven forms & tables (config-rendered UI) | P3 — **parked/deprioritized** | ~1–2wk | 17, 9 |
 | 19 | Center (tenant) model + workflow engine + document templating | P3 — **parked/deprioritized** | ~2–3wk | 17 |
@@ -101,7 +102,7 @@ This adds exactly one constraint, and it is **comfortably met**: 15 + 16 must la
 
 See the "Priority decision" section above for the full rationale. This block executes **before** the customer CRs below.
 
-> **✅ DONE 2026-07-13 — cutover verified live on Firestore.** See `done.md` for the shipped summary. Records, audit, config, users, and farmer_events all live under `centers/tsuberi/…`; write-path farmer validation added; interim Firestore rules deployed (`frontend/firestore.rules`). **Residuals still on Sheets (by design):** `googleSheetsService.js` is retained for farmer provisioning (`create-sheet`/`delete-sheet`), `refresh-cache`, and startup cache-warming → **task 6** removes it; shipping labels → **task 20**. Real centerId resolution + Firestore-rule lockdown → **task 23**. The rest of this block is kept as historical detail.
+> **✅ DONE 2026-07-13 — cutover verified live on Firestore.** See `done.md` for the shipped summary. Records, audit, config, users, and farmer_events all live under `centers/tsuberi/…`; write-path farmer validation added; interim Firestore rules deployed (`frontend/firestore.rules`). **Residuals still on Sheets (by design):** `googleSheetsService.js` is retained for farmer provisioning (`create-sheet`/`delete-sheet`), `refresh-cache`, and startup cache-warming → **task 6** removes it; shipping labels → **task 20**. Firestore-rule lockdown → **task 23** (✅ shipped 2026-07-26); real per-subdomain centerId resolution is still open. The rest of this block is kept as historical detail.
 >
 > **★ 15 + 16 are now executed as ONE merged workstream** (brainstormed 2026-07-13 → spec: `docs/superpowers/specs/2026-07-13-firestore-records-layer-design.md`). Task numbers stay canonical for cross-references, but there is **no separate `SheetsRepository`** — fresh-start means Firestore is the first and only implementation, so the interface (15) and `FirestoreRepository` (16) land together. Locked decisions: **full Phase 1 namespacing** (records + audit **and** config, users, farmer_events all move under `centers/tsuberi/…`), **auto-string record IDs** (no counter; `id` becomes opaque), **records cache dropped**, centerId a constant via `/api/auth/me` (real resolution → 23), farmer provisioning → task 6, a minimal Vitest+emulator test down-payment. **Combined effort ~1–1.5wk.** The 15 and 16 cards below are kept for history; the spec supersedes them where they differ.
 
@@ -126,7 +127,13 @@ Files: `backend/repositories/FirestoreRepository.js`, `middleware/resolveCenterI
 
 ### 23 — Firebase Auth migration + lock down Firestore rules
 
-> **🟡 CODE-COMPLETE on branch `arch-redesign`, CUTOVER PENDING — not yet deployed to production.** See `done.md` for the full shipped summary and the outstanding cutover checklist (Console config, `backfillAuthClaims.js`, rules deploy, backend+frontend deploy, live E2E). Client reads of `config`/`farmer_events` are now authed + center-matched (`request.auth != null && centerId in request.auth.token.centers`), replacing the old `read: if true`. **One deviation from the original spec below:** `centerId` stays env-resolved (`CENTER_ID`, constant `'tsuberi'`) rather than derived from the subdomain — the `centers` custom claim gates which centers a user *may* read/access (claim-guarded), but it does not perform hostname→tenant resolution. Subdomain resolution remains open/deferred. The rest of this card is kept as the original spec for history.
+> **✅ DONE — shipped to production 2026-07-26.** See `done.md` for the full shipped summary and the cutover log. Client reads of `config`/`farmer_events` are now authed + center-matched (`request.auth != null && centerId in request.auth.token.centers`), replacing the old `read: if true`; the ruleset released `2026-07-26T20:54:44Z` was verified byte-identical to `frontend/firestore.rules`.
+>
+> **Two things the cutover proved that the plan had wrong:**
+> 1. **`backfillAuthClaims.js` was a structural no-op.** Production Firebase Auth had zero user records (Passport never created any), so there was nothing to backfill. Claims self-heal at first login instead — `/api/auth/me` is mounted *above* the `ensureCenterAccess` guard so a claimless token still reaches it. Every user, including ones added months from now, works with no manual step.
+> 2. **Rules must be deployed LAST, not first.** The checklist's "rules after the backfill" order rested on a safety that never existed, and deploying rules early would have broken the live Passport frontend. Correct order: backend → frontend → rules. The new frontend works fine on the old permissive rules, so the rules flip becomes an independently reversible final step.
+>
+> **One deviation from the original spec below:** `centerId` stays env-resolved (`CENTER_ID`, constant `'tsuberi'`) rather than derived from the subdomain — the `centers` custom claim gates which centers a user *may* read/access (claim-guarded), but it does not perform hostname→tenant resolution. Subdomain resolution remains open/deferred (see task 24 and the P3 block). The rest of this card is kept as the original spec for history.
 
 **Pulled in alongside 16** (2026-07-13 decision — not left parked). Firestore rules leave `config` and `farmer_events` `read: if true` — world-readable. Fine for one customer, a real leak the moment there's a second tenant. Cookie-based sessions are why `request.auth` is null client-side today, which forced the open rules.
 
@@ -340,6 +347,31 @@ The opposite of task 34: these are config/environment-level, so their cost doesn
 | `dotenv` 16→17 | Low | Trivial; v17 mainly added a startup log line. Safe whenever. |
 
 Files: both `package.json`s + lockfiles; per-upgrade touchpoints (`router.js`, `printData.js`/`vfs_fonts.js`, `googleSheetsService.js`).
+
+### 36 — Naming cleanup: files and identifiers should say what they do
+
+The Sheets→Firestore migration (15/16) left the storage layer renamed but the callers not. `sheetController.js` has not touched a spreadsheet since the cutover; `SheetModel` is a pallet record; `sheetRoutes.js` serves records, shipping, and destinations. A newcomer reading `controllers/sheetController.js` reasonably concludes the app is Sheets-backed — and on this codebase that conclusion is *half* right, which is worse than plainly wrong, because Google Sheets genuinely does still exist for labels.
+
+**Rename (proposed — confirm at execution):**
+
+| Now | Proposed | Note |
+|---|---|---|
+| `controllers/sheetController.js` | `recordController.js` | 601 lines, the biggest backend file |
+| `routes/sheetRoutes.js` | `apiRoutes.js` | carries records **and** shipping **and** destinations — `recordRoutes` would be as wrong as `sheetRoutes`. **Open decision.** |
+| `models/sheetModel.js` → class `SheetModel` | `models/palletRecord.js` → `PalletRecord` | also drop the dead `toArray()` Sheets row serializer |
+| `services/googleSheetsService.js` | *(no rename)* | correctly named; **task 6 deletes it outright** |
+
+**Why it is gated on 6 and 20, not done now.** Current `sheet` occurrences: `server.js` 36, `sheetController.js` 14, `sheetRoutes.js` 13, `Settings.vue` 9, `labelController.js` 8, `sheetModel.js` 3, then single digits. But the two largest concentrations — `server.js` and `Settings.vue` — are the `create-sheet`/`delete-sheet` admin endpoints and their UI, which are **accurately** named today and are **deleted by task 6**. Renaming before 6/20 means editing lines that are about to disappear, and leaves the confusing intermediate state where `recordController.js` sits next to a live `googleSheetsService.js`. After 6 and 20, Sheets is gone from the backend and every remaining `sheet` is unambiguously wrong — the rename becomes mechanical and total instead of judgement-call-per-line.
+
+**Do it before task 9** (PalletTable refactor) so the P2 frontend cluster is written against final names.
+
+**Execution constraints:**
+- **Pure rename — zero behavior change.** No logic edits, no "while I'm here" fixes. Anything else found goes in a separate commit.
+- Use `git mv` so history follows the file; verify with `git log --follow`.
+- Gate on `cd backend && npm test` (28 tests, needs the Firestore emulator) passing before *and* after, plus a manual smoke of intake → weight → destination.
+- Update references in `CLAUDE.md`, `docs/architecture.md`, `docs/api-reference.md`, and this plan in the same commit — a rename that leaves docs pointing at dead paths is a net loss.
+
+Files: `backend/controllers/`, `backend/routes/`, `backend/models/`, `backend/server.js` requires, `docs/*.md`, `CLAUDE.md`.
 
 ### 24 — Farmer-scoped roles & access (H7)
 
