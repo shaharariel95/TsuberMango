@@ -367,6 +367,8 @@ export default {
               if (!selectedFarmer.value && farmers.value.length > 0) {
                 selectedFarmer.value = farmers.value[0];
               }
+            }, (err) => {
+              console.error('[config listener] permission/other error:', err?.message);
             });
           }
         } catch (err) {

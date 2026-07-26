@@ -135,6 +135,7 @@ import { ref, computed, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import LoadingState from './shared/LoadingState.vue'
 import ErrorState from './shared/ErrorState.vue'
+import { getToken } from '../utils/auth'
 
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '')
 
@@ -198,7 +199,7 @@ export default {
 
             const results = await Promise.allSettled(
                 farmers.map(async name => {
-                    const res = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(name)}/records`, { credentials: 'include' })
+                    const res = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(name)}/records`, { headers: { Authorization: `Bearer ${await getToken()}` } })
                     if (!res.ok) throw new Error(`שגיאת שרת: ${res.status}`)
                     const json = await res.json()
                     return { name, records: json.data || [] }

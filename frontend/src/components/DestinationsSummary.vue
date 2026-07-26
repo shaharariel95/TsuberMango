@@ -76,6 +76,7 @@ import { ref, onMounted, watch } from "vue";
 import LoadingState from './shared/LoadingState.vue';
 import EmptyState from './shared/EmptyState.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
+import { getToken } from '../utils/auth';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL)
   .toString()
   .replace(/\/$/, "");
@@ -136,7 +137,7 @@ export default {
       try {
         const hebrewName = encodeURIComponent(farmer);
         const url = `${baseUrl}/api/farmers/${hebrewName}/records`;
-        const res = await fetch(url, { credentials: "include" });
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${await getToken()}` } });
         if (!res.ok) throw new Error("Failed to fetch destinations");
         const rawData = await res.json();
         allPallets.value = (rawData.data || []).filter(p => p.sent === true);

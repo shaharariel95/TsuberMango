@@ -217,6 +217,7 @@ import createStickerPDF from '../data/printData.js';
 import SpinnerButton from './shared/SpinnerButton.vue';
 import ErrorToast from './shared/ErrorToast.vue';
 import { requestAlert, requestConfirm } from '../composables/useDialogs';
+import { getToken } from '../utils/auth';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
@@ -571,9 +572,9 @@ export default {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${await getToken()}`,
                     },
                     body: JSON.stringify(selectedPalletsData),
-                    credentials: 'include',
                 });
 
                 if (!response.ok) {
@@ -605,9 +606,9 @@ export default {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${await getToken()}`,
                     },
                     body: JSON.stringify(this.editingPallet),
-                    credentials: 'include',
                 });
 
                 if (!response.ok) {
@@ -686,9 +687,9 @@ export default {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${await getToken()}`,
                     },
                     body: JSON.stringify({ pallets: selectedPalletsData, farmer: this.farmer }),
-                    credentials: 'include',
                 });
                 const res = await response.json();  // or just handle this if you have a response
                 console.log(`respose: `, res)
@@ -708,9 +709,9 @@ export default {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${await getToken()}`,
                     },
                     body: JSON.stringify(palletsToUpdate),
-                    credentials: 'include',
                 });
                 console.log(response2)
                 const updatedPallets = [...this.pallets];
@@ -750,9 +751,9 @@ export default {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${await getToken()}`,
                     },
                     body: JSON.stringify({ palletIds: selectedPalletIds }), // Send only IDs
-                    credentials: 'include',
                 });
 
                 if (!response.ok) {
@@ -798,7 +799,7 @@ export default {
                 const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`;
                 const response = await fetch(URL, {
                     method: 'GET',
-                    credentials: 'include', // Include cookies for authentication
+                    headers: { Authorization: `Bearer ${await getToken()}` },
                 });
 
                 if (!response.ok) {

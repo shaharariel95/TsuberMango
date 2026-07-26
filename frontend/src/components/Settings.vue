@@ -377,6 +377,8 @@ export default {
         if (snap.exists()) {
           Object.assign(localConfig, snap.data());
         }
+      }, (err) => {
+        console.error('[Settings config listener] permission/other error:', err?.message);
       });
     };
 

@@ -24,6 +24,7 @@ import { useFarmerEvents } from '../composables/useFarmerEvents'
 import LoadingState from './shared/LoadingState.vue'
 import ErrorState from './shared/ErrorState.vue'
 import EmptyState from './shared/EmptyState.vue'
+import { getToken } from '../utils/auth';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
@@ -60,7 +61,7 @@ export default {
             try {
                 const hebrewName = encodeURIComponent(farmer)
                 const URL = `${baseUrl}/api/farmers/${hebrewName}/records`
-                const res = await fetch(URL, { credentials: 'include' })
+                const res = await fetch(URL, { headers: { Authorization: `Bearer ${await getToken()}` } })
 
                 if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`)
 
