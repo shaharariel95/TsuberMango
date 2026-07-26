@@ -214,6 +214,10 @@ export default {
     // Viewport width tracking
     const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
     const user = ref(null);
+    // Firebase listeners we must tear down (login is popup-based, so auth state
+    // can change repeatedly within one App lifetime — never leave stale listeners).
+    let unsubscribeConfig = null;
+    let unsubscribeAuth = null;
 
     const isMobile = computed(() => windowWidth.value <= 1366);
     // The sidebar is "compact" only on desktop when collapsed; on mobile it's always full width
@@ -326,17 +330,25 @@ export default {
       window.addEventListener('online', handleOnline);
 
       // Drive user state + tenant config from Firebase auth state.
-      onAuthStateChanged(auth, async (fbUser) => {
-        if (!fbUser) { user.value = null; return; }
+      unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+        if (!fbUser) {
+          // Signed out — drop the tenant config listener so a logged-out
+          // (or next) user isn't left with a live subscription.
+          if (unsubscribeConfig) { unsubscribeConfig(); unsubscribeConfig = null; }
+          user.value = null;
+          return;
+        }
         try {
           const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`);
           const data = res.data;
-          if (data.refreshToken) await auth.currentUser.getIdToken(true);
+          if (data.refreshToken) await auth.currentUser?.getIdToken(true);
           user.value = { email: data.email, role: data.role };
           if (data.centerId) {
             setCenterId(data.centerId);
             const configRef = doc(db, "centers", data.centerId, "config", "global");
-            onSnapshot(configRef, (snapshot) => {
+            // Tear down any prior subscription before opening a new one.
+            if (unsubscribeConfig) { unsubscribeConfig(); unsubscribeConfig = null; }
+            unsubscribeConfig = onSnapshot(configRef, (snapshot) => {
               if (!snapshot.exists()) return;
               const cfg = snapshot.data();
               kinds.value = cfg.kinds || [];
@@ -370,6 +382,8 @@ export default {
       if (typeof document !== 'undefined') {
         document.body.classList.remove('drawer-open');
       }
+      if (unsubscribeConfig) { unsubscribeConfig(); unsubscribeConfig = null; }
+      if (unsubscribeAuth) { unsubscribeAuth(); unsubscribeAuth = null; }
     });
 
     const accessibleRoutes = computed(() => {
