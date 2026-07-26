@@ -346,6 +346,10 @@ cd frontend && npm run dev
 
 The Vite dev server proxies `/api/*` to `localhost:3000`, so no CORS issues in dev.
 
+### Local E2E against the emulators
+
+`cd backend && npm run local:test` spins up the whole local stack in one command: the Firebase **auth + firestore emulators**, seeds `centers/test` (via `scripts/seedTestCenter.js`), then runs the backend (`CENTER_ID=test`, pointed at the emulators) and the frontend (`VITE_USE_EMULATORS=true`) concurrently. Sign in through the auth-emulator popup with the seeded admin email. Ctrl-C tears the whole stack down. Requires the local (gitignored) `frontend/firebase.json` emulators block; emulator data is not persisted between runs. Note: shipping-label creation still calls the real Google Sheets API (task 20), so that one flow won't complete under the emulators.
+
 ---
 
 ## Rules to Follow

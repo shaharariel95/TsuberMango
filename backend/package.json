@@ -18,7 +18,10 @@
     "test:watch": "vitest",
     "test:emulator": "firebase emulators:exec --only firestore --project demo-tsuber \"vitest run\"",
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "seed:test": "node scripts/seedTestCenter.js shaharariel95@gmail.com",
+    "local:test": "firebase emulators:exec --only auth,firestore --config ../frontend/firebase.json --project tsuberi-mangos-7e449 \"npm run local:test:run\"",
+    "local:test:run": "npm run seed:test && concurrently -k -n backend,frontend -c blue,magenta \"cross-env CENTER_ID=test npm run dev\" \"cross-env VITE_USE_EMULATORS=true npm --prefix ../frontend run dev\""
   },
   "repository": {
     "type": "git",
@@ -32,6 +35,8 @@
   "homepage": "https://github.com/shaharariel95/TsuberMango#readme",
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.1",
+    "concurrently": "^10.0.4",
+    "cross-env": "^10.1.0",
     "firebase": "^12.16.0",
     "firebase-tools": "^14.18.0",
     "nodemon": "^3.1.7",
