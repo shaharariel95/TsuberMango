@@ -12,16 +12,16 @@
           <option value="">כל היעדים</option>
           <option v-for="d in destinations" :key="d" :value="d">{{ d }}</option>
         </select>
-        <input v-model="search" placeholder="חיפוש מספר..." class="input-field !w-32 text-sm" />
-        <button class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3" :disabled="!selected.length" @click="printSelected">הדפס נבחרות</button>
-        <button class="btn-primary text-sm min-h-[36px] px-3" :disabled="!filtered.length" @click="exportExcel">ייצוא לאקסל</button>
+        <input v-model="search" @input="exactNumber = ''" placeholder="חיפוש מספר..." class="input-field !w-32 text-sm" />
+        <button class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3" :disabled="!selected.length || busy" @click="printSelected">הדפס נבחרות</button>
+        <button class="btn-primary text-sm min-h-[36px] px-3" :disabled="!filtered.length || busy" @click="exportExcel">ייצוא לאקסל</button>
       </div>
     </div>
 
-    <LoadingState v-if="loading" />
+    <LoadingState v-if="loading && !certificates.length" />
     <ErrorState v-else-if="error" title="שגיאה בטעינת תעודות" :message="error" @retry="load" />
     <EmptyState v-else-if="!filtered.length" message="אין תעודות להצגה" />
-    <div v-else class="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200">
+    <div v-else class="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200" :class="loading ? 'opacity-60' : ''" :aria-busy="loading">
       <table class="w-full text-sm text-center">
         <thead class="sticky top-0 bg-slate-50 text-slate-600">
           <tr>
@@ -40,7 +40,7 @@
               <td class="p-2">{{ c.palletCount }}</td>
               <td class="p-2">{{ c.totalBoxes }}</td>
               <td class="p-2">{{ c.totalWeight }}</td>
-              <td class="p-2" data-col="version" :title="`עודכן ע״י ${c.updatedBy} · ${c.updatedAt}`">{{ c.currentVersion }}</td>
+              <td class="p-2" data-col="version" :title="`עודכן ע״י ${c.updatedBy} · ${fmtTime(c.updatedAt)}`">{{ c.currentVersion }}</td>
               <td class="p-2" data-col="status">
                 <span :class="c.status === 'cancelled' ? 'text-red-600' : 'text-emerald-600'">{{ c.status === 'cancelled' ? 'מבוטלת' : 'הונפקה' }}</span>
               </td>
@@ -58,7 +58,7 @@
                       <tr class="text-slate-500"><th>משטח</th><th>זן</th><th>גודל</th><th>ארגזים</th><th>משקל</th><th></th></tr>
                       <tr v-for="r in open[c.id].latest.rows" :key="r.recordId" class="border-t border-slate-100">
                         <td>{{ r.palletNumber }}</td><td>{{ r.kind }}</td><td>{{ r.size }}</td><td>{{ r.boxes }}</td><td>{{ r.weight }}</td>
-                        <td><button class="text-red-600 underline text-xs" @click="removePallet(c, r)">הסר מתעודה</button></td>
+                        <td><button v-if="c.status !== 'cancelled'" class="text-red-600 underline text-xs" @click="removePallet(c, r)">הסר מתעודה</button></td>
                       </tr>
                     </table>
                   </div>
@@ -66,7 +66,7 @@
                     <h4 class="font-semibold text-slate-700 mb-1">היסטוריית גרסאות</h4>
                     <ul class="space-y-1 text-xs">
                       <li v-for="v in open[c.id].versions" :key="v.n" class="flex items-center justify-between bg-white rounded px-2 py-1">
-                        <span>גרסה {{ v.n }} · {{ reasonLabel(v.reason) }} · {{ v.createdBy }} · {{ v.createdAt?.slice(0, 16).replace('T', ' ') }}</span>
+                        <span>גרסה {{ v.n }} · {{ reasonLabel(v.reason) }} · {{ v.createdBy }} · {{ fmtTime(v.createdAt) }}</span>
                         <button class="underline" @click="printVersion(c, v.n)">הדפס גרסה</button>
                       </li>
                     </ul>
@@ -103,7 +103,9 @@ export default {
     const loading = ref(false);
     const error = ref('');
     const from = ref(''); const to = ref(''); const destination = ref('');
+    const exactNumber = ref(String(route.query.number || ''));
     const search = ref(highlight.value);
+    const busy = ref(false);
     const selected = ref([]);
     const open = ref({});
 
@@ -111,12 +113,23 @@ export default {
     const filtered = computed(() => certificates.value.filter(c =>
       (!from.value || c.shipmentDate >= from.value) && (!to.value || c.shipmentDate <= to.value) &&
       (!destination.value || c.destination === destination.value) &&
-      (!search.value || String(c.number).includes(search.value.trim()))));
+      (exactNumber.value ? String(c.number) === exactNumber.value
+        : (!search.value || String(c.number).includes(search.value.trim())))));
 
     async function load() {
       if (!farmer.value) return;
       loading.value = true; error.value = '';
-      try { certificates.value = (await listCertificates(farmer.value)).certificates; open.value = {}; }
+      try {
+        const list = (await listCertificates(farmer.value)).certificates;
+        certificates.value = list;
+        const live = new Set(list.filter(c => c.status !== 'cancelled').map(c => c.id));
+        selected.value = selected.value.filter(id => live.has(id));
+        // Re-fetch details of rows that were expanded and still exist
+        const keep = Object.keys(open.value).map(id => list.find(c => String(c.id) === id)).filter(Boolean);
+        const next = {};
+        await Promise.all(keep.map(async c => { try { next[c.id] = await details(c); } catch { /* row stays collapsed */ } }));
+        open.value = next;
+      }
       catch (e) { error.value = e.message; }
       finally { loading.value = false; }
     }
@@ -128,8 +141,11 @@ export default {
     }
     async function toggle(c) {
       if (open.value[c.id]) { const { [c.id]: _, ...rest } = open.value; open.value = rest; return; }
-      open.value = { ...open.value, [c.id]: await details(c) };
+      try { open.value = { ...open.value, [c.id]: await details(c) }; }
+      catch (e) { await fail(e); }
     }
+    const fail = (e) => requestAlert({ title: 'שגיאה', message: e.message, variant: 'error' });
+    const fmtTime = (t) => (t || '').slice(0, 16).replace('T', ' ');
     async function print(snapshots, name) {
       try { await printCertificates(snapshots, name); }
       catch { await requestAlert({ title: 'ההדפסה לא הושלמה', message: 'נסה שוב', variant: 'warning' }); }
@@ -142,13 +158,21 @@ export default {
       } catch (e) { await requestAlert({ title: 'שגיאה', message: e.message, variant: 'error' }); }
     }
     async function printVersion(c, n) {
-      const { snapshot } = await getCertificateVersion(c.id, n);
-      await print([snapshot], `תעודת-משלוח-${c.number}-גרסה-${n}.pdf`);
+      try {
+        const { snapshot } = await getCertificateVersion(c.id, n);
+        await print([snapshot], `תעודת-משלוח-${c.number}-גרסה-${n}.pdf`);
+      } catch (e) { await fail(e); }
     }
     async function printSelected() {
-      const chosen = certificates.value.filter(c => selected.value.includes(c.id));
-      const snaps = await Promise.all(chosen.map(c => getCertificateVersion(c.id, c.currentVersion).then(r => r.snapshot)));
-      await print(snaps, `תעודות-${chosen.map(c => c.number).join('-')}.pdf`);
+      if (busy.value) return;
+      busy.value = true;
+      try {
+        const chosen = filtered.value.filter(c => c.status !== 'cancelled' && selected.value.includes(c.id));
+        if (!chosen.length) return;
+        const snaps = await Promise.all(chosen.map(c => getCertificateVersion(c.id, c.currentVersion).then(r => r.snapshot)));
+        await print(snaps, `תעודות-${chosen.map(c => c.number).join('-')}.pdf`);
+      } catch (e) { await fail(e); }
+      finally { busy.value = false; }
     }
     async function removePallet(c, r) {
       const ok = await requestConfirm({ title: 'הסרה מתעודה',
@@ -164,26 +188,31 @@ export default {
       } catch (e) { await requestAlert({ title: 'שגיאה', message: e.message, variant: 'error' }); }
     }
     async function exportExcel() {
-      const XLSX = await import('xlsx');
-      const certRows = filtered.value.map(c => ({ 'מספר': c.number, 'תאריך': c.shipmentDate, 'יעד': c.destination,
-        'משטחים': c.palletCount, 'ארגזים': c.totalBoxes, 'משקל': c.totalWeight, 'גרסה': c.currentVersion,
-        'סטטוס': c.status === 'cancelled' ? 'מבוטלת' : 'הונפקה' }));
-      const snaps = await Promise.all(filtered.value.map(c => getCertificateVersion(c.id, c.currentVersion)
-        .then(r => ({ c, s: r.snapshot }))));
-      const palletRows = snaps.flatMap(({ c, s }) => s.rows.map(r => ({ 'תעודה': c.number, 'תאריך': c.shipmentDate,
-        'יעד': c.destination, 'משטח': r.palletNumber, 'זן': r.kind, 'גודל': r.size, 'ארגזים': r.boxes, 'משקל': r.weight })));
-      const wb = XLSX.utils.book_new();
-      const ws1 = XLSX.utils.json_to_sheet(certRows); ws1['!views'] = [{ RTL: true }];
-      const ws2 = XLSX.utils.json_to_sheet(palletRows); ws2['!views'] = [{ RTL: true }];
-      XLSX.utils.book_append_sheet(wb, ws1, 'תעודות');
-      XLSX.utils.book_append_sheet(wb, ws2, 'משטחים');
-      XLSX.writeFile(wb, `תעודות-${farmer.value}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      if (busy.value) return;
+      busy.value = true;
+      try {
+        const XLSX = await import('xlsx');
+        const certRows = filtered.value.map(c => ({ 'מספר': c.number, 'תאריך': c.shipmentDate, 'יעד': c.destination,
+          'משטחים': c.palletCount, 'ארגזים': c.totalBoxes, 'משקל': c.totalWeight, 'גרסה': c.currentVersion,
+          'סטטוס': c.status === 'cancelled' ? 'מבוטלת' : 'הונפקה' }));
+        const snaps = await Promise.all(filtered.value.map(c => getCertificateVersion(c.id, c.currentVersion)
+          .then(r => ({ c, s: r.snapshot }))));
+        const palletRows = snaps.flatMap(({ c, s }) => s.rows.map(r => ({ 'תעודה': c.number, 'תאריך': c.shipmentDate,
+          'יעד': c.destination, 'משטח': r.palletNumber, 'זן': r.kind, 'גודל': r.size, 'ארגזים': r.boxes, 'משקל': r.weight })));
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.json_to_sheet(certRows); ws1['!views'] = [{ RTL: true }];
+        const ws2 = XLSX.utils.json_to_sheet(palletRows); ws2['!views'] = [{ RTL: true }];
+        XLSX.utils.book_append_sheet(wb, ws1, 'תעודות');
+        XLSX.utils.book_append_sheet(wb, ws2, 'משטחים');
+        XLSX.writeFile(wb, `תעודות-${farmer.value}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      } catch (e) { await fail(e); }
+      finally { busy.value = false; }
     }
     const reasonLabel = (r) => ({ issue: 'הנפקה', reprint: 'עדכון', 'remove-pallet': 'הסרת משטח' }[r] || r);
 
     watch(farmer, load);
     onMounted(load);
-    return { farmer, highlight, loading, error, from, to, destination, search, selected, open, destinations, filtered,
+    return { farmer, highlight, loading, error, from, to, destination, search, selected, open, busy, fmtTime, exactNumber, destinations, filtered,
       load, toggle, reprint, printVersion, printSelected, removePallet, exportExcel, reasonLabel };
   },
 };

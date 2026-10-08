@@ -104,6 +104,9 @@ test('certificates screen: list, history after reprint, remove pallet, export', 
   await page.getByRole('button', { name: 'הסר מתעודה' }).click();
   await page.getByRole('button', { name: 'אשר' }).click();
   await expect(certRow.locator('[data-col="status"]')).toHaveText('מבוטלת');
+  // Expanded row survives the reload, and the remove action is gone for a cancelled certificate
+  await expect(page.getByText('גרסה 3')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'הסר מתעודה' })).toHaveCount(0);
   await navTo(page, 'הכנה למשלוח');
   await expect(rowByPallet(page, pallet)).toHaveCount(1);
 });
