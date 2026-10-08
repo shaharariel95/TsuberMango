@@ -19,7 +19,6 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 |---|---|---|---|---|
 | 20 | ★ Shipping labels off Sheets (dynamic docs, label log, archive, bulk download) | TOP | 1–2wk | 16 done; 4, 7 soft (see blockers) |
 | 4 | CR#4 Certificate >13 rows: auto-split — **built inside task 20** | P0 | (in 20) | 20 |
-| 5 | CR#3 Edit destination & weight after certificate issued | P0 | 1–1.5d | — |
 | 6 | Farmer registry in Firestore (kill hardcoded ID map) | P1 | 2–3d | — |
 | 7 | Config-driven shipping-label template | P1 | 3–4d | 6, ideally 4 |
 | 8 | Config-driven optional fields (generalize `gidon`) | P1 | 3–4d | 6 |
@@ -68,12 +67,6 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 - Frontend: map each returned number to its own chunk's pallets (today one `res.result.name` goes to all); confirm modal shows the split ("ייווצרו 2 תעודות: 13 + 4"); success shows "נוצרו N תעודות" with a link to each sheet tab.
 - Emit a fire-and-forget Firestore label-log doc per certificate (number, farmer, pallet ids, date, creator) so task 20's archive starts with history.
 Files: `backend/controllers/labelController.js`, `shippingLabelsService.js`, `firestoreEventService.js`, `PalletTable.vue`. Tests required.
-
-### 5 — CR#3 Edit destination & weight after certificate issued
-> אפשרות לשנות יעד ומשקל גם אחרי הנפקת תעודה (שינויי מיקום ומשקל שקורים כשהמשטח כבר יצא).
-
-**How:** nothing locks sent rows today (edit button shows wherever `isEditable`), so this is: (a) gate edits on sent rows behind `requestConfirm()` "המשטח כבר יצא — לשנות בכל זאת?"; (b) persist via the existing `PUT /records/:id` (stamps `editedBy`/`editedAt`, audit covers it); (c) v1 leaves the printed certificate as-is and shows a "התעודה הופקה לפני השינוי" indicator; rewriting the label row ("עדכן תעודה") is a follow-up.
-Files: `PalletTable.vue`; `sheetController.js` (already supports update); label rewrite later in `shippingLabelsService.js`.
 
 ### 6 — Farmer registry in Firestore
 **Problem:** `FARMER_SPREADSHEET_IDS` + per-farmer `SHIPPING_LABELS_ID_*` env vars in `backend/services/shippingLabelsService.js:6-14` mean a new farmer = code edit + env var + redeploy.

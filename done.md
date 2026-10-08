@@ -5,6 +5,12 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 5 — CR#3 Edit destination & weight after a certificate was issued
+- Clicking "ערוך" on a row that is `sent === true` or has a non-empty certificate number now opens a confirmation first ("המשטח כבר יצא — הונפקה לו תעודה — לשנות בכל זאת?"); cancel leaves the row read-only. Rows that have not left are unaffected.
+- Saving goes through the existing `PUT /records/:id` (already stamps `editedBy`/`editedAt` and audits). Frontend only (`PalletTable.vue`).
+- Deliberately not done: rewriting or flagging the printed certificate; certificates are being rebuilt in task 20.
+- Test: new `e2e/edit-sent.spec.js` (no prompt before sent; prompt on a sent row; cancel keeps it read-only; confirm allows editing and persists).
+
 ### ✅ Task 3 — CR#1 Shipment prep: pick the date once + "החל על הכל"
 - Selection toolbar in `PalletTable.vue` got a date input + "החל על הכל" button (enabled when ≥1 pallet is selected). It asks for confirmation with the pallet count, then stamps the date on every selected row.
 - New narrow endpoint `PUT /api/farmers/:farmer/records/shipmentDate` (`{palletIds, shipmentDate}`), backed by a new `updateShipmentDate` on the `RecordRepository` contract and `FirestoreRepository`. It touches only `shipmentDate` + `editedBy`/`editedAt`, so it works on unweighed pallets and cannot clobber concurrent edits (unlike `updatemany`). Audited as `עדכון תאריך משלוח`; emits a new `shipment_date` realtime event that `useFarmerEvents.js` applies in place. Docs updated (`api-reference.md`, `realtime.md`).

@@ -539,9 +539,19 @@ export default {
             return [...new Set(this.pallets.map(p => p[key]))];
         },
 
-        startEditing(pallet) {
-            this.editingId = pallet.id;
+        async startEditing(pallet) {
             const raw = this.pallets.find(p => p.id === pallet.id) || pallet;
+            const hasCertificate = raw.cardId !== undefined && raw.cardId !== null
+                && String(raw.cardId).trim() !== '' && Number(raw.cardId) !== 0;
+            if (raw.sent === true || hasCertificate) {
+                const ok = await requestConfirm({
+                    title: 'המשטח כבר יצא',
+                    message: 'המשטח כבר יצא / הונפקה לו תעודה — לשנות בכל זאת?',
+                    variant: 'yellow',
+                });
+                if (!ok) return;
+            }
+            this.editingId = pallet.id;
             this.editingPallet = {
                 ...raw,
                 sent: !!raw.sent,
