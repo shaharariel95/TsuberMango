@@ -29,6 +29,7 @@ To transition to the new season, you need to point the backend to brand-new Goog
    SHIPPING_LABELS_ID_PESAH=<NEW_ID>
    SHIPPING_LABELS_ID_KOPLER=<NEW_ID>
    SHIPPING_LABELS_ID_SHAHAK=<NEW_ID>
+   SHIPPING_LABELS_ID_MELTZER=<NEW_ID>
    ```
 
 4. **Update Production Environment**
