@@ -14,6 +14,7 @@ function rowCells(row) {
 }
 
 function certificatePage(s, index) {
+  if (s.rows.length > BODY_ROWS) throw new Error(`certificate ${s.number} has ${s.rows.length} rows; max ${BODY_ROWS}`);
   const [title = '', ...lines] = s.headerLines || [];
   const body = [COLUMNS.map(h => cell(h, { bold: true, fillColor: '#f1f5f9' }))];
   for (let i = 0; i < BODY_ROWS; i++) body.push(rowCells(s.rows[i]));
@@ -82,8 +83,12 @@ export async function printCertificates(snapshots, filename) {
   }
   const url = URL.createObjectURL(blob);
   const win = window.open(url, '_blank');
-  if (win) return 'opened';
+  if (win) {
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return 'opened';
+  }
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
   return 'downloaded';
 }

@@ -35,6 +35,10 @@ describe('buildCertificateDoc', () => {
     expect(json).toContain('2025-07-09');
     expect(json).toContain('"text":"אדם"');
   });
+  it('throws when a snapshot has more than 13 rows', () => {
+    const rows = Array.from({ length: 14 }, (_, i) => ({ ...snap.rows[0], recordId: `r${i}` }));
+    expect(() => buildCertificateDoc([{ ...snap, rows }])).toThrow(/max 13/);
+  });
   it('previewSnapshot builds a printable sample from a profile', () => {
     const s = previewSnapshot({ headerLines: ['a', 'b', 'c', 'd', 'e'], driverName: '', nextNumber: 7 });
     expect(s.number).toBe(7);
