@@ -2,6 +2,7 @@
 const { google } = require('googleapis');
 const path = require('path');
 const logger = require("../utils/logger");
+const { assertRealSheetsAllowed } = require("../utils/sheetsGuard");
 
 const COL_INDEX = {
     SENT: 10,
@@ -31,6 +32,7 @@ class GoogleSheetsService {
     }
 
     async initialize() {
+        assertRealSheetsAllowed();
         if (!this.sheets) {
             const auth = await this.auth.getClient();
             this.sheets = google.sheets({ version: 'v4', auth });

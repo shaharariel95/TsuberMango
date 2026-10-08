@@ -599,3 +599,9 @@ class SheetController {
 
 
 module.exports = new SheetController();
+
+// Called after an admin config write so a newly added farmer can take intake
+// immediately instead of after the cache TTL.
+module.exports.invalidateKnownFarmersCache = () => {
+  knownFarmersCache = { names: null, fetchedAt: 0 };
+};

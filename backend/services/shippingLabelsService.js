@@ -1,6 +1,7 @@
 const { google } = require('googleapis');
 const path = require('path');
 const logger = require('../utils/logger');
+const { assertRealSheetsAllowed } = require('../utils/sheetsGuard');
 
 const FARMER_SPREADSHEET_IDS = {
     'גבי צוברי': process.env.SHIPPING_LABELS_ID_TSUBERI,
@@ -12,9 +13,18 @@ const FARMER_SPREADSHEET_IDS = {
     'ברק מלצר': process.env.SHIPPING_LABELS_ID_MELTZER,
 };
 
+// Fails loudly for an unknown farmer (or a missing env var) — the old fallback to
+// Tsuberi's spreadsheet wrote other farmers' certificates into Tsuberi's file.
 function getSpreadsheetIdByFarmer(farmer) {
-    if (!farmer) return process.env.SHIPPING_LABELS_ID_TSUBERI;
-    return FARMER_SPREADSHEET_IDS[farmer.trim()] || process.env.SHIPPING_LABELS_ID_TSUBERI;
+    const name = (farmer || '').trim();
+    if (!Object.prototype.hasOwnProperty.call(FARMER_SPREADSHEET_IDS, name)) {
+        throw new Error(`No shipping-label spreadsheet configured for farmer "${name}"`);
+    }
+    const spreadsheetId = FARMER_SPREADSHEET_IDS[name];
+    if (!spreadsheetId) {
+        throw new Error(`Shipping-label spreadsheet id env var is not set for farmer "${name}"`);
+    }
+    return spreadsheetId;
 }
 
 class ShippingLabelsService {
@@ -28,6 +38,7 @@ class ShippingLabelsService {
         this.cachedBaseSheetIds = new Map(); // spreadsheetId -> base sheet's sheetId (immutable)
     }
     async initialize() {
+        assertRealSheetsAllowed();
         if (!this.sheets) {
             logger.info('Initializing Google Sheets client...');
             const auth = await this.auth.getClient();
@@ -259,3 +270,5 @@ class ShippingLabelsService {
 }
 
 module.exports = new ShippingLabelsService();
+
+module.exports.getSpreadsheetIdByFarmer = getSpreadsheetIdByFarmer;
