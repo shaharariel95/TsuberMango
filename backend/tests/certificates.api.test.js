@@ -1,0 +1,156 @@
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
+import admin from 'firebase-admin';
+import { clearCollection, tokenFor, waitFor, makeApi } from './helpers/apiHarness.js';
+
+const CENTER = 'certapi';
+const FARMER = 'חקלאי-תעודה';
+const ADMIN = 'cert-admin@test.local';
+const USER = 'cert-user@test.local';
+
+process.env.CENTER_ID = CENTER;
+process.env.FRONT_CORS = 'http://localhost:5173';
+if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
+const db = admin.firestore();
+const { app } = await import('../app.js');
+
+const center = db.collection('centers').doc(CENTER);
+const farmerDoc = center.collection('farmers').doc(FARMER);
+const tokens = {};
+const api = makeApi(app, tokens);
+const enc = encodeURIComponent;
+const profile = { headerLines: ['צברי נורית וגבריאל', "משק מס' 10", 'חצבה', 'נייד', 'עוסק'], driverName: 'אדם', nextNumber: 51466 };
+
+async function addRecord(palletNumber, o = {}) {
+  const ref = await farmerDoc.collection('records').add({ palletNumber, kind: 'שלי', size: '15', boxes: 120, weight: 753,
+    destination: 'שיווק האיחוד', shipmentDate: '2026-12-01', harvestDate: '2026-11-30', cardId: '', sent: false,
+    mark: true, gidon: false, editedBy: '', editedAt: '', ...o });
+  return ref.id;
+}
+
+beforeAll(async () => {
+  await center.collection('config').doc('global').set({ kinds: ['שלי'], sizes: ['15'], destinations: ['שיווק האיחוד'],
+    farmers: [{ name: FARMER, allowGidon: false }], farmerConfigs: {} });
+  await center.collection('users').doc(ADMIN).set({ role: 'admin' });
+  await center.collection('users').doc(USER).set({ role: 'user' });
+  tokens.admin = await tokenFor(ADMIN, { centers: [CENTER] });
+  tokens.user = await tokenFor(USER, { centers: [CENTER] });
+});
+afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
+beforeEach(async () => {
+  await db.recursiveDelete(center.collection('certificates'));
+  await clearCollection(farmerDoc.collection('records'));
+  await farmerDoc.set({ certificateProfile: profile });
+});
+
+describe('issue', () => {
+  it('a regular user can preview and issue; pallets are stamped; event + audit emitted', async () => {
+    const ids = [await addRecord(421), await addRecord(422)];
+    const pv = await api('post', '/api/certificates/preview', 'user').send({ farmer: FARMER, recordIds: ids });
+    expect(pv.status).toBe(200);
+    expect(pv.body).toMatchObject({ destination: 'שיווק האיחוד', shipmentDate: '2026-12-01', chunks: [{ rows: 2, pallets: 2 }] });
+
+    const res = await api('post', '/api/certificates', 'user').send({ farmer: FARMER, recordIds: ids });
+    expect(res.status).toBe(201);
+    expect(res.body.certificates).toHaveLength(1);
+    expect(res.body.certificates[0]).toMatchObject({ id: `${FARMER}__51466`, number: 51466 });
+    expect((await farmerDoc.collection('records').doc(ids[0]).get()).data()).toMatchObject({ cardId: 51466, sent: true, mark: false, editedBy: USER });
+
+    const evt = await waitFor(async () => {
+      const s = await center.collection('farmer_events').doc(FARMER).get();
+      return s.data()?.type === 'bulk_update' ? s.data() : null;
+    });
+    expect(evt.pallets.map(p => p.id).sort()).toEqual([...ids].sort());
+    const audit = await waitFor(async () => {
+      const s = await farmerDoc.collection('audit').where('recordId', '==', ids[0]).get();
+      return s.empty ? null : s.docs[0].data();
+    });
+    expect(audit.action).toBe('הפקת תעודה 51466');
+  });
+
+  it('14 pallets → two certificates 13 + 1', async () => {
+    const ids = [];
+    for (let p = 1; p <= 14; p++) ids.push(await addRecord(p));
+    const pv = await api('post', '/api/certificates/preview').send({ farmer: FARMER, recordIds: ids });
+    expect(pv.body.chunks.map(c => c.rows)).toEqual([13, 1]);
+    const res = await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: ids });
+    expect(res.body.certificates.map(c => c.number)).toEqual([51466, 51467]);
+  });
+
+  it('mixed destination → 400 Hebrew', async () => {
+    const ids = [await addRecord(1), await addRecord(2, { destination: 'אחר' })];
+    const res = await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: ids });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch('יעדים שונים');
+  });
+
+  it('already certified → 409 naming the certificate', async () => {
+    const id = await addRecord(421);
+    await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] });
+    const res = await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('משטח 421 כבר בתעודה 51466 — הסר אותו מהתעודה כדי להפיק חדשה');
+    expect(res.body.conflicts[0]).toMatchObject({ certificateId: `${FARMER}__51466` });
+  });
+
+  it('no profile → 400 pointing to settings, nothing stamped', async () => {
+    await farmerDoc.set({});
+    const id = await addRecord(1);
+    const res = await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('חסרים פרטי תעודה לחקלאי — הגדר בהגדרות');
+    expect((await farmerDoc.collection('records').doc(id).get()).data().sent).toBe(false);
+  });
+
+  it('unknown farmer → 400', async () => {
+    const res = await api('post', '/api/certificates').send({ farmer: 'לא-קיים', recordIds: ['x'] });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/Unknown farmer/);
+  });
+
+  it('parallel issues over HTTP get distinct numbers', async () => {
+    const a = await addRecord(1); const b = await addRecord(2);
+    const [r1, r2] = await Promise.all([
+      api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [a] }),
+      api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [b] }),
+    ]);
+    expect([r1.status, r2.status]).toEqual([201, 201]);
+    expect([r1.body.certificates[0].number, r2.body.certificates[0].number].sort()).toEqual([51466, 51467]);
+  });
+});
+
+describe('reprint / remove / reads', () => {
+  it('reprint after weight edit creates version 2; reads expose history', async () => {
+    const id = await addRecord(421);
+    const issued = (await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] })).body.certificates[0];
+    await farmerDoc.collection('records').doc(id).update({ weight: 700 });
+    const rp = await api('post', `/api/certificates/${enc(issued.id)}/reprint`);
+    expect(rp.body).toMatchObject({ version: 2, created: true });
+
+    const got = await api('get', `/api/certificates/${enc(issued.id)}`);
+    expect(got.body.versions.map(v => v.reason)).toEqual(['issue', 'reprint']);
+    const v1 = await api('get', `/api/certificates/${enc(issued.id)}/versions/1`);
+    expect(v1.body.snapshot.rows[0].weight).toBe(753);
+    expect((await api('get', `/api/certificates/${enc(issued.id)}/versions/9`)).status).toBe(404);
+  });
+
+  it('remove-pallet returns the pallet to shipment prep and cancels when empty', async () => {
+    const id = await addRecord(421);
+    const issued = (await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] })).body.certificates[0];
+    const rm = await api('post', `/api/certificates/${enc(issued.id)}/remove-pallet`).send({ recordId: id });
+    expect(rm.body).toMatchObject({ version: 2, cancelled: true });
+    expect((await farmerDoc.collection('records').doc(id).get()).data()).toMatchObject({ cardId: '', sent: false, mark: true });
+    expect((await api('post', `/api/certificates/${enc(issued.id)}/reprint`)).status).toBe(409);
+  });
+
+  it('list requires farmer and filters by date range', async () => {
+    const a = await addRecord(1, { shipmentDate: '2026-12-01' });
+    const b = await addRecord(2, { shipmentDate: '2026-12-05' });
+    await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [a] });
+    await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [b] });
+    expect((await api('get', '/api/certificates')).status).toBe(400);
+    const all = await api('get', `/api/certificates?farmer=${enc(FARMER)}`);
+    expect(all.body.certificates.map(c => c.number)).toEqual([51467, 51466]);
+    const ranged = await api('get', `/api/certificates?farmer=${enc(FARMER)}&from=2026-12-02&to=2026-12-31`);
+    expect(ranged.body.certificates.map(c => c.number)).toEqual([51467]);
+  });
+});

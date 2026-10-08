@@ -117,6 +117,9 @@ app.use(
   sheetRoutes
 );
 
+// 📄 Shipping certificates (task 20) — same auth chain as the rest of /api.
+app.use("/api/certificates", verifyFirebaseToken, ensureCenterAccess, require("./routes/certificateRoutes"));
+
 // 🛠️ Admin Sheet Management
 app.post("/api/admin/create-sheet", ensureAdmin, async (req, res) => {
   const { name } = req.body;

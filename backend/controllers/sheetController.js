@@ -668,3 +668,4 @@ module.exports = new SheetController();
 module.exports.invalidateKnownFarmersCache = () => {
   knownFarmersCache = { names: null, fetchedAt: 0 };
 };
+module.exports.assertKnownFarmer = assertKnownFarmer;

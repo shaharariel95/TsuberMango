@@ -3,7 +3,7 @@
 // (verifyFirebaseToken → ensureCenterAccess → ensureAdmin) runs unmocked.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import admin from 'firebase-admin';
-import request from 'supertest';
+import { clearCollection, tokenFor as rawTokenFor, waitFor, makeApi } from './helpers/apiHarness.js';
 
 const CENTER = 'apitest';
 const FARMER = 'חקלאי-בדיקה';
@@ -23,47 +23,13 @@ const center = db.collection('centers').doc(CENTER);
 const farmerDoc = center.collection('farmers').doc(FARMER);
 const tokens = {};
 
-async function clearCollection(ref) {
-  const snap = await ref.get();
-  await Promise.all(snap.docs.map(d => d.ref.delete()));
-}
-
-// Create an auth-emulator user (optionally pre-stamped with the centers claim) and
-// exchange its password for a real emulator ID token.
-async function tokenFor(email, { centers = [CENTER] } = {}) {
-  const password = 'secret123';
-  let user;
-  try { user = await admin.auth().getUserByEmail(email); }
-  catch { user = await admin.auth().createUser({ email, password }); }
-  await admin.auth().setCustomUserClaims(user.uid, centers ? { centers } : null);
-  const host = process.env.FIREBASE_AUTH_EMULATOR_HOST;
-  const res = await fetch(
-    `http://${host}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) }
-  );
-  const body = await res.json();
-  if (!body.idToken) throw new Error(`emulator sign-in failed for ${email}: ${JSON.stringify(body)}`);
-  return body.idToken;
-}
-
-const api = (method, url, who = 'admin') => {
-  const req = request(app)[method](url);
-  return tokens[who] ? req.set('Authorization', `Bearer ${tokens[who]}`) : req;
-};
+const tokenFor = (email, o = {}) => rawTokenFor(email, { centers: 'centers' in o ? o.centers : [CENTER] });
+const api = makeApi(app, tokens);
 
 const pallet = (overrides = {}) => ({
   farmer: FARMER, harvestDate: '2026-10-08', palletNumber: 1, boxes: 40,
   kind: 'קיט', size: 'L', ...overrides,
 });
-
-const waitFor = async (fn, ms = 3000) => {
-  const end = Date.now() + ms;
-  for (;;) {
-    const v = await fn();
-    if (v || Date.now() > end) return v;
-    await new Promise(r => setTimeout(r, 100));
-  }
-};
 
 beforeAll(async () => {
   await clearCollection(farmerDoc.collection('records'));
