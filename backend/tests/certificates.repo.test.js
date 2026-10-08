@@ -87,7 +87,22 @@ describe('issue', () => {
       repo.issue({ farmer: FARMER, recordIds: [records[0]], actor: ACTOR }),
     ]);
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
-    expect(results.find(r => r.status === 'rejected').reason).toBeInstanceOf(CertificateError);
+    const reason = results.find(r => r.status === 'rejected').reason;
+    expect(reason).toBeInstanceOf(CertificateError);
+    expect(reason.code).toBe('ALREADY_CERTIFIED');
+    expect(await repo.list(FARMER)).toHaveLength(1);
+    expect((await repo.getProfile(FARMER)).nextNumber).toBe(51467);
+  });
+
+  it('rejects an empty selection', async () => {
+    await expect(repo.issue({ farmer: FARMER, recordIds: [], actor: ACTOR }))
+      .rejects.toMatchObject({ status: 400, code: 'INVALID_SELECTION', details: { errors: ['לא נבחרו משטחים'] } });
+  });
+
+  it('dedupes repeated record ids', async () => {
+    const [c] = await repo.issue({ farmer: FARMER, recordIds: [records[0], records[0]], actor: ACTOR });
+    expect(c.snapshot.rows).toHaveLength(1);
+    expect((await repo.get(c.id)).certificate.recordIds).toEqual([records[0]]);
   });
 });
 
@@ -103,6 +118,17 @@ describe('reprint', () => {
     expect(changed.snapshot.rows.find(r => r.recordId === records[0]).weight).toBe(555);
     expect((await repo.getVersion(c.id, 1)).rows.find(r => r.recordId === records[0]).weight).toBe(100);
     expect((await repo.get(c.id)).certificate).toMatchObject({ currentVersion: 2, updatedBy: 'other@test.local' });
+  });
+});
+
+describe('recordIds drift', () => {
+  it('reprint after a record doc is deleted creates a new version and reconciles recordIds', async () => {
+    const [c] = await repo.issue({ farmer: FARMER, recordIds: records, actor: ACTOR });
+    await recordsCol().doc(records[1]).delete();
+    const r = await repo.reprint({ id: c.id, actor: ACTOR });
+    expect(r).toMatchObject({ version: 2, created: true });
+    expect(r.snapshot.rows).toHaveLength(1);
+    expect((await repo.get(c.id)).certificate.recordIds).toEqual([records[0]]);
   });
 });
 

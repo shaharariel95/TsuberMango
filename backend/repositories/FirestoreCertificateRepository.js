@@ -3,7 +3,7 @@
 // certificate and its pallets can never disagree (no orphans, no duplicate numbers).
 const admin = require('firebase-admin');
 const { CENTER_ID } = require('../config/center');
-const logger = require('../utils/logger'); // eslint-disable-line no-unused-vars
+const logger = require('../utils/logger');
 const core = require('../services/certificateCore');
 
 class CertificateError extends Error {
@@ -45,6 +45,8 @@ class FirestoreCertificateRepository {
   }
 
   async issue({ farmer, recordIds, actor }) {
+    if (!recordIds?.length) throw new CertificateError(400, 'INVALID_SELECTION', { errors: ['לא נבחרו משטחים'] });
+    recordIds = [...new Set(recordIds)];
     const now = new Date().toISOString();
     return this.db.runTransaction(async (t) => {
       // --- reads (all before writes) ---
@@ -99,7 +101,7 @@ class FirestoreCertificateRepository {
     const recSnaps = recordIds.length ? await t.getAll(...recordIds.map(id => this.recordsCol(cert.farmer).doc(id))) : [];
     const records = recSnaps.filter(s => s.exists).map(s => ({ id: s.id, ...s.data() }));
     return { snapshot: core.buildSnapshot({ profile, number: cert.number, destination: cert.destination,
-      shipmentDate: cert.shipmentDate, records }), records };
+      shipmentDate: cert.shipmentDate, records }), records, existingIds: records.map(r => r.id) };
   }
 
   async reprint({ id, actor }) {
@@ -110,13 +112,15 @@ class FirestoreCertificateRepository {
       const cert = certSnap.data();
       if (cert.status === 'cancelled') throw new CertificateError(409, 'CERTIFICATE_CANCELLED');
       const latestSnap = await t.get(this.versionsCol(id).doc(String(cert.currentVersion)));
-      const { snapshot } = await this._currentSnapshot(t, cert, cert.recordIds);
-      if (!core.snapshotsDiffer(snapshot, latestSnap.data())) {
+      const { snapshot, existingIds } = await this._currentSnapshot(t, cert, cert.recordIds);
+      const drifted = existingIds.length !== cert.recordIds.length;
+      if (drifted) logger.warn(`Certificate ${id}: ${cert.recordIds.length - existingIds.length} record(s) no longer exist; reconciling recordIds`);
+      if (!drifted && !core.snapshotsDiffer(snapshot, latestSnap.data())) {
         return { snapshot: latestSnap.data(), version: cert.currentVersion, created: false };
       }
       const version = cert.currentVersion + 1;
       t.create(this.versionsCol(id).doc(String(version)), { ...snapshot, reason: 'reprint', createdBy: actor, createdAt: now });
-      t.update(this.certsCol().doc(id), { currentVersion: version, updatedBy: actor, updatedAt: now,
+      t.update(this.certsCol().doc(id), { currentVersion: version, recordIds: existingIds, updatedBy: actor, updatedAt: now,
         palletCount: snapshot.palletCount, totalBoxes: snapshot.totalBoxes, totalWeight: snapshot.totalWeight });
       return { snapshot, version, created: true };
     });
@@ -131,11 +135,12 @@ class FirestoreCertificateRepository {
       if (!cert.recordIds.includes(recordId)) throw new CertificateError(400, 'NOT_ON_CERTIFICATE');
       const remaining = cert.recordIds.filter(r => r !== recordId);
       const removedSnap = await t.get(this.recordsCol(cert.farmer).doc(recordId));
-      const { snapshot } = await this._currentSnapshot(t, cert, remaining);
+      const { snapshot, existingIds } = await this._currentSnapshot(t, cert, remaining);
+      if (existingIds.length !== remaining.length) logger.warn(`Certificate ${id}: ${remaining.length - existingIds.length} record(s) no longer exist; reconciling recordIds`);
       const version = cert.currentVersion + 1;
-      const cancelled = remaining.length === 0;
+      const cancelled = existingIds.length === 0;
       t.create(this.versionsCol(id).doc(String(version)), { ...snapshot, reason: 'remove-pallet', createdBy: actor, createdAt: now });
-      t.update(this.certsCol().doc(id), { recordIds: remaining, currentVersion: version,
+      t.update(this.certsCol().doc(id), { recordIds: existingIds, currentVersion: version,
         status: cancelled ? 'cancelled' : cert.status, updatedBy: actor, updatedAt: now,
         palletCount: snapshot.palletCount, totalBoxes: snapshot.totalBoxes, totalWeight: snapshot.totalWeight });
       const patch = { cardId: '', sent: false, mark: true, editedBy: actor, editedAt: now };
