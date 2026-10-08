@@ -1,0 +1,59 @@
+// The core season workflow, end to end through the real UI:
+// intake → weigh + destination → mark for shipment → certificate attempt.
+import { test, expect } from '@playwright/test';
+import { signIn, intakePallet, editRow, rowByPallet, uniquePalletNumber, DESTINATION } from './helpers.js';
+
+test('intake → weigh → mark for shipment → certificate is blocked from touching real Sheets', async ({ page }) => {
+  const consoleErrors = [];
+  page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
+  const pallet = uniquePalletNumber();
+
+  await signIn(page);
+  await expect(page.getByRole('heading', { name: 'לוח בקרה' })).toBeVisible();
+
+  // Intake
+  await intakePallet(page, pallet);
+
+  // Weigh + destination + shipment date on the data table
+  await page.getByRole('link', { name: 'טבלת נתונים' }).click();
+  const row = rowByPallet(page, pallet);
+  await expect(row).toHaveCount(1);
+  const editor = await editRow(page, pallet);
+  await editor.locator('td[data-col="weight"] input').fill('480');
+  await editor.locator('td[data-col="destination"] select').selectOption(DESTINATION);
+  await editor.locator('td[data-col="shipmentDate"] input').fill('2026-10-09');
+  await editor.getByRole('button', { name: 'שמור' }).click();
+
+  await expect(row.locator('td[data-col="weight"]')).toHaveText('480');
+  await expect(row.locator('td[data-col="destination"]')).toHaveText(DESTINATION);
+  // Regression: an empty certificate number must not turn into "0" after save.
+  await expect(row.locator('td[data-col="cardId"]')).toHaveText('');
+
+  // Mark for shipment (confirm dialog)
+  await row.locator('td[data-col="selected"] input[type="checkbox"]').check();
+  await page.getByRole('button', { name: 'העבר למשלוח' }).click();
+  await expect(page.getByText('אישור פעולה')).toBeVisible();
+  await page.getByRole('button', { name: 'אשר' }).click();
+
+  // Shows up on the shipment-prep page
+  await page.getByRole('link', { name: 'הכנה למשלוח' }).click();
+  const prepRow = rowByPallet(page, pallet);
+  await expect(prepRow).toHaveCount(1);
+
+  // Certificate creation must fail loudly under the emulators (never write real Sheets)
+  await prepRow.locator('td[data-col="selected"] input[type="checkbox"]').check();
+  await page.getByRole('button', { name: 'צור תעודת משלוח' }).click();
+  await expect(page.getByText(/Google Sheets access is disabled/)).toBeVisible();
+  await page.getByRole('button', { name: 'הבנתי' }).click();
+  await expect(prepRow.locator('td[data-col="cardId"]')).toHaveText('');
+
+  // Data survives a reload (it's in Firestore, not just local state)
+  await page.reload();
+  await expect(rowByPallet(page, pallet).locator('td[data-col="weight"]')).toHaveText('480');
+
+  // Dashboard reflects the new pallet
+  await page.getByRole('link', { name: 'לוח בקרה' }).click();
+  await expect(page.getByText(`משטח ${pallet}`)).toBeVisible();
+
+  expect(consoleErrors.filter(e => !/Failed to load resource/.test(e))).toEqual([]);
+});

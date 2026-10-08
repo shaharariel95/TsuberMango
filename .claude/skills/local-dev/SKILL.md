@@ -1,53 +1,75 @@
 ---
 name: local-dev
-description: Use when running TsuberMango locally - starting the dev servers, or doing an end-to-end test against the Firebase auth/firestore emulators with the seeded centers/test tenant. Covers what the emulator stack does and does not cover.
+description: Use when running or testing TsuberMango locally - the backend test suite (npm test), the Playwright browser E2E (npm run e2e), starting the dev servers, or manually exercising the app against the Firebase auth/firestore emulators with the seeded centers/test tenant. Covers what each layer does and does not cover.
 ---
 
-# Running TsuberMango Locally
+# Running and Testing TsuberMango Locally
 
-## Plain dev servers (against production Firebase)
+## Verify a change — run both before calling anything done
 
 ```bash
-# Backend (port 3000)
-cd backend && npm run dev
-
-# Frontend (port 5173)
-cd frontend && npm run dev
+cd backend && npm test        # ~10s: 53 Vitest tests on the auth + Firestore emulators
+cd frontend && npm run e2e    # ~25s: Playwright, real UI against the emulator stack
 ```
 
-The Vite dev server proxies `/api/*` to `localhost:3000`, so no CORS issues in dev.
+| Layer | File(s) | Covers |
+|---|---|---|
+| Repository | `backend/tests/FirestoreRepository.test.js` | Firestore reads/writes/bulk/audit |
+| Auth middleware | `backend/tests/auth.middleware.test.js` | token verify, center gate, admin gate, claim sync |
+| Firestore rules | `backend/tests/firestore.rules.test.js` | client read gating |
+| **HTTP API** | `backend/tests/api.test.js` | every `/api` route via supertest with **real auth-emulator ID tokens**: auth gates, intake → weigh → mark → certificate stamp → reset, audit + realtime events, admin users/config, Sheets isolation |
+| **Browser E2E** | `frontend/e2e/*.spec.js` | full season flow through the UI; realtime update between two clients |
 
-Note this talks to the **real** Firebase project and the real `centers/tsuberi` data. For anything
-that writes, prefer the emulator stack below.
+Adding an endpoint or changing a write path → add a case to `api.test.js`. Changing a user flow →
+extend `frontend/e2e/`. Table cells carry `data-col="<column key>"` for stable selectors.
 
-## Full E2E against the emulators
+**E2E notes:**
+- Uses the locally installed Chrome (`channel: 'chrome'`), no browser download.
+- Starts the emulator stack itself, or reuses one already serving `:5173`.
+- Signs in through the auth-emulator popup as `e2e-admin@test.local` (seeded).
+- Realtime tests need **two different users**. Clients ignore events whose `updatedBy` is
+  their own email (echo suppression), so the second client is `e2e-admin-2@test.local`.
+- Viewport is 1600×900; below the 1366px breakpoint the mobile drawer covers the page.
+
+**Windows leftover processes:** `firebase emulators:exec` leaves the Firestore java process
+running. `scripts/freePorts.js` runs before/after `npm test` and before `local:test` and kills
+java/node listeners on the emulator ports (plus 3000/5173 with `--dev`). If anything still reports
+"port taken": `node backend/scripts/freePorts.js --dev`.
+
+## Google Sheets is blocked under the emulators
+
+`utils/sheetsGuard.js` makes every Google Sheets call throw while `FIRESTORE_EMULATOR_HOST` or
+`FIREBASE_AUTH_EMULATOR_HOST` is set. The Sheets services hold **production** spreadsheet ids, so
+without this a local certificate would be written into a live customer file. Consequences:
+- Certificate creation ("צור תעודת משלוח") and admin create/delete-sheet fail under the
+  emulators with "Google Sheets access is disabled…". The E2E asserts exactly that.
+- Override only deliberately: `ALLOW_REAL_SHEETS=true`.
+
+## Manual click-through against the emulators
 
 ```bash
 cd backend && npm run local:test
 ```
 
-One command spins up the whole local stack:
-
-1. Firebase **auth + firestore emulators** (`localhost:9099` / `8080`)
-2. Seeds `centers/test` via `scripts/seedTestCenter.js` (config, one admin user, one fake farmer + record)
+1. Firebase **auth + firestore emulators** (`localhost:9099` / `8080`, UI on `4000`)
+2. Seeds `centers/test` via `scripts/seedTestCenter.js` (config, admin users, one fake farmer + record)
 3. Backend with `CENTER_ID=test`, pointed at the emulators
 4. Frontend with `VITE_USE_EMULATORS=true`
 
-Sign in through the auth-emulator popup with the seeded admin email. Ctrl-C tears the whole stack
-down.
-
-### Requirements and limits
+Sign in through the auth-emulator popup with a seeded admin email. Ctrl-C tears the stack down.
 
 - Requires the local (gitignored) `frontend/firebase.json` emulators block. If `local:test` fails at
   emulator start, that block is the first thing to check.
-- **Emulator data is not persisted between runs** — every run starts from the seed.
-- **Shipping-label creation still calls the real Google Sheets API** (task 20), so that one flow
-  will not complete under the emulators. Everything else does.
+- **Emulator data is not persisted between runs**. Every run starts from the seed.
 
-### Seeding a test center manually
+Seed manually (idempotent): `node scripts/seedTestCenter.js <admin-email> [more-admin-emails...]`
+
+## Plain dev servers (against production Firebase)
 
 ```bash
-node scripts/seedTestCenter.js <admin-email>
+cd backend && npm run dev     # port 3000
+cd frontend && npm run dev    # port 5173, proxies /api/* to :3000
 ```
 
-Idempotent — safe to re-run.
+This talks to the **real** Firebase project and the real `centers/tsuberi` data. For anything that
+writes, use the emulator stack.

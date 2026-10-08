@@ -3,6 +3,26 @@
 
 ---
 
+## October 2026 — Pre-season push
+
+### ✅ Task 22 (local half) — Automated test harness: API suite + Playwright E2E
+No CI by owner decision (public repo, nothing but code connected to it). Everything runs locally:
+- **`cd backend && npm test`** (53 tests, ~10s, auth + Firestore emulators). New `tests/api.test.js` (25 cases) drives the real Express app with supertest and real auth-emulator ID tokens. It covers the auth gates, claim self-heal on `/api/auth/me`, intake → weigh → mark/unmark → certificate stamp via `updatemany` → reset, audit and realtime events, admin users/config, and Sheets isolation. To make the app importable, `server.js` was split into `app.js` (Express app, no side effects) and `server.js` (seeding, listen, cache warm).
+- **`cd frontend && npm run e2e`** (Playwright, local Chrome, ~25s including stack startup). `e2e/season-flow.spec.js` runs the full flow through the UI. `e2e/realtime.spec.js` checks that an edit reaches a second signed-in client live. `PalletTable` cells now carry `data-col` for stable selectors.
+- `backend/scripts/freePorts.js` runs before and after `npm test` and before `local:test`. On Windows, `emulators:exec` left the Firestore java process running every time, so the next run failed with "port taken".
+
+**Bugs found and fixed while building it:**
+- A farmer added in Settings was rejected as "Unknown farmer" for up to 5 minutes (stale known-farmers cache). `POST /api/admin/config` now invalidates it. The fix is per Cloud Run instance; other instances catch up within the TTL.
+- Shipping labels: an unknown farmer silently fell back to **Tsuberi's** label spreadsheet. `getSpreadsheetIdByFarmer` now throws.
+- The local emulator stack could write test certificates into the **production** label spreadsheet. `utils/sheetsGuard.js` now blocks every Sheets call under the emulators (override `ALLOW_REAL_SHEETS=true`). The startup Sheets cache warm is skipped in emulator mode.
+- After editing a row, an empty certificate number (and weight/boxes) showed as "0" until reload (`Number('')`).
+- A missing `FRONT_CORS` crashed boot with a TypeError. It now fails with a clear message.
+
+**Found, not fixed:**
+- Realtime echo suppression is keyed on email (`useFarmerEvents.js:28`), so two devices signed into the **same account** don't see each other's changes live. That matters if packhouse workers share a login.
+- At a 1280×720 viewport the mobile drawer covers the Dashboard. Check in the mobile audit (task 13).
+- `sendToDestination`/`removeFromDestination`/`resetSentStatus` skip `assertKnownFarmer`.
+
 ## July 2026 — Season maintenance
 
 ### ✅ Task 23 — Firebase Auth migration + Firestore rules lockdown — SHIPPED 2026-07-26

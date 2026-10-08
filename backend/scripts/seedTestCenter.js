@@ -14,8 +14,8 @@ const db = admin.firestore();
 const CENTER = 'test';
 
 (async () => {
-  const email = process.argv[2];
-  if (!email) { logger.error('usage: node scripts/seedTestCenter.js <admin-email>'); process.exit(1); }
+  const emails = process.argv.slice(2);
+  if (!emails.length) { logger.error('usage: node scripts/seedTestCenter.js <admin-email> [more-admin-emails...]'); process.exit(1); }
   const center = db.collection('centers').doc(CENTER);
 
   await center.collection('config').doc('global').set({
@@ -24,7 +24,9 @@ const CENTER = 'test';
     farmerConfigs: {},
   }, { merge: true });
 
-  await center.collection('users').doc(email).set({ role: 'admin' }, { merge: true });
+  for (const email of emails) {
+    await center.collection('users').doc(email).set({ role: 'admin' }, { merge: true });
+  }
 
   const records = center.collection('farmers').doc('חקלאי-טסט').collection('records');
   const existing = await records.limit(1).get();
@@ -35,6 +37,6 @@ const CENTER = 'test';
       editedBy: 'seed', editedAt: new Date().toISOString(),
     });
   }
-  logger.info(`[seedTestCenter] centers/${CENTER} ready; admin: ${email}`);
+  logger.info(`[seedTestCenter] centers/${CENTER} ready; admins: ${emails.join(', ')}`);
   process.exit(0);
 })();

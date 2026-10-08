@@ -101,7 +101,7 @@
                         :style="getMixStyle(pallet)"
                         @click="(pallet._isGroupLeader || pallet._isContext) && toggleCollapse(pallet.palletNumber)">
                         <template v-if="editingId === pallet.id">
-                            <td v-for="col in columns" :key="col.key" class="border-b border-slate-300 px-2 py-1.5">
+                            <td v-for="col in columns" :key="col.key" :data-col="col.key" class="border-b border-slate-300 px-2 py-1.5">
                                 <template v-if="col.editable">
                                     <div v-if="col.key === 'kind'">
                                         <select v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5">
@@ -162,7 +162,7 @@
                             </td>
                         </template>
                         <template v-else>
-                            <td v-for="col in columns" :key="col.key" class="border-b border-slate-200 px-3 py-2.5">
+                            <td v-for="col in columns" :key="col.key" :data-col="col.key" class="border-b border-slate-200 px-3 py-2.5">
                                 <template v-if="col.key === 'selected'">
                                     <input v-if="!pallet._isContext" type="checkbox" v-model="selectedPallets" :value="pallet.id"
                                         @click.stop
@@ -595,9 +595,11 @@ export default {
             const originalPallet = { ...this.pallets.find(p => p.id === this.editingId) };
             this.isLoading = true
             this.editingPallet.palletNumber = Number(this.editingPallet.palletNumber);
-            if (this.editingPallet.cardId !== undefined) this.editingPallet.cardId = Number(this.editingPallet.cardId);
-            if (this.editingPallet.boxes !== undefined) this.editingPallet.boxes = Number(this.editingPallet.boxes);
-            if (this.editingPallet.weight !== undefined) this.editingPallet.weight = Number(this.editingPallet.weight);
+            // Empty stays empty — Number('') is 0, which showed a "0" certificate number after save.
+            for (const key of ['cardId', 'boxes', 'weight']) {
+                const v = this.editingPallet[key];
+                if (v !== undefined && v !== '' && v !== null) this.editingPallet[key] = Number(v);
+            }
             this.editingPallet.gidon = !!this.editingPallet.gidon;
             this.editingPallet.sent = !!this.editingPallet.sent;
 
