@@ -20,7 +20,7 @@ No CI by owner decision (public repo, nothing but code connected to it). Everyth
 
 **Found, not fixed:**
 - Realtime echo suppression is keyed on email (`useFarmerEvents.js:28`), so two devices signed into the **same account** don't see each other's changes live. That matters if packhouse workers share a login.
-- At a 1280×720 viewport the mobile drawer covers the Dashboard. Check in the mobile audit (task 13).
+- (Retracted.) "The mobile drawer covers the Dashboard at 1280×720" was a test artifact. At ≤1366px the nav links sit inside a drawer that starts closed, so the test couldn't click them. The app renders fine; checked with screenshots.
 - `sendToDestination`/`removeFromDestination`/`resetSentStatus` skip `assertKnownFarmer`.
 
 ## July 2026 — Season maintenance

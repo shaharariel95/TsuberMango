@@ -1,8 +1,8 @@
 # Multi-Tenant Architecture Plan
 
-> **STATUS (Jul 2026): ADOPTED WITH AMENDMENTS — `redesign-plan.html` is canonical.**
-> The Firestore-over-Postgres decision went this doc's way (see the DB decision box in
-> redesign-plan.html, P3 section). This doc's data model and phases are absorbed into
+> **STATUS (Jul 2026): ADOPTED WITH AMENDMENTS — `redesign-plan.md` (active board) and `redesign-reference.md` (rationale, DB decision, platform vision) are canonical.**
+> The Firestore-over-Postgres decision went this doc's way (see the DB decision in
+> redesign-reference.md, P3 section). This doc's data model and phases are absorbed into
 > tasks 6, 15, 16, 19, 20 there. Where this doc and the plan disagree, **the plan wins**.
 > Known amendments:
 >
