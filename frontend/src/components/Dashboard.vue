@@ -174,7 +174,10 @@ export default {
                     all.push({ farmer: fd.name, ...rec })
                 }
             }
-            all.sort((a, b) => Number(b.palletNumber) - Number(a.palletNumber))
+            // Most recently touched first (ISO editedAt sorts lexically); pallet number breaks ties.
+            // Sorting by pallet number alone let one farmer's high numbers hide everyone else's new pallets.
+            all.sort((a, b) => String(b.editedAt || '').localeCompare(String(a.editedAt || ''))
+                || Number(b.palletNumber) - Number(a.palletNumber))
             return all.slice(0, 5)
         })
 

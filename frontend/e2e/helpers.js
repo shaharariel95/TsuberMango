@@ -16,8 +16,9 @@ export async function signIn(page, email = ADMIN_EMAIL) {
   const popupPromise = page.waitForEvent('popup');
   await page.getByRole('button', { name: 'התחבר עם Google' }).click();
   const popup = await popupPromise;
-  // "Add new account" renders in both the empty and the account-list views.
-  await popup.getByRole('button', { name: 'Add new account' }).waitFor();
+  // The account list loads asynchronously: wait until it shows either some account
+  // (an email) or the empty-state text before deciding which branch to take.
+  await popup.getByText(/@|No Google\.com accounts exist/).first().waitFor();
 
   const existing = popup.getByText(email);
   if (await existing.count()) {
