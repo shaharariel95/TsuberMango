@@ -1,9 +1,10 @@
 // The core season workflow, end to end through the real UI:
-// intake → weigh + destination → mark for shipment.
+// intake → weigh + destination → mark for shipment → certificate.
 import { test, expect } from '@playwright/test';
 import { navTo, signIn, intakePallet, editRow, rowByPallet, uniquePalletNumber, DESTINATION } from './helpers.js';
 
-test('intake → weigh → mark for shipment', async ({ page }) => {
+test('intake → weigh → mark for shipment → certificate', async ({ page }) => {
+  await page.addInitScript(() => { navigator.canShare = () => true; navigator.share = async () => {}; });
   const consoleErrors = [];
   page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
   const pallet = uniquePalletNumber();
@@ -43,6 +44,12 @@ test('intake → weigh → mark for shipment', async ({ page }) => {
   // Data survives a reload (it's in Firestore, not just local state)
   await page.reload();
   await expect(rowByPallet(page, pallet).locator('td[data-col="weight"]')).toHaveText('480');
+
+  // Issue the certificate (print is stubbed): the cardId cell becomes a number
+  await prepRow.locator('td[data-col="selected"] input[type="checkbox"]').check();
+  await page.getByRole('button', { name: 'צור תעודת משלוח' }).click();
+  await page.getByRole('button', { name: 'אשר' }).click();
+  await expect(prepRow.locator('td[data-col="cardId"]')).toHaveText(/^\d+$/);
 
   // Dashboard reflects the new pallet
   await navTo(page, 'לוח בקרה');
