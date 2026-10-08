@@ -12,6 +12,13 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 7. Touch only the files listed under the task unless you find a real dependency — call it out.
 8. When done **and verified** (tests/app actually run), append an entry to `done.md` and remove the task from this board.
 
+## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season, season ≈ early Dec 2026
+1. **Task 6 — Farmer registry in Firestore** (builds on `farmers/{name}.certificateProfile`; deletes `googleSheetsService.js` + create/delete-sheet/refresh-cache → the backend is fully off Google Sheets). Fold in: realtime echo suppression by per-tab client id (see blockers).
+2. **Task 36 — Naming cleanup** (unblocked once 6 + 20 land).
+3. **Pre-season ops:** verify the nightly backup actually runs (task 12 scope check), rewrite `NEW_SEASON.md` for the Firestore era, clear test farmers/data from production, run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles.
+4. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
+5. Then P2 nice-to-haves (25 soft-delete first), and the fridge layout last.
+
 ## Ranked board (open tasks; shipped 0, 0.1, 1, 15+16, 23 are in the reference doc / `done.md`)
 Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-08 (`api.test.js` + Playwright e2e); CI half DROPPED. Optional leftover: frontend unit tests for `PalletInput` / `PalletTable` filter+sort.
 
