@@ -10,6 +10,7 @@ import sentPalletsForMark from "./components/sentPalletsForMark.vue";
 import Destination from "./components/Destination.vue";
 import Login from "./components/Login.vue";
 import DestinationsSummary from "./components/DestinationsSummary.vue";
+import Certificates from "./components/Certificates.vue";
 import Settings from "./components/Settings.vue";
 import Dashboard from "./components/Dashboard.vue";
 
@@ -59,6 +60,7 @@ const routes = [
     component: DestinationsSummary,
     meta: { requiresAuth: true },
   },
+  { path: "/Certificates", name: "Certificates", component: Certificates, meta: { requiresAuth: true } },
   {
     path: "/Settings",
     name: "Settings",

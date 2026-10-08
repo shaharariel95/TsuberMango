@@ -57,3 +57,53 @@ test('a failed print still keeps the certificate and says where to reprint', asy
   await page.getByRole('button', { name: 'הבנתי' }).click();
   await expect(rowByPallet(page, pallet).locator('td[data-col="cardId"]')).toHaveText(/^\d+$/);
 });
+
+async function issueOne(page, pallet) {
+  await preparePallet(page, pallet);
+  await rowByPallet(page, pallet).locator('td[data-col="selected"] input[type="checkbox"]').check();
+  await page.getByRole('button', { name: 'צור תעודת משלוח' }).click();
+  await page.getByRole('button', { name: 'אשר' }).click();
+  const cell = rowByPallet(page, pallet).locator('td[data-col="cardId"]');
+  await expect(cell).toHaveText(/^\d+$/);
+  return (await cell.textContent()).trim();
+}
+
+test('certificates screen: list, history after reprint, remove pallet, export', async ({ page }) => {
+  await stubPrinting(page);
+  const pallet = uniquePalletNumber();
+  await signIn(page);
+  const number = await issueOne(page, pallet);
+
+  await navTo(page, 'טבלת נתונים');
+  // Correct the weight, then reprint from the certificates screen -> version 2
+  // (task 5 CR#3: the "already sent / certified" confirm appears when opening the editor)
+  await rowByPallet(page, pallet).getByRole('button', { name: 'ערוך' }).click();
+  await page.getByRole('button', { name: 'אשר' }).click();
+  const editor = page.locator('tbody tr').filter({ has: page.getByRole('button', { name: 'שמור' }) });
+  await editor.locator('td[data-col="weight"] input').fill('490');
+  await editor.getByRole('button', { name: 'שמור' }).click();
+  await expect(rowByPallet(page, pallet).locator('td[data-col="weight"]')).toHaveText('490');
+
+  await navTo(page, 'תעודות');
+  const certRow = page.locator('tr[data-certificate]', { hasText: number });
+  await expect(certRow).toBeVisible();
+  await certRow.getByRole('button', { name: 'הדפס' }).click();
+  await expect(certRow.locator('[data-col="version"]')).toHaveText('2');
+
+  // Expand -> pallets; history lists both versions
+  await certRow.getByRole('button', { name: 'פרטים' }).click();
+  await expect(page.getByText('גרסה 1')).toBeVisible();
+  await expect(page.getByText('גרסה 2')).toBeVisible();
+
+  // Excel export downloads a file
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'ייצוא לאקסל' }).click();
+  expect((await download).suggestedFilename()).toMatch(/^תעודות-.*\.xlsx$/);
+
+  // Remove the pallet -> certificate cancelled, pallet back in shipment prep
+  await page.getByRole('button', { name: 'הסר מתעודה' }).click();
+  await page.getByRole('button', { name: 'אשר' }).click();
+  await expect(certRow.locator('[data-col="status"]')).toHaveText('מבוטלת');
+  await navTo(page, 'הכנה למשלוח');
+  await expect(rowByPallet(page, pallet)).toHaveCount(1);
+});
