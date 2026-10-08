@@ -50,6 +50,12 @@ router.put('/farmers/:farmer/records/resetPallets',
     sheetController.resetSentStatus.bind(sheetController)
 );
 
+// Bulk-stamp shipmentDate on selected pallets (must precede the /:id route)
+router.put('/farmers/:farmer/records/shipmentDate',
+    validateFarmer,
+    sheetController.updateShipmentDate.bind(sheetController)
+);
+
 // Update records
 router.put('/farmers/:farmer/records/updatemany',
     validateFarmer,

@@ -113,6 +113,19 @@ describe('bulk status + audit', () => {
     expect((await repo.getRecords(FARMER))[0].mark).toBe(true);
   });
 
+  it('updateShipmentDate touches only shipmentDate + editor stamp, and rejects missing ids', async () => {
+    const a = await repo.appendRecord(FARMER, rec({ weight: 12, destination: 'X' }));
+    const b = await repo.appendRecord(FARMER, rec({ weight: 34 }));
+    const out = await repo.updateShipmentDate(FARMER, [a.id], '2026-10-12', 'a@b.c', '2026-10-08T00:00:00Z');
+    expect(out).toEqual([{ id: a.id, palletNumber: '1', shipmentDate: '2026-10-12' }]);
+    const back = await repo.getRecords(FARMER);
+    expect(back.find(r => r.id === a.id)).toMatchObject({
+      shipmentDate: '2026-10-12', editedBy: 'a@b.c', editedAt: '2026-10-08T00:00:00Z', weight: 12, destination: 'X',
+    });
+    expect(back.find(r => r.id === b.id).shipmentDate).toBeUndefined();
+    await expect(repo.updateShipmentDate(FARMER, ['nope'], '2026-10-12', 'a@b.c', 'x')).rejects.toThrow(/not found/);
+  });
+
   it('appendAuditLog writes an audit doc', async () => {
     await repo.appendAuditLog(FARMER, { recordId: 'r1', palletNumber: '1', action: 'קליטה', editedBy: 'a@b.c', editedAt: '2026-07-13T00:00:00Z' });
     const snap = await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('audit').get();

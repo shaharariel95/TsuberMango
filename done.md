@@ -5,6 +5,11 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 3 — CR#1 Shipment prep: pick the date once + "החל על הכל"
+- Selection toolbar in `PalletTable.vue` got a date input + "החל על הכל" button (enabled when ≥1 pallet is selected). It asks for confirmation with the pallet count, then stamps the date on every selected row.
+- New narrow endpoint `PUT /api/farmers/:farmer/records/shipmentDate` (`{palletIds, shipmentDate}`), backed by a new `updateShipmentDate` on the `RecordRepository` contract and `FirestoreRepository`. It touches only `shipmentDate` + `editedBy`/`editedAt`, so it works on unweighed pallets and cannot clobber concurrent edits (unlike `updatemany`). Audited as `עדכון תאריך משלוח`; emits a new `shipment_date` realtime event that `useFarmerEvents.js` applies in place. Docs updated (`api-reference.md`, `realtime.md`).
+- Tests: +3 backend (repository + 2 API cases; 57 total), new `e2e/shipment-date.spec.js` (two clients, live update + reload).
+
 ### ✅ Task 2 — CR#2 Intake: shipment date removed, mandatory fields enforced
 - The shipment-date input, its `formData` init/reset, label-map entry and the "last submitted" summary row are gone from `PalletInput.vue`. Nothing downstream needed intake to set a shipment date (the model defaults it to `''`; it is set later on the data table / shipment prep).
 - Harvest date, pallet number, boxes, kind and size are now validated client-side before submit (`novalidate` form + one Hebrew `requestAlert()` listing everything missing). Before, kind/size were only checked server-side because the radios are visually hidden.

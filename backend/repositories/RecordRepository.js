@@ -11,6 +11,8 @@ class RecordRepository {
   updateRecords(farmer, ids, records) { throw new Error('not implemented'); }
   updateSentStatus(farmer, ids, value) { throw new Error('not implemented'); }
   updateMarkStatus(farmer, ids, value) { throw new Error('not implemented'); }
+  // Partial update: touches only shipmentDate + editedBy/editedAt. Resolves to [{id, palletNumber, shipmentDate}].
+  updateShipmentDate(farmer, ids, shipmentDate, editedBy, editedAt) { throw new Error('not implemented'); }
   appendAuditLog(farmer, entry) { throw new Error('not implemented'); }
 }
 

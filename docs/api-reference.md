@@ -42,6 +42,7 @@ additionally require `ensureAdmin`.
 | GET | `/api/farmers/:farmer/records/pallet/:palletNumber` | `getRecordsByPallet` | Records for a pallet number (404 if none) |
 | GET | `/api/farmers/:farmer/records/lastPallet` | `getLastPallet` | Highest pallet number |
 | PUT | `/api/farmers/:farmer/records/resetPallets` | `resetSentStatus` | Bulk reset sent=false |
+| PUT | `/api/farmers/:farmer/records/shipmentDate` | `updateShipmentDate` | Body `{palletIds[], shipmentDate: 'yyyy-mm-dd'}`. Partial update (only `shipmentDate` + `editedBy`/`editedAt`), works on unweighed pallets; audit `עדכון תאריך משלוח`; emits `shipment_date`. 400 bad date/ids/unknown farmer, 404 unknown id |
 | PUT | `/api/farmers/:farmer/records/updatemany` | `updateMultipleRecords` | Batch update records |
 | PUT | `/api/farmers/:farmer/records/:id` | `updateRecord` | Single record update |
 | POST | `/api/shipping/newlabel/` | `createNewShippingLabel` | Create shipping label sheet |

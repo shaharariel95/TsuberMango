@@ -34,6 +34,16 @@
                         class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
                         הורד ממשלוח
                     </SpinnerButton>
+                    <div v-if="isEditable" class="flex items-center gap-1.5" data-testid="bulk-date">
+                        <input type="date" v-model="bulkShipmentDate" aria-label="תאריך משלוח לכל הנבחרים"
+                            :disabled="selectedPallets.length === 0"
+                            class="border border-slate-200 rounded-lg text-sm px-2 py-1 min-h-[36px] bg-white disabled:opacity-50" />
+                        <SpinnerButton @click="applyShipmentDateToSelected"
+                            :loading="isApplyingDate" :inverted="false" :disabled="selectedPallets.length === 0"
+                            class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
+                            החל על הכל
+                        </SpinnerButton>
+                    </div>
                     <SpinnerButton v-if="isEditable" @click="sendSelectedPallets"
                         :loading="isCreatingLabel" :disabled="isCreateLabelAllowed"
                         class="btn-primary text-sm min-h-[36px] px-3">
@@ -321,6 +331,8 @@ export default {
             error: null,
             isLoading: false,
             isCreatingLabel: false,
+            isApplyingDate: false,
+            bulkShipmentDate: '',
             sentView: false,
             destinationFilterText: '',
             searchText: '',
@@ -740,6 +752,44 @@ export default {
                     message: err.message,
                     variant: isValidation ? 'warning' : 'error',
                 });
+            }
+        },
+
+        async applyShipmentDateToSelected() {
+            const ids = this.selectedPallets.slice();
+            if (!ids.length) return;
+            if (!this.bulkShipmentDate) {
+                await requestAlert({ title: 'חסר תאריך', message: 'יש לבחור תאריך משלוח לפני הלחיצה על "החל על הכל"', variant: 'warning' });
+                return;
+            }
+            const date = this.bulkShipmentDate;
+            const ok = await requestConfirm({
+                title: 'עדכון תאריך משלוח',
+                message: `האם לקבוע תאריך משלוח ${date} ל-${ids.length} משטחים?`,
+                variant: 'amber',
+            });
+            if (!ok) return;
+
+            this.isApplyingDate = true;
+            try {
+                const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/shipmentDate`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${await getToken()}`,
+                    },
+                    body: JSON.stringify({ palletIds: ids, shipmentDate: date }),
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to update shipment date');
+                }
+                const updatedPallets = this.pallets.map(p => ids.includes(p.id) ? { ...p, shipmentDate: date } : p);
+                this.$emit('update:pallets', updatedPallets);
+                this.selectedPallets = [];
+            } catch (err) {
+                await requestAlert({ title: 'שגיאה', message: 'עדכון תאריך המשלוח נכשל, נסה שוב', variant: 'error' });
+            } finally {
+                this.isApplyingDate = false;
             }
         },
 

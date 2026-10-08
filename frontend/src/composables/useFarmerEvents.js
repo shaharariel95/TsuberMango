@@ -53,6 +53,14 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
           keep ? (list[idx] = updated) : list.splice(idx, 1)
         })
         break
+      case 'shipment_date':
+        event.palletIds.forEach(id => {
+          const idx = list.findIndex(x => x.id === id)
+          if (idx === -1) return
+          list[idx] = { ...list[idx], shipmentDate: event.shipmentDate }
+          flashed.push(id)
+        })
+        break
       case 'mark_destination':
         event.pallets.forEach(p => {
           const idx = list.findIndex(x => x.id === p.id)

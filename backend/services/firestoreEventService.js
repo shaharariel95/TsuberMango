@@ -22,4 +22,5 @@ module.exports = {
   emitBulkUpdate:      (farmer, pallets, updatedBy)           => emit(farmer, { type: 'bulk_update',      updatedBy, pallets }),
   emitResetSent:       (farmer, palletIds, updatedBy)         => emit(farmer, { type: 'reset_sent',       updatedBy, palletIds }),
   emitMarkDestination: (farmer, pallets, newValue, updatedBy) => emit(farmer, { type: 'mark_destination', updatedBy, pallets, newValue }),
+  emitShipmentDate:    (farmer, palletIds, shipmentDate, updatedBy) => emit(farmer, { type: 'shipment_date',    updatedBy, palletIds, shipmentDate }),
 }

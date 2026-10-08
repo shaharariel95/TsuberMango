@@ -223,6 +223,54 @@ describe('season flow: intake → weigh → mark → certificate → sent', () =
     expect(res.status).toBe(400);
   });
 
+  it('shipmentDate bulk update stamps only the date, works on unweighed pallets, audits and emits an event', async () => {
+    const records = (await api('get', `/api/farmers/${enc}/records`)).body.data;
+    const unweighed = records.find(r => r.id !== id);
+    const before = (await farmerDoc.collection('records').doc(unweighed.id).get()).data();
+
+    const res = await api('put', `/api/farmers/${enc}/records/shipmentDate`).send({
+      palletIds: [unweighed.id, id], shipmentDate: '2026-10-12',
+    });
+    expect(res.status).toBe(200);
+
+    const after = (await farmerDoc.collection('records').doc(unweighed.id).get()).data();
+    expect(after).toEqual({ ...before, shipmentDate: '2026-10-12', editedBy: ADMIN, editedAt: expect.any(String) });
+    expect(after.weight).toEqual(before.weight);
+    expect((await farmerDoc.collection('records').doc(id).get()).data().shipmentDate).toBe('2026-10-12');
+
+    const audit = await waitFor(async () => {
+      const s = await farmerDoc.collection('audit').where('action', '==', 'עדכון תאריך משלוח').get();
+      return s.size >= 2 ? s.docs.map(d => d.data().recordId) : null;
+    });
+    expect(audit).toEqual(expect.arrayContaining([unweighed.id, id]));
+
+    const evt = await waitFor(async () => {
+      const s = await center.collection('farmer_events').doc(FARMER).get();
+      return s.data()?.type === 'shipment_date' ? s.data() : null;
+    });
+    expect(evt).toMatchObject({ updatedBy: ADMIN, shipmentDate: '2026-10-12' });
+    expect(evt.palletIds).toEqual(expect.arrayContaining([unweighed.id, id]));
+  });
+
+  it('shipmentDate bulk update rejects bad input and unknown farmer/pallets', async () => {
+    const url = `/api/farmers/${enc}/records/shipmentDate`;
+    for (const body of [
+      { palletIds: [id], shipmentDate: '09/10/2026' },
+      { palletIds: [id], shipmentDate: '2026-02-31' },
+      { palletIds: [id] },
+      { palletIds: [], shipmentDate: '2026-10-12' },
+      { palletIds: 'x', shipmentDate: '2026-10-12' },
+    ]) {
+      expect((await api('put', url).send(body)).status, JSON.stringify(body)).toBe(400);
+    }
+    const unknown = await api('put', `/api/farmers/${encodeURIComponent('לא-קיים')}/records/shipmentDate`)
+      .send({ palletIds: [id], shipmentDate: '2026-10-12' });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error).toMatch(/Unknown farmer/);
+    const nope = await api('put', url).send({ palletIds: ['no-such-id'], shipmentDate: '2026-10-12' });
+    expect(nope.status).toBe(404);
+  });
+
   it('stamping a certificate via updatemany sets cardId + sent and emits a bulk event', async () => {
     const rec = (await api('get', `/api/farmers/${enc}/records/pallet/1`)).body.data[0];
     const res = await api('put', `/api/farmers/${enc}/records/updatemany`).send([

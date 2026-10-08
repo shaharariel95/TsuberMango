@@ -507,6 +507,57 @@ class SheetController {
     }
   }
 
+  // Narrow bulk update: stamps only shipmentDate (+ editedBy/editedAt) on the given pallets.
+  // Deliberately not built on updatemany, which validates and overwrites whole rows.
+  async updateShipmentDate(req, res) {
+    try {
+      const { farmer } = req.params;
+      const farmerError = await assertKnownFarmer(farmer);
+      if (farmerError) {
+        return res.status(400).json({ error: farmerError });
+      }
+      const { palletIds, shipmentDate } = req.body || {};
+      if (!Array.isArray(palletIds) || !palletIds.length || palletIds.some(id => typeof id !== 'string' || !id)) {
+        return res.status(400).json({ error: "Invalid pallet IDs" });
+      }
+      const validDate = typeof shipmentDate === 'string'
+        && /^\d{4}-\d{2}-\d{2}$/.test(shipmentDate)
+        && !isNaN(new Date(`${shipmentDate}T00:00:00Z`).getTime())
+        && new Date(`${shipmentDate}T00:00:00Z`).toISOString().startsWith(shipmentDate);
+      if (!validDate) {
+        return res.status(400).json({ error: "shipmentDate must be a valid yyyy-mm-dd date" });
+      }
+
+      const ids = [...new Set(palletIds)];
+      const editedBy = req.user?.email || 'unknown';
+      const editedAt = new Date().toISOString();
+      const updated = await repo.updateShipmentDate(farmer, ids, shipmentDate, editedBy, editedAt);
+
+      updated.forEach(u => {
+        repo.appendAuditLog(farmer, {
+          recordId: u.id,
+          palletNumber: u.palletNumber,
+          action: 'עדכון תאריך משלוח',
+          editedBy,
+          editedAt,
+        }).catch(err => logger.error(`appendAuditLog failed on shipmentDate: ${err.message}`));
+      });
+
+      firestoreEventService.emitShipmentDate(farmer, ids, shipmentDate, editedBy);
+
+      logger.info(`Shipment date ${shipmentDate} set on ${ids.length} pallet(s) for "${farmer}" by ${editedBy}`);
+      res.json({ message: "Shipment date updated successfully", updated });
+    } catch (error) {
+      if (error.message.includes("Row with ID") && error.message.includes("not found")) {
+        return res.status(404).json({ error: error.message });
+      }
+      logger.error(`updateShipmentDate failed: ${error.message}`);
+      return res
+        .status(500)
+        .json({ error: "Failed to update shipment date", details: error.message });
+    }
+  }
+
   async removeFromDestination(req, res) {
     try {
       const { farmer } = req.params;

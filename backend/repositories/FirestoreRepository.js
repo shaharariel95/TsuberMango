@@ -68,6 +68,17 @@ class FirestoreRepository extends RecordRepository {
     return ids.map(id => ({ id, mark: value }));
   }
 
+  async updateShipmentDate(farmer, ids, shipmentDate, editedBy, editedAt) {
+    const refs = ids.map(id => this.recordsCol(farmer).doc(id));
+    const snaps = await this.db.getAll(...refs);
+    const missing = snaps.find(s => !s.exists);
+    if (missing) throw new Error(`Row with ID ${missing.id} not found`);
+    const batch = this.db.batch();
+    refs.forEach(ref => batch.update(ref, { shipmentDate, editedBy, editedAt }));
+    await batch.commit();
+    return snaps.map(s => ({ id: s.id, palletNumber: s.data().palletNumber, shipmentDate }));
+  }
+
   async appendAuditLog(farmer, entry) {
     // Never rethrow — audit must not break the main flow.
     try {

@@ -21,6 +21,7 @@ Run is only woken by actual HTTP requests.
 | `bulk_update` | `pallets[]` | Per-row: update in-place / remove / ignore |
 | `reset_sent` | `palletIds[]` | Set `sent: false` in-place; remove if view filters on sent |
 | `mark_destination` | `pallets[]`, `newValue` | Only updates `mark` field on existing rows; appends if view filters on mark |
+| `shipment_date` | `palletIds[]`, `shipmentDate` | Set `shipmentDate` in-place on existing rows (never appends/removes) |
 
 ---
 
