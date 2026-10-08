@@ -2,7 +2,6 @@
 const express = require('express');
 const router = express.Router();
 const sheetController = require('../controllers/sheetController');
-const labelController = require('../controllers/labelController');
 const logger = require('../utils/logger');
 
 // Middleware to validate farmer parameter
@@ -67,11 +66,6 @@ router.put('/farmers/:farmer/records/updatemany',
 router.put('/farmers/:farmer/records/:id',
     validateFarmer,
     sheetController.updateRecord.bind(sheetController)
-);
-
-router.post('/shipping/newlabel/',
-    (req,res,next)=> {logger.info(`in /shipping/newlabel`); next()},
-    labelController.createNewShippingLabel.bind(labelController)
 );
 
 router.post('/farmers/:farmer/destinations/toSend',

@@ -17,7 +17,6 @@ process.env.FRONT_CORS = 'http://localhost:5173';
 if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
 const db = admin.firestore();
 const { app } = await import('../app.js');
-const shippingLabelsService = (await import('../services/shippingLabelsService.js')).default;
 
 const center = db.collection('centers').doc(CENTER);
 const farmerDoc = center.collection('farmers').doc(FARMER);
@@ -317,20 +316,9 @@ describe('admin: config', () => {
 });
 
 describe('Google Sheets is unreachable from the emulator stack', () => {
-  it('certificate creation fails loudly instead of writing a real spreadsheet', async () => {
-    const res = await api('post', '/api/shipping/newlabel').send({ farmer: FARMER, pallets: [] });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/Google Sheets access is disabled/);
-  });
-
   it('admin create-sheet fails loudly instead of touching the real farmers spreadsheet', async () => {
     const res = await api('post', '/api/admin/create-sheet').send({ name: 'x' });
     expect(res.status).toBe(500);
     expect(res.body.details).toMatch(/Google Sheets access is disabled/);
-  });
-
-  it('an unknown farmer has no label spreadsheet (no silent fallback to Tsuberi)', () => {
-    expect(() => shippingLabelsService.getSpreadsheetIdByFarmer('לא-קיים'))
-      .toThrow(/No shipping-label spreadsheet configured/);
   });
 });

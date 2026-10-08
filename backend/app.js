@@ -191,6 +191,58 @@ const sheetController = require('./controllers/sheetController');
 app.post('/api/admin/backup', ensureAdmin, sheetController.triggerBackup.bind(sheetController));
 app.get('/api/admin/backups', ensureAdmin, sheetController.listBackups.bind(sheetController));
 
+// 📄 Certificate profile per farmer (header lines, driver, next number) — task 20.
+const certRepo = require('./repositories').certificates;
+
+app.get("/api/admin/farmers/:farmer/certificate-profile", ensureAdmin, async (req, res) => {
+  try {
+    res.json({ profile: await certRepo.getProfile(req.params.farmer) });
+  } catch (err) {
+    logger.error(`[GET certificate-profile] ${err.message}`);
+    res.status(500).json({ error: "Failed to load profile", details: err.message });
+  }
+});
+
+app.put("/api/admin/farmers/:farmer/certificate-profile", ensureAdmin, async (req, res) => {
+  const { farmer } = req.params;
+  const { headerLines, driverName = '', nextNumber } = req.body || {};
+  if (!Array.isArray(headerLines) || headerLines.length !== 5 || headerLines.some(l => typeof l !== 'string')) {
+    return res.status(400).json({ error: "נדרשות בדיוק 5 שורות כותרת" });
+  }
+  if (!Number.isInteger(nextNumber) || nextNumber < 1) {
+    return res.status(400).json({ error: "מספר התעודה הבא חייב להיות מספר שלם חיובי" });
+  }
+  try {
+    const maxIssued = await certRepo.maxIssuedNumber(farmer);
+    if (nextNumber <= maxIssued) {
+      return res.status(400).json({ error: `מספר התעודה הבא חייב להיות גדול מ-${maxIssued} (התעודה האחרונה שהונפקה)` });
+    }
+    const profile = { headerLines, driverName: String(driverName), nextNumber };
+    await certRepo.setProfile(farmer, profile);
+    logger.info(`[PUT certificate-profile] ${farmer} nextNumber=${nextNumber} by ${req.user.email}`);
+    res.json({ profile });
+  } catch (err) {
+    logger.error(`[PUT certificate-profile] ${err.message}`);
+    res.status(500).json({ error: "Failed to save profile", details: err.message });
+  }
+});
+
+// 📤 Season export — all farmers' pallet records (the frontend builds the Excel file).
+app.get("/api/admin/export/records", ensureAdmin, async (req, res) => {
+  try {
+    const recordsRepo = require('./repositories');
+    const snap = await configDoc().get();
+    const names = ((snap.exists && snap.data().farmers) || []).map(f => f.name).filter(Boolean);
+    const farmers = {};
+    for (const name of names) farmers[name] = await recordsRepo.getRecords(name);
+    logger.info(`[GET export/records] ${names.length} farmers by ${req.user.email}`);
+    res.json({ farmers });
+  } catch (err) {
+    logger.error(`[GET export/records] ${err.message}`);
+    res.status(500).json({ error: "Failed to export", details: err.message });
+  }
+});
+
 // 👥 User Management Endpoints
 app.get("/api/admin/users", ensureAdmin, async (req, res) => {
   try {

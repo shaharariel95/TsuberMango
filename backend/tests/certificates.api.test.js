@@ -192,3 +192,57 @@ describe('reprint / remove / reads', () => {
     expect(ranged.body.certificates.map(c => c.number)).toEqual([51467]);
   });
 });
+
+describe('admin: certificate profile + export', () => {
+  const url = `/api/admin/farmers/${enc(FARMER)}/certificate-profile`;
+  it('admin reads and writes the profile; user is forbidden', async () => {
+    expect((await api('get', url, 'user')).status).toBe(403);
+    const put = await api('put', url).send({ ...profile, nextNumber: 60000 });
+    expect(put.status).toBe(200);
+    expect((await api('get', url)).body.profile.nextNumber).toBe(60000);
+  });
+  it('validates shape: 5 header lines, integer nextNumber ≥ 1', async () => {
+    expect((await api('put', url).send({ ...profile, headerLines: ['a'] })).status).toBe(400);
+    expect((await api('put', url).send({ ...profile, nextNumber: 0 })).status).toBe(400);
+    expect((await api('put', url).send({ ...profile, nextNumber: 1.5 })).status).toBe(400);
+  });
+  it('rejects nextNumber ≤ highest issued number', async () => {
+    const id = await addRecord(1);
+    await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] }); // issues 51466
+    const res = await api('put', url).send({ ...profile, nextNumber: 51466 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch('51466');
+  });
+  it('season export is admin-only and returns records per farmer', async () => {
+    await addRecord(1);
+    expect((await api('get', '/api/admin/export/records', 'user')).status).toBe(403);
+    const res = await api('get', '/api/admin/export/records');
+    expect(res.status).toBe(200);
+    expect(res.body.farmers[FARMER]).toHaveLength(1);
+  });
+});
+
+describe('record paths stay consistent with certificates', () => {
+  it('resetPallets on a certified pallet removes it from its certificate', async () => {
+    const id = await addRecord(421);
+    const issued = (await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] })).body.certificates[0];
+    const res = await api('put', `/api/farmers/${enc(FARMER)}/records/resetPallets`).send({ palletIds: [id] });
+    expect(res.status).toBe(200);
+    expect((await farmerDoc.collection('records').doc(id).get()).data()).toMatchObject({ cardId: '', sent: false });
+    const got = await api('get', `/api/certificates/${enc(issued.id)}`);
+    expect(got.body.certificate.status).toBe('cancelled');
+  });
+  it('single-record edit cannot change cardId/sent of a certified pallet', async () => {
+    const id = await addRecord(421);
+    await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] });
+    const res = await api('put', `/api/farmers/${enc(FARMER)}/records/${id}`).send({
+      farmer: FARMER, harvestDate: '2026-11-30', palletNumber: 421, boxes: 120, kind: 'שלי', size: '15',
+      weight: 760, destination: 'שיווק האיחוד', shipmentDate: '2026-12-01', cardId: '', sent: false, mark: false,
+    });
+    expect(res.status).toBe(200);
+    expect((await farmerDoc.collection('records').doc(id).get()).data()).toMatchObject({ weight: 760, cardId: 51466, sent: true });
+  });
+  it('the old Sheets label endpoint is gone', async () => {
+    expect((await api('post', '/api/shipping/newlabel').send({ farmer: FARMER, pallets: [] })).status).toBe(404);
+  });
+});

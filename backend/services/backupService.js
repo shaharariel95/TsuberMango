@@ -72,11 +72,16 @@ async function runBackup(triggeredBy) {
         }
     }
 
+    let certificates = [];
+    try { certificates = await repo.certificates.listAllWithVersions(); }
+    catch (err) { logger.error(`[backupService] Failed to fetch certificates: ${err.message}`); }
+
     // 3. Serialize
     const payload = JSON.stringify(
         {
             timestamp: timestamp.toISOString(),
             farmers: farmersData,
+            certificates,
         },
         null,
         2

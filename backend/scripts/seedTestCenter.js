@@ -24,6 +24,13 @@ const CENTER = 'test';
     farmerConfigs: {},
   }, { merge: true });
 
+  await center.collection('farmers').doc('חקלאי-טסט').set({
+    certificateProfile: {
+      headerLines: ['חקלאי טסט', "משק מס' 1", 'מושב טסט', 'נייד: 050-0000000', 'עוסק מורשה 000000000'],
+      driverName: 'אדם', nextNumber: 1000,
+    },
+  }, { merge: true });
+
   for (const email of emails) {
     await center.collection('users').doc(email).set({ role: 'admin' }, { merge: true });
   }

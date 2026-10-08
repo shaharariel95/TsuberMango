@@ -3,6 +3,7 @@ const SheetModel = require("../models/sheetModel");
 const repo = require("../repositories");
 const backupService = require("../services/backupService");
 const logger = require("../utils/logger");
+const certificateService = require("../services/certificateService");
 const firestoreEventService = require("../services/firestoreEventService");
 const admin = require("firebase-admin");
 const { CENTER_ID } = require("../config/center");
@@ -433,9 +434,14 @@ class SheetController {
       const editedBy = req.user?.email || 'unknown';
       const editedAt = new Date().toISOString();
 
+      const existing = (await repo.getRecords(farmer)).find(r => r.id === id);
+      const certified = existing && existing.cardId !== '' && existing.cardId != null;
+      const effectiveCardId = certified ? existing.cardId : cardId;
+      const effectiveSent = certified ? existing.sent : sent;
+
       const sheetRecord = new SheetModel(
         shipmentDate,
-        cardId,
+        effectiveCardId,
         harvestDate,
         palletNumber,
         kind,
@@ -443,7 +449,7 @@ class SheetController {
         boxes,
         weight,
         destination,
-        sent,
+        effectiveSent,
         gidon,
         mark,
         editedBy,
@@ -494,10 +500,20 @@ class SheetController {
       if (!Array.isArray(palletIds) || !palletIds.length) {
         return res.status(400).json({ error: "Invalid pallet IDs" });
       }
-      // Bulk update logic
-      const results = await repo.updateSentStatus(farmer, palletIds, false);
-
-      firestoreEventService.emitResetSent(farmer, palletIds, req.user?.email || 'unknown');
+      const all = await repo.getRecords(farmer);
+      const withCard = all.filter(r => palletIds.includes(r.id) && r.cardId !== '' && r.cardId != null);
+      // Legacy pallets can carry a cardId with no certificate doc (pre-task-20 / manual stamping): those reset plainly.
+      const certified = [];
+      for (const r of withCard) {
+        if (await certificateService.get(`${farmer}__${r.cardId}`)) certified.push(r);
+      }
+      const plain = palletIds.filter(id => !certified.some(r => r.id === id));
+      for (const r of certified) {
+        await certificateService.removePallet({ id: `${farmer}__${r.cardId}`, recordId: r.id, actor: req.user?.email || 'unknown' });
+      }
+      const results = plain.length ? await repo.updateSentStatus(farmer, plain, false) : [];
+      if (plain.length) firestoreEventService.emitResetSent(farmer, plain, req.user?.email || 'unknown');
+      logger.info(`[resetSentStatus] ${farmer}: ${certified.length} removed from certificates, ${plain.length} reset`);
 
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {

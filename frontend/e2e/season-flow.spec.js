@@ -1,9 +1,9 @@
 // The core season workflow, end to end through the real UI:
-// intake → weigh + destination → mark for shipment → certificate attempt.
+// intake → weigh + destination → mark for shipment.
 import { test, expect } from '@playwright/test';
 import { navTo, signIn, intakePallet, editRow, rowByPallet, uniquePalletNumber, DESTINATION } from './helpers.js';
 
-test('intake → weigh → mark for shipment → certificate is blocked from touching real Sheets', async ({ page }) => {
+test('intake → weigh → mark for shipment', async ({ page }) => {
   const consoleErrors = [];
   page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
   const pallet = uniquePalletNumber();
@@ -39,13 +39,6 @@ test('intake → weigh → mark for shipment → certificate is blocked from tou
   await navTo(page, 'הכנה למשלוח');
   const prepRow = rowByPallet(page, pallet);
   await expect(prepRow).toHaveCount(1);
-
-  // Certificate creation must fail loudly under the emulators (never write real Sheets)
-  await prepRow.locator('td[data-col="selected"] input[type="checkbox"]').check();
-  await page.getByRole('button', { name: 'צור תעודת משלוח' }).click();
-  await expect(page.getByText(/Google Sheets access is disabled/)).toBeVisible();
-  await page.getByRole('button', { name: 'הבנתי' }).click();
-  await expect(prepRow.locator('td[data-col="cardId"]')).toHaveText('');
 
   // Data survives a reload (it's in Firestore, not just local state)
   await page.reload();
