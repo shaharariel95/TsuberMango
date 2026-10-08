@@ -52,6 +52,19 @@ describe('buildCertificateDoc', () => {
     const rows = Array.from({ length: 14 }, (_, i) => ({ ...snap.rows[0], recordId: `r${i}` }));
     expect(() => buildCertificateDoc([{ ...snap, rows }])).toThrow(/max 13/);
   });
+  it('keeps the line order of an explicit two-line label', () => {
+    const flat = pdfTextToString(toPdfText('סה"כ\nמשטחים', { bold: true }));
+    expect(flat).toBe(`${pdfTextToString(toPdfText('סה"כ'))}\n${pdfTextToString(toPdfText('משטחים'))}`);
+  });
+  it('carries the style onto every piece and never auto-wraps single lines', () => {
+    const pieces = toPdfText('תעודת משלוח', { bold: true, fontSize: 14 });
+    expect(pieces.length).toBeGreaterThan(1);
+    pieces.forEach(p => expect(p).toMatchObject({ bold: true, fontSize: 14 }));
+    const doc = buildCertificateDoc([snap]);
+    const dest = JSON.stringify(doc.content);
+    expect(dest).toContain('"decoration":"underline"');
+    expect(doc.content.find(n => n.table && n.table.widths?.length === 9).table.body[1].every(c => c.noWrap)).toBe(true);
+  });
   it('keeps the 9-column table inside the A4 content width', () => {
     const table = buildCertificateDoc([snap]).content.find(n => n.table && n.table.widths?.length === 9);
     const total = table.table.widths.reduce((a, b) => a + b, 0) + 9 * 9; // + padding and border per column
