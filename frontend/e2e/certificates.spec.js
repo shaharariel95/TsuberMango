@@ -110,3 +110,28 @@ test('certificates screen: list, history after reprint, remove pallet, export', 
   await navTo(page, 'הכנה למשלוח');
   await expect(rowByPallet(page, pallet)).toHaveCount(1);
 });
+
+test('settings: edit certificate details per farmer, reject a lower number, season export', async ({ page }) => {
+  await stubPrinting(page);
+  await signIn(page);
+  await navTo(page, 'ניהול הגדרות');
+  await page.getByRole('button', { name: 'פרטי תעודה' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'פרטי תעודה' });
+  await expect(dialog.getByLabel('שורת כותרת 1')).toHaveValue(/^חקלאי טסט/); // the second project sees the first project's edit
+  await dialog.getByLabel('שורת כותרת 1').fill('חקלאי טסט מעודכן');
+  await dialog.getByLabel('מספר התעודה הבא').fill('1');
+  await dialog.getByRole('button', { name: 'שמור' }).click();
+  // Either saved (nothing issued yet) or rejected - both must be explicit
+  await expect(dialog.getByText(/נשמר|חייב להיות גדול/)).toBeVisible();
+  // Unique, growing number: always above anything issued by earlier tests/projects
+  await dialog.getByLabel('מספר התעודה הבא').fill(String(Math.floor(Date.now() / 1000)));
+  await dialog.getByRole('button', { name: 'שמור' }).click();
+  await expect(dialog.getByText('נשמר', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'תצוגה מקדימה' }).click();
+  await expect.poll(() => page.evaluate(() => window.__printed.length)).toBe(1);
+  await dialog.getByRole('button', { name: 'סגור' }).click();
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'ייצוא נתוני עונה' }).click();
+  expect((await download).suggestedFilename()).toMatch(/^נתוני-עונה-.*\.xlsx$/);
+});

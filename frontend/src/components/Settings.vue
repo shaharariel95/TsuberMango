@@ -28,6 +28,7 @@
               <span class="text-xs text-slate-500">גדעון?</span>
             </label>
           </div>
+          <button class="btn-ghost text-xs border border-slate-200 px-2 py-1 flex-shrink-0" @click="profileFarmer = farmer.name">פרטי תעודה</button>
           <button @click="confirmDeleteFarmer(farmer.name)"
                   class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-all text-base flex-shrink-0 min-h-[40px] min-w-[40px]"
                   aria-label="מחק חקלאי">
@@ -46,6 +47,13 @@
         </SpinnerButton>
       </div>
     </section>
+
+    <section class="card space-y-3">
+      <h2 class="text-xl font-bold text-slate-700 pb-2 border-b border-slate-100">ייצוא נתוני עונה</h2>
+      <p class="text-sm text-slate-500">קובץ אקסל עם כל המשטחים של כל המגדלים — לחישובי סוף עונה.</p>
+      <SpinnerButton @click="exportSeason" :loading="exporting" class="btn-primary">ייצוא נתוני עונה</SpinnerButton>
+    </section>
+    <CertificateProfileEditor v-if="profileFarmer" :farmer="profileFarmer" @close="profileFarmer = ''" />
 
     <!-- 2. User Management -->
     <section class="card space-y-4">
@@ -250,11 +258,13 @@ import axios from 'axios';
 // import { kinds, sizes, destinations, farmerConfigs } from '../data/data';
 import ListEditor from './ListEditor.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
+import CertificateProfileEditor from './CertificateProfileEditor.vue';
+import { exportSeasonRecords } from '../api/certificates';
 
 
 
 export default {
-  components: { ListEditor, SpinnerButton },
+  components: { ListEditor, SpinnerButton, CertificateProfileEditor },
   setup() {
     const localConfig = reactive({
       farmers: [],
@@ -468,7 +478,36 @@ export default {
       setTimeout(() => status.value = null, 4000);
     };
 
+    const profileFarmer = ref('');
+    const exporting = ref(false);
+
+    const exportSeason = async () => {
+      exporting.value = true;
+      try {
+        const { farmers } = await exportSeasonRecords();
+        const XLSX = await import('xlsx');
+        const wb = XLSX.utils.book_new();
+        for (const [name, records] of Object.entries(farmers)) {
+          const rows = records.map(r => ({
+            'מגדל': name, 'מספר תעודה': r.cardId ?? '', 'תאריך משלוח': r.shipmentDate || '',
+            'יעד': r.destination || '', "משטח מס'": r.palletNumber, 'זן': r.kind, 'גודל': r.size,
+            'ארגזים': r.boxes, 'משקל': r.weight, 'תאריך קטיף': r.harvestDate,
+          }));
+          const ws = XLSX.utils.json_to_sheet(rows);
+          ws['!views'] = [{ RTL: true }];
+          XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+        }
+        if (!wb.SheetNames.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[]]), 'ריק');
+        XLSX.writeFile(wb, `נתוני-עונה-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      } catch (e) {
+        showStatus(e.message || 'הייצוא נכשל', 'error');
+      } finally {
+        exporting.value = false;
+      }
+    };
+
     return {
+      profileFarmer, exporting, exportSeason,
       localConfig, newFarmerName, isWorking, saveConfig, addFarmer,
       confirmDeleteFarmer, farmerToDelete, confirmChecks, deleteFarmer,
       status,
