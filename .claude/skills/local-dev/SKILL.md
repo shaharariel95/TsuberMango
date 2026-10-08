@@ -9,7 +9,7 @@ description: Use when running or testing TsuberMango locally - the backend test 
 
 ```bash
 cd backend && npm test        # ~10s: 53 Vitest tests on the auth + Firestore emulators
-cd frontend && npm run e2e    # ~25s: Playwright, real UI against the emulator stack
+cd frontend && npm run e2e    # ~45s: Playwright, real UI on desktop + tablet viewports
 ```
 
 | Layer | File(s) | Covers |
@@ -29,7 +29,8 @@ extend `frontend/e2e/`. Table cells carry `data-col="<column key>"` for stable s
 - Signs in through the auth-emulator popup as `e2e-admin@test.local` (seeded).
 - Realtime tests need **two different users**. Clients ignore events whose `updatedBy` is
   their own email (echo suppression), so the second client is `e2e-admin-2@test.local`.
-- Viewport is 1600×900; below the 1366px breakpoint the mobile drawer covers the page.
+- Two projects: `desktop` (1600×900) and `tablet` (1280×800, touch; the packhouse Samsung Galaxy Tab). At ≤1366px the app uses the drawer layout, so navigate with `navTo()` from `e2e/helpers.js`, never by clicking sidebar links directly.
+- `webServer` waits on the backend (`:3000/api/auth/me` → 401), not Vite, so the first sign-in never races a booting backend.
 
 **Windows leftover processes:** `firebase emulators:exec` leaves the Firestore java process
 running. `scripts/freePorts.js` runs before/after `npm test` and before `local:test` and kills

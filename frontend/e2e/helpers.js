@@ -37,7 +37,7 @@ export function rowByPallet(page, palletNumber) {
 }
 
 export async function intakePallet(page, palletNumber, { boxes = 40, size = 'L' } = {}) {
-  await page.getByRole('link', { name: 'קליטה' }).click();
+  await navTo(page, 'קליטה');
   await expect(page.getByRole('heading', { name: 'קליטה' })).toBeVisible();
   const form = page.locator('form');
   await form.locator('input[type="number"]').nth(0).fill(String(palletNumber));
@@ -52,4 +52,16 @@ export async function intakePallet(page, palletNumber, { boxes = 40, size = 'L' 
 export async function editRow(page, palletNumber) {
   await rowByPallet(page, palletNumber).getByRole('button', { name: 'ערוך' }).click();
   return page.locator('tbody tr').filter({ has: page.getByRole('button', { name: 'שמור' }) });
+}
+
+// Navigate via the sidebar. At ≤1366px (tablet layout) the links live in a drawer
+// that starts closed, so open it first via the ☰ button.
+export async function navTo(page, label) {
+  // The ☰ button only renders in the tablet layout; isVisible() on a link in the
+  // closed drawer is unreliable (it is off-screen, not hidden).
+  const menuButton = page.getByRole('button', { name: 'פתח תפריט' });
+  if (await menuButton.isVisible()) await menuButton.click();
+  const link = page.getByRole('link', { name: label });
+  await expect(link).toBeInViewport();
+  await link.click();
 }

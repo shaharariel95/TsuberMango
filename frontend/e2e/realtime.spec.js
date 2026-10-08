@@ -2,7 +2,7 @@
 // (backend emits farmer_events → client onSnapshot, gated by the Firestore rules).
 import { test, expect } from '@playwright/test';
 import fs from 'fs';
-import { SECOND_ADMIN_EMAIL, signIn, intakePallet, editRow, rowByPallet, uniquePalletNumber } from './helpers.js';
+import { SECOND_ADMIN_EMAIL, navTo, signIn, intakePallet, editRow, rowByPallet, uniquePalletNumber } from './helpers.js';
 
 test('an edit on one client appears on another without reload', async ({ browser }) => {
   const pallet = uniquePalletNumber();
@@ -19,8 +19,8 @@ test('an edit on one client appears on another without reload', async ({ browser
     await signIn(b, SECOND_ADMIN_EMAIL);
     await intakePallet(a, pallet);
 
-    await a.getByRole('link', { name: 'טבלת נתונים' }).click();
-    await b.getByRole('link', { name: 'טבלת נתונים' }).click();
+    await navTo(a, 'טבלת נתונים');
+    await navTo(b, 'טבלת נתונים');
     await expect(rowByPallet(b, pallet)).toHaveCount(1);
 
     const editor = await editRow(a, pallet);

@@ -1,7 +1,7 @@
 // The core season workflow, end to end through the real UI:
 // intake → weigh + destination → mark for shipment → certificate attempt.
 import { test, expect } from '@playwright/test';
-import { signIn, intakePallet, editRow, rowByPallet, uniquePalletNumber, DESTINATION } from './helpers.js';
+import { navTo, signIn, intakePallet, editRow, rowByPallet, uniquePalletNumber, DESTINATION } from './helpers.js';
 
 test('intake → weigh → mark for shipment → certificate is blocked from touching real Sheets', async ({ page }) => {
   const consoleErrors = [];
@@ -15,7 +15,7 @@ test('intake → weigh → mark for shipment → certificate is blocked from tou
   await intakePallet(page, pallet);
 
   // Weigh + destination + shipment date on the data table
-  await page.getByRole('link', { name: 'טבלת נתונים' }).click();
+  await navTo(page, 'טבלת נתונים');
   const row = rowByPallet(page, pallet);
   await expect(row).toHaveCount(1);
   const editor = await editRow(page, pallet);
@@ -36,7 +36,7 @@ test('intake → weigh → mark for shipment → certificate is blocked from tou
   await page.getByRole('button', { name: 'אשר' }).click();
 
   // Shows up on the shipment-prep page
-  await page.getByRole('link', { name: 'הכנה למשלוח' }).click();
+  await navTo(page, 'הכנה למשלוח');
   const prepRow = rowByPallet(page, pallet);
   await expect(prepRow).toHaveCount(1);
 
@@ -52,7 +52,7 @@ test('intake → weigh → mark for shipment → certificate is blocked from tou
   await expect(rowByPallet(page, pallet).locator('td[data-col="weight"]')).toHaveText('480');
 
   // Dashboard reflects the new pallet
-  await page.getByRole('link', { name: 'לוח בקרה' }).click();
+  await navTo(page, 'לוח בקרה');
   await expect(page.getByText(`משטח ${pallet}`)).toBeVisible();
 
   expect(consoleErrors.filter(e => !/Failed to load resource/.test(e))).toEqual([]);
