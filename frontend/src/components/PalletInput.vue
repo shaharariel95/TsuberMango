@@ -42,7 +42,7 @@
         </Transition>
 
         <!-- Form -->
-        <form @submit.prevent="submitForm" class="space-y-5 rtl">
+        <form @submit.prevent="submitForm" novalidate class="space-y-5 rtl">
             <!-- Required Fields Section -->
             <div class="card space-y-5">
                 <div class="flex items-center gap-2 mb-1">
@@ -134,10 +134,6 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-base">
-                    <div>
-                        <label class="block text-slate-600 mb-1.5 text-sm">תאריך משלוח</label>
-                        <input type="date" v-model="formData.shipmentDate" class="input-field" />
-                    </div>
                     <div>
                         <label class="block text-slate-600 mb-1.5 text-sm">מספר תעודה</label>
                         <input type="number" v-model="formData.cardId" class="input-field" />
@@ -234,10 +230,6 @@
                         <span class="font-semibold">{{ lastFormData.harvestDate }}</span>
                     </div>
                     <div class="bg-slate-50 rounded-lg p-2.5">
-                        <span class="text-slate-400 text-xs block">תאריך משלוח</span>
-                        <span class="font-semibold">{{ lastFormData.shipmentDate || 'לא צוין' }}</span>
-                    </div>
-                    <div class="bg-slate-50 rounded-lg p-2.5">
                         <span class="text-slate-400 text-xs block">מספר משטח</span>
                         <span class="font-semibold">{{ lastFormData.palletNumber }}</span>
                     </div>
@@ -314,7 +306,6 @@ export default {
             size: 'גודל',
             weight: 'משקל',
             destination: 'יעד',
-            shipmentDate: 'תאריך משלוח',
             cardId: 'מספר תעודה',
             farmer: 'שם חקלאי',
         }
@@ -344,7 +335,6 @@ export default {
 
         const formData = reactive({
             farmer: props.selectedFarmer,
-            shipmentDate: '',
             cardId: null,
             harvestDate: new Date().toISOString().split('T')[0],
             palletNumber: null,
@@ -388,7 +378,6 @@ export default {
             formData.boxes = null
             formData.weight = null
             formData.destination = ''
-            formData.shipmentDate = ''
             if (!fastMode.value) {
                 formData.kind = ''
                 formData.size = null
@@ -437,9 +426,24 @@ export default {
             }
         }
 
+        // Client-side check of the mandatory fields (the kind/size radios are visually
+        // hidden, so native `required` never surfaces for them). Returns the Hebrew
+        // labels of whatever is missing.
+        const missingRequiredFields = () => {
+            const isEmpty = (v) => v === null || v === undefined || String(v).trim() === ''
+            return ['harvestDate', 'palletNumber', 'boxes', 'kind', 'size']
+                .filter(key => isEmpty(formData[key]))
+                .map(key => FIELD_NAMES_HE[key])
+        }
+
         const submitForm = async () => {
-            if (!formData.palletNumber) {
-                await doSubmit()
+            const missing = missingRequiredFields()
+            if (missing.length) {
+                await requestAlert({
+                    title: 'שדות חובה חסרים',
+                    message: `שדות חובה חסרים: ${missing.join(', ')}`,
+                    variant: 'error',
+                })
                 return
             }
             try {

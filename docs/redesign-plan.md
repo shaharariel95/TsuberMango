@@ -18,7 +18,6 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 | # | Task | Priority | Effort | Depends on |
 |---|---|---|---|---|
 | 20 | ★ Shipping labels off Sheets (dynamic docs, label log, archive, bulk download) | TOP | 1–2wk | 16 done; 4, 7 soft (see blockers) |
-| 2 | CR#2 Intake: drop shipment date, enforce harvest date | P0 | 0.5d | — |
 | 3 | CR#1 Shipment prep: pick date once + "apply to all" | P0 | 1d | — |
 | 4 | CR#4 Certificate >13 rows: auto-split — **built inside task 20** | P0 | (in 20) | 20 |
 | 5 | CR#3 Edit destination & weight after certificate issued | P0 | 1–1.5d | — |
@@ -56,11 +55,6 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 - Admin "תעודות" screen: filters, multi-select to ZIP/merged PDF, re-download.
 
 **Files:** new `backend/services/labelService.js` + `documentService.js`, GCS client, `documents` collection; new `frontend/src/components/Labels.vue`; retire `shippingLabelsService.js` and all `SHIPPING_LABELS_ID_*` env vars. Resolve the 20-vs-4/7 blocker first.
-
-### 2 — CR#2 Intake: remove shipment date, enforce harvest date
-> קליטת משטחים — להשאיר בלי תאריך (משלוח) ולהוסיף חיוב הוספת תאריך קטיף.
-
-**How:** remove the shipment-date field in `frontend/src/components/PalletInput.vue` (input ~line 139, summary row ~238, label map ~317, `formData.shipmentDate` ~347 and reset ~391). Harvest date already has `required` (line 59); route any guard through `requestAlert()`. Verify no downstream report assumes intake writes a shipment date. Files: `PalletInput.vue` only.
 
 ### 3 — CR#1 Shipment prep: pick date once + "apply to all"
 > בהכנה למשלוח — בחירת תאריך פעם אחת + לחצן "החל על הכל" כך שכל המשטחים יהיו על אותו תאריך.

@@ -5,6 +5,12 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 2 — CR#2 Intake: shipment date removed, mandatory fields enforced
+- The shipment-date input, its `formData` init/reset, label-map entry and the "last submitted" summary row are gone from `PalletInput.vue`. Nothing downstream needed intake to set a shipment date (the model defaults it to `''`; it is set later on the data table / shipment prep).
+- Harvest date, pallet number, boxes, kind and size are now validated client-side before submit (`novalidate` form + one Hebrew `requestAlert()` listing everything missing). Before, kind/size were only checked server-side because the radios are visually hidden.
+- E2E: new `e2e/intake.spec.js` (no shipment-date field; empty harvest date + no kind/size shows the alert).
+
+
 ### ✅ Task 22 (local half) — Automated test harness: API suite + Playwright E2E
 No CI by owner decision (public repo, nothing but code connected to it). Everything runs locally:
 - **`cd backend && npm test`** (53 tests, ~10s, auth + Firestore emulators). New `tests/api.test.js` (25 cases) drives the real Express app with supertest and real auth-emulator ID tokens. It covers the auth gates, claim self-heal on `/api/auth/me`, intake → weigh → mark/unmark → certificate stamp via `updatemany` → reset, audit and realtime events, admin users/config, and Sheets isolation. To make the app importable, `server.js` was split into `app.js` (Express app, no side effects) and `server.js` (seeding, listen, cache warm).
