@@ -5,5 +5,7 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.js'],
     testTimeout: 15000,
+    // Only show console output from failing tests.
+    silent: 'passed-only',
   },
 });

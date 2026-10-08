@@ -246,6 +246,19 @@ describe('season flow: intake → weigh → mark → certificate → sent', () =
     expect(data.sent).toBe(false);
   });
 
+  it('bulk mark/unmark/reset reject an unknown farmer with a 400', async () => {
+    const bad = encodeURIComponent('לא-קיים');
+    for (const [method, url, body] of [
+      ['post', `/api/farmers/${bad}/destinations/toSend`, [{ id }]],
+      ['post', `/api/farmers/${bad}/destinations/Sent`, [{ id }]],
+      ['put', `/api/farmers/${bad}/records/resetPallets`, { palletIds: [id] }],
+    ]) {
+      const res = await api(method, url).send(body);
+      expect(res.status, url).toBe(400);
+      expect(res.body.error).toMatch(/Unknown farmer/);
+    }
+  });
+
   it('every write left an audit trail', async () => {
     const s = await farmerDoc.collection('audit').where('recordId', '==', id).get();
     const actions = s.docs.map(d => d.data().action);

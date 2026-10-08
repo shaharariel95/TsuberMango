@@ -486,6 +486,10 @@ class SheetController {
   async resetSentStatus(req, res) {
     try {
       const { farmer } = req.params;
+      const farmerError = await assertKnownFarmer(farmer);
+      if (farmerError) {
+        return res.status(400).json({ error: farmerError });
+      }
       const { palletIds } = req.body; // Extract pallet IDs
       if (!Array.isArray(palletIds) || !palletIds.length) {
         return res.status(400).json({ error: "Invalid pallet IDs" });
@@ -518,6 +522,10 @@ class SheetController {
           .status(400)
           .json({ error: "Pallets data is required and must be an array" });
       }
+      const farmerError = await assertKnownFarmer(farmer);
+      if (farmerError) {
+        return res.status(400).json({ error: farmerError });
+      }
       const palletIds = palletsData.map(pallet => pallet.id); // Extract the 'id' field from each pallet
       // Bulk update logic
       const results = await repo.updateMarkStatus(farmer, palletIds, false);
@@ -546,6 +554,10 @@ class SheetController {
         return res
           .status(400)
           .json({ error: "Pallets data is required and must be an array" });
+      }
+      const farmerError = await assertKnownFarmer(farmer);
+      if (farmerError) {
+        return res.status(400).json({ error: farmerError });
       }
       const palletIds = palletsData.map(pallet => pallet.id); // Extract the 'id' field from each pallet
       // Bulk update logic

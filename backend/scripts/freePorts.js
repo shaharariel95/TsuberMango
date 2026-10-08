@@ -1,7 +1,13 @@
 // Kill stray emulator / dev-server processes left listening on this project's ports.
-// On Windows, `firebase emulators:exec` and `concurrently` don't reliably take their
-// child processes down with them (the Firestore emulator's java process survives),
-// so the next run fails with "port taken". Only java/node processes are touched.
+//
+// Root cause (Windows): firebase-tools spawns `java` for the Firestore emulator and stops
+// it with kill("SIGINT"), which Node maps to TerminateProcess on that single PID. When
+// `java` resolves to Oracle's launcher shim (C:\Program Files\Common Files\Oracle\Java\
+// javapath\java.exe), the shim spawns the real JDK java.exe as a child — only the shim
+// dies, the real JVM is orphaned and keeps port 8080, so the next run fails with
+// "port taken". Same for `concurrently` children when local:test is killed mid-run.
+// A wrapper with `taskkill /T` would miss the killed-parent case and PATH reordering
+// is per-machine, so this port sweep is the fix. Only java/node processes are touched.
 //
 // Usage: node scripts/freePorts.js          → emulator ports only
 //        node scripts/freePorts.js --dev    → also the backend (3000) and Vite (5173)
