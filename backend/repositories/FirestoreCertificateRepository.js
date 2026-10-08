@@ -59,16 +59,13 @@ class FirestoreCertificateRepository {
       if (missing) throw new CertificateError(404, 'RECORD_NOT_FOUND', { recordId: missing.id });
       const records = recSnaps.map(s => ({ id: s.id, ...s.data() }));
 
-      const conflicts = records.filter(r => r.cardId !== '' && r.cardId !== undefined && r.cardId !== null)
-        .map(r => ({ recordId: r.id, palletNumber: r.palletNumber, certificateNumber: r.cardId, certificateId: certId(farmer, r.cardId) }));
-      if (conflicts.length) throw new CertificateError(409, 'ALREADY_CERTIFIED', { conflicts });
-
-      const { errors, destination, shipmentDate } = core.validateIssueSelection(records);
-      if (errors.length) throw new CertificateError(400, 'INVALID_SELECTION', { errors });
-
-      let chunks;
-      try { chunks = core.chunkRecords(records); }
-      catch (e) { throw new CertificateError(400, 'INVALID_SELECTION', { errors: [`משטח ${e.message.split(':')[1]} חורג מ-13 שורות`] }); }
+      const plan = core.planIssue(records);
+      if (plan.conflicts.length) {
+        throw new CertificateError(409, 'ALREADY_CERTIFIED',
+          { conflicts: plan.conflicts.map(c => ({ ...c, certificateId: certId(farmer, c.certificateNumber) })) });
+      }
+      if (plan.errors.length) throw new CertificateError(400, 'INVALID_SELECTION', { errors: plan.errors });
+      const { destination, shipmentDate, chunks } = plan;
 
       // --- writes ---
       let number = profile.nextNumber;

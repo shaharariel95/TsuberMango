@@ -35,16 +35,16 @@ async function preview({ farmer, recordIds }) {
   logger.info(`[certificateService.preview] farmer=${farmer} records=${recordIds.length}`);
   const records = (await repo.getRecords(farmer)).filter(r => recordIds.includes(r.id));
   if (records.length !== new Set(recordIds).size) throw new CertificateError(404, 'RECORD_NOT_FOUND');
-  const conflicts = records.filter(r => r.cardId !== '' && r.cardId != null)
-    .map(r => ({ recordId: r.id, palletNumber: r.palletNumber, certificateNumber: r.cardId, certificateId: `${farmer}__${r.cardId}` }));
-  if (conflicts.length) throw new CertificateError(409, 'ALREADY_CERTIFIED', { conflicts });
-  const { errors, destination, shipmentDate } = core.validateIssueSelection(records);
-  if (errors.length) throw new CertificateError(400, 'INVALID_SELECTION', { errors });
-  let chunks;
-  try { chunks = core.chunkRecords(records); }
-  catch (e) { throw new CertificateError(400, 'INVALID_SELECTION', { errors: [`משטח ${e.message.split(':')[1]} חורג מ-13 שורות`] }); }
-  return { destination, shipmentDate,
-    chunks: chunks.map(c => ({ rows: c.length, pallets: new Set(c.map(r => String(r.palletNumber))).size })) };
+  const profile = await repo.certificates.getProfile(farmer);
+  if (!profile || !Number.isInteger(profile.nextNumber)) throw new CertificateError(400, 'NO_PROFILE');
+  const plan = core.planIssue(records);
+  if (plan.conflicts.length) {
+    throw new CertificateError(409, 'ALREADY_CERTIFIED',
+      { conflicts: plan.conflicts.map(c => ({ ...c, certificateId: `${farmer}__${c.certificateNumber}` })) });
+  }
+  if (plan.errors.length) throw new CertificateError(400, 'INVALID_SELECTION', { errors: plan.errors });
+  return { destination: plan.destination, shipmentDate: plan.shipmentDate,
+    chunks: plan.chunks.map(c => ({ rows: c.length, pallets: new Set(c.map(r => String(r.palletNumber))).size })) };
 }
 
 async function issue({ farmer, recordIds, actor }) {

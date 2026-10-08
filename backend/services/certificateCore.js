@@ -73,4 +73,21 @@ function validateIssueSelection(records) {
   return { errors, destination: [...destinations][0], shipmentDate: [...dates][0] };
 }
 
-module.exports = { MAX_ROWS, chunkRecords, buildRows, buildSnapshot, snapshotsDiffer, validateIssueSelection };
+// Single source of truth for "can these records be certified, and how would they split".
+// Callers decorate conflicts with certificateId and throw their own errors.
+function planIssue(records) {
+  const conflicts = records.filter(r => r.cardId !== '' && r.cardId != null)
+    .map(r => ({ recordId: r.id, palletNumber: r.palletNumber, certificateNumber: r.cardId }));
+  const { errors, destination, shipmentDate } = validateIssueSelection(records);
+  let chunks;
+  if (!conflicts.length && !errors.length) {
+    try { chunks = chunkRecords(records); }
+    catch (e) {
+      if (!String(e.message).startsWith('PALLET_TOO_LARGE:')) throw e;
+      errors.push(`משטח ${e.message.split(':')[1]} חורג מ-${MAX_ROWS} שורות`);
+    }
+  }
+  return { conflicts, errors, destination, shipmentDate, chunks };
+}
+
+module.exports = { MAX_ROWS, chunkRecords, buildRows, buildSnapshot, snapshotsDiffer, validateIssueSelection, planIssue };

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import core from '../services/certificateCore.js';
-const { MAX_ROWS, chunkRecords, buildRows, buildSnapshot, snapshotsDiffer, validateIssueSelection } = core;
+const { MAX_ROWS, chunkRecords, buildRows, buildSnapshot, snapshotsDiffer, validateIssueSelection, planIssue } = core;
 
 let seq = 0;
 const rec = (palletNumber, o = {}) => ({
@@ -80,5 +80,26 @@ describe('validateIssueSelection', () => {
   });
   it('rejects an empty selection', () => {
     expect(validateIssueSelection([]).errors).toEqual(['לא נבחרו משטחים']);
+  });
+});
+
+describe('planIssue', () => {
+  it('reports already-certified records as conflicts and skips chunking', () => {
+    const plan = planIssue([rec(1), rec(2, { cardId: 51466 })]);
+    expect(plan.conflicts).toEqual([expect.objectContaining({ palletNumber: 2, certificateNumber: 51466 })]);
+    expect(plan.chunks).toBeUndefined();
+  });
+  it('turns a too-large pallet into an error', () => {
+    const plan = planIssue(Array.from({ length: MAX_ROWS + 1 }, () => rec(7)));
+    expect(plan.errors).toEqual([`משטח 7 חורג מ-${MAX_ROWS} שורות`]);
+    expect(plan.chunks).toBeUndefined();
+  });
+  it('returns chunks, destination and date when the selection is fine', () => {
+    const plan = planIssue(many(14));
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.errors).toEqual([]);
+    expect(plan.destination).toBe('שיווק האיחוד');
+    expect(plan.shipmentDate).toBe('2026-12-01');
+    expect(plan.chunks.map(c => c.length)).toEqual([13, 1]);
   });
 });

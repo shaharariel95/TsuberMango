@@ -109,6 +109,10 @@ app.post('/api/internal/backup', async (req, res) => {
   }
 });
 
+// 📄 Shipping certificates (task 20) — mounted BEFORE the global /api chain, with its own
+// auth chain, so token verification does not run twice per request.
+app.use("/api/certificates", verifyFirebaseToken, ensureCenterAccess, require("./routes/certificateRoutes"));
+
 app.use(
   "/api",
   verifyFirebaseToken,
@@ -116,9 +120,6 @@ app.use(
   (req, res, next) => { logger.info(`API ${req.method} ${req.url}`); next(); },
   sheetRoutes
 );
-
-// 📄 Shipping certificates (task 20) — same auth chain as the rest of /api.
-app.use("/api/certificates", verifyFirebaseToken, ensureCenterAccess, require("./routes/certificateRoutes"));
 
 // 🛠️ Admin Sheet Management
 app.post("/api/admin/create-sheet", ensureAdmin, async (req, res) => {

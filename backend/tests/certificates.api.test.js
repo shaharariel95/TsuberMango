@@ -118,7 +118,45 @@ describe('issue', () => {
   });
 });
 
+describe('auth and error paths', () => {
+  it('401 without a token; 403 for a token without this center', async () => {
+    expect((await api('get', `/api/certificates?farmer=${enc(FARMER)}`, 'nobody')).status).toBe(401);
+    tokens.outsider = await tokenFor('cert-outsider@test.local', { centers: ['other-center'] });
+    expect((await api('get', `/api/certificates?farmer=${enc(FARMER)}`, 'outsider')).status).toBe(403);
+  });
+
+  it('preview: 409 already certified, 400 mixed destination, 400 no profile', async () => {
+    const id = await addRecord(421);
+    await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] });
+    const dup = await api('post', '/api/certificates/preview').send({ farmer: FARMER, recordIds: [id] });
+    expect(dup.status).toBe(409);
+    expect(dup.body.conflicts[0]).toMatchObject({ certificateId: `${FARMER}__51466` });
+
+    const mixed = [await addRecord(1), await addRecord(2, { destination: 'אחר' })];
+    const mx = await api('post', '/api/certificates/preview').send({ farmer: FARMER, recordIds: mixed });
+    expect(mx.status).toBe(400);
+    expect(mx.body.error).toMatch('יעדים שונים');
+
+    await farmerDoc.set({});
+    const np = await api('post', '/api/certificates/preview').send({ farmer: FARMER, recordIds: [mixed[0]] });
+    expect(np.status).toBe(400);
+    expect(np.body.error).toBe('חסרים פרטי תעודה לחקלאי — הגדר בהגדרות');
+  });
+});
+
 describe('reprint / remove / reads', () => {
+  it('unknown certificate → 404', async () => {
+    expect((await api('get', `/api/certificates/${enc('nope__1')}`)).status).toBe(404);
+  });
+
+  it('remove-pallet with a record not on the certificate → 400', async () => {
+    const a = await addRecord(1); const b = await addRecord(2);
+    const issued = (await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [a] })).body.certificates[0];
+    const rm = await api('post', `/api/certificates/${enc(issued.id)}/remove-pallet`).send({ recordId: b });
+    expect(rm.status).toBe(400);
+    expect(rm.body.error).toBe('המשטח אינו בתעודה זו');
+  });
+
   it('reprint after weight edit creates version 2; reads expose history', async () => {
     const id = await addRecord(421);
     const issued = (await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [id] })).body.certificates[0];
