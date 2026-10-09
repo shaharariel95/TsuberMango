@@ -16,6 +16,10 @@ export async function signIn(page, email = ADMIN_EMAIL) {
   const popupPromise = page.waitForEvent('popup');
   await page.getByRole('button', { name: 'התחבר עם Google' }).click();
   const popup = await popupPromise;
+  // The emulator's account list is plain HTML, but its click handlers are wired by scripts
+  // pulled from a CDN (unpkg). A click that lands before they finish loading is silently
+  // dropped, the popup stays open and the app never gets a result (~1-2% of sign-ins).
+  await popup.waitForLoadState('load');
   // The account list loads asynchronously: wait until it shows either some account
   // (an email) or the empty-state text before deciding which branch to take.
   await popup.getByText(/@|No Google\.com accounts exist/).first().waitFor();
