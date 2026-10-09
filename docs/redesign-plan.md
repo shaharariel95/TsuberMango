@@ -49,7 +49,7 @@ Header lines per farmer were delivered by task 20. Remaining scope: only if a cu
 ### 8 — Config-driven optional fields (generalize `gidon`)
 **Problem:** `gidon` (column L) is a single-customer flag in `PalletRecord` and `farmerConfigs: { "גבי צוברי": { allowGidon: true } }`.
 **How:** `customFields: [{ key, label, type, column }]` on the farmer registry (task 6, shipped: `config/global.farmers` entries); table, intake form and model read the list. Incremental: keep `gidon` working, add the generic path, then migrate `gidon` onto it. Only do when a second customer needs a distinct field.
-Files: `backend/models/palletRecord.js`, `googleSheetsService.js`, `frontend/src/data/data.js`, `PalletInput.vue`, `PalletTable.vue`.
+Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInput.vue`, `PalletTable.vue`.
 
 ## P2 backlog (one-liners)
 - **9 PalletTable refactor** (~860 lines): extract `usePalletTableState` + `PalletTableToolbar.vue` + `PalletTableRow.vue`; start only after CRs 1/3/4 (36 shipped) to avoid churn.

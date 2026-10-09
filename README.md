@@ -5,7 +5,7 @@ A specialized agricultural management platform for mango shipping and pallet sor
 ## 🚀 Architecture Overview
 - **Frontend**: Vue 3 (Vite, TailwindCSS)
 - **Backend**: Node.js (Express, Firebase Auth ID tokens via firebase-admin)
-- **Primary Database**: Firebase Firestore — pallet records, audit, config, users, sessions, real-time events (all under `centers/{centerId}/…`), accessed via a storage-agnostic `RecordRepository`
+- **Primary Database**: Firebase Firestore — pallet records, audit, config, users, real-time events (all under `centers/{centerId}/…`), accessed via a storage-agnostic `RecordRepository`
 - **Legacy Store**: Google Sheets — cold archive of past seasons only (no live code path)
 - **Deployment**: Firebase Hosting (Frontend) + Google Cloud Run (Backend)
 

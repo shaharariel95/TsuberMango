@@ -10,7 +10,7 @@ const validateFarmer = (req, res, next) => {
     if (!farmer) {
         return res.status(400).json({ error: 'Farmer name is required' });
     }
-    // Convert to proper sheet name format if needed
+    // Normalize farmer name
     req.farmer = farmer.trim();
     next();
 };
