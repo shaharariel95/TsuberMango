@@ -355,7 +355,8 @@ export default {
               kinds.value = cfg.kinds || [];
               sizes.value = cfg.sizes || [];
               destinations.value = cfg.destinations || [];
-              const farmersList = cfg.farmers || [];
+              // Archived (hidden) farmers keep their data but leave every menu; Settings reads the raw list.
+              const farmersList = (cfg.farmers || []).filter(f => !f.archived);
               farmers.value = farmersList.map(f => f.name);
               const fConfigs = {};
               farmersList.forEach(f => { fConfigs[f.name] = { allowGidon: f.allowGidon }; });
@@ -365,8 +366,9 @@ export default {
               config.destinations = cfg.destinations || [];
               config.farmers = farmers.value;
               config.farmerConfigs = fConfigs;
-              if (!selectedFarmer.value && farmers.value.length > 0) {
-                selectedFarmer.value = farmers.value[0];
+              // Also covers the selected farmer being hidden from another tab.
+              if (!farmers.value.includes(selectedFarmer.value)) {
+                selectedFarmer.value = farmers.value[0] || '';
               }
             }, (err) => {
               console.error('[config listener] permission/other error:', err?.message);

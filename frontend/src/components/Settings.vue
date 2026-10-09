@@ -18,12 +18,12 @@
         <span class="text-lg">👨‍🌾</span> ניהול חקלאים
       </h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div v-for="farmer in localConfig.farmers" :key="farmer.name"
+        <div v-for="farmer in activeFarmers" :key="farmer.name"
              class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors gap-2">
           <div class="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
             <span class="font-bold text-sm min-w-[80px] sm:min-w-[100px] text-slate-700 truncate">{{ farmer.name }}</span>
             <label class="flex items-center cursor-pointer gap-2 flex-shrink-0">
-              <input type="checkbox" v-model="farmer.allowGidon" @change="saveConfig"
+              <input type="checkbox" v-model="farmer.allowGidon" @change="setGidon(farmer)"
                      class="form-checkbox h-5 w-5 rounded text-mango-500 border-slate-300 focus:ring-mango-400">
               <span class="text-xs text-slate-500">גדעון?</span>
             </label>
@@ -31,7 +31,7 @@
           <button class="btn-ghost text-xs border border-slate-200 px-2 py-1 flex-shrink-0" @click="profileFarmer = farmer.name">פרטי תעודה</button>
           <button @click="confirmDeleteFarmer(farmer.name)"
                   class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-all text-base flex-shrink-0 min-h-[40px] min-w-[40px]"
-                  aria-label="מחק חקלאי">
+                  :aria-label="`הסתר ${farmer.name}`" title="הסתר חקלאי">
             🗑️
           </button>
         </div>
@@ -41,11 +41,23 @@
       <div class="flex flex-col sm:flex-row gap-2 mt-4 pt-4 border-t border-slate-100">
         <input v-model="newFarmerName" placeholder="שם חקלאי חדש"
                class="input-field flex-1 text-sm">
-        <SpinnerButton @click="addFarmer" :loading="isWorking" loading-label="יוצר גיליון..."
+        <SpinnerButton @click="addFarmer()" :loading="isWorking" loading-label="מוסיף..."
                 class="btn-primary text-sm flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[44px]">
           + הוסף חקלאי
         </SpinnerButton>
       </div>
+
+      <details v-if="archivedFarmers.length" class="pt-3 border-t border-slate-100">
+        <summary class="cursor-pointer text-sm text-slate-500 select-none">חקלאים מוסתרים ({{ archivedFarmers.length }})</summary>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+          <div v-for="farmer in archivedFarmers" :key="farmer.name"
+               class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 gap-2">
+            <span class="text-sm text-slate-500 truncate">{{ farmer.name }}</span>
+            <button class="btn-ghost border border-slate-200 text-xs px-3 min-h-[40px]" :disabled="isWorking"
+                    :aria-label="`שחזר ${farmer.name}`" @click="restoreFarmer(farmer.name)">שחזר</button>
+          </div>
+        </div>
+      </details>
     </section>
 
     <section class="card space-y-3">
@@ -192,28 +204,20 @@
               <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
-              אזהרה חמורה!
+              הסתרת חקלאי
             </h3>
-            <p class="text-sm text-red-500 mt-1">מחיקת החקלאי: <strong class="underline">{{ farmerToDelete }}</strong></p>
+            <p class="text-sm text-red-500 mt-1">הסתרת החקלאי: <strong class="underline">{{ farmerToDelete }}</strong></p>
           </div>
           
-          <div class="space-y-3 mb-6">
-            <label class="flex items-start gap-3 p-3 bg-red-50/50 rounded-lg border border-red-100 cursor-pointer hover:bg-red-50 transition-colors">
-              <input type="checkbox" v-model="confirmChecks.app" class="mt-0.5 h-4 w-4 rounded text-red-500 border-red-300 focus:ring-red-400">
-              <span class="text-sm text-slate-700">אני מאשר להסיר את החקלאי מרשימת הבחירה באפליקציה.</span>
-            </label>
-            
-            <label class="flex items-start gap-3 p-3 bg-red-50/50 rounded-lg border border-red-100 cursor-pointer hover:bg-red-50 transition-colors">
-              <input type="checkbox" v-model="confirmChecks.sheet" class="mt-0.5 h-4 w-4 rounded text-red-500 border-red-300 focus:ring-red-400">
-              <span class="text-sm text-slate-700 font-semibold">מחק גם את הגיליון (Sheet) עם כל הנתונים ההיסטוריים. (לא ניתן לשחזור!)</span>
-            </label>
-          </div>
+          <p class="text-sm text-slate-600 mb-6">
+            החקלאי יוסתר מכל הרשימות באפליקציה. כל הנתונים שלו (משטחים, תעודות, היסטוריה) נשמרים,
+            וניתן לשחזר אותו מ"חקלאים מוסתרים".
+          </p>
 
           <div class="flex gap-3">
-            <SpinnerButton @click="deleteFarmer" :loading="isWorking" loading-label="מוחק..."
-                    :disabled="!confirmChecks.app"
+            <SpinnerButton @click="deleteFarmer" :loading="isWorking" loading-label="מסתיר..."
                     class="flex-1 btn-danger flex items-center justify-center gap-2">
-              אשר מחיקה סופית
+              הסתר
             </SpinnerButton>
             <button @click="farmerToDelete = null" 
                     class="flex-1 btn-ghost bg-slate-100 hover:bg-slate-200 font-semibold">
@@ -250,7 +254,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, watch, defineComponent } from 'vue';
+import { ref, reactive, computed, onMounted, watch, defineComponent } from 'vue';
 import { db } from '../main';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { centerId } from '../composables/useCenter';
@@ -276,7 +280,6 @@ export default {
     const newFarmerName = ref('');
     const isWorking = ref(false);
     const farmerToDelete = ref(null);
-    const confirmChecks = reactive({ app: false, sheet: false });
     const status = ref(null);
 
     // User management state
@@ -411,7 +414,8 @@ export default {
     const saveConfig = async () => {
       try {
         isWorking.value = true;
-        await axios.post(`${baseUrl}/api/admin/config`, JSON.parse(JSON.stringify(localConfig)));
+        const { farmers: _farmers, ...rest } = JSON.parse(JSON.stringify(localConfig));
+        await axios.post(`${baseUrl}/api/admin/config`, rest);
         showStatus('הגדרות נשמרו בשרת בהצלחה', 'success');
       } catch (err) {
         showStatus('שגיאה בשמירת הגדרות בשרת', 'error');
@@ -421,54 +425,47 @@ export default {
       }
     };
 
-    const addFarmer = async () => {
-      const name = newFarmerName.value.trim();
-      if (!name) return;
-      if (localConfig.farmers.some(f => f.name === name)) {
-        return showStatus('חקלאי כזה כבר קיים', 'error');
-      }
+    const activeFarmers = computed(() => localConfig.farmers.filter(f => !f.archived));
+    const archivedFarmers = computed(() => localConfig.farmers.filter(f => f.archived));
+    const farmerUrl = (name) => `${baseUrl}/api/admin/farmers/${encodeURIComponent(name)}`;
 
+    // The live config snapshot refreshes localConfig.farmers after each call.
+    const addFarmer = async (rawName = newFarmerName.value) => {
+      const name = String(rawName).trim();
+      if (!name) return;
       isWorking.value = true;
       try {
-        // 1. Backend: Create Sheet
-        await axios.post(`${baseUrl}/api/admin/create-sheet`, { name });
-        
-        // 2. Firestore: Add to metadata
-        localConfig.farmers.push({ name, allowGidon: false });
-        await saveConfig();
-        
-        newFarmerName.value = '';
-        showStatus(`החקלאי ${name} נוסף בהצלחה`, 'success');
+        const res = await axios.post(`${baseUrl}/api/admin/farmers`, { name });
+        if (rawName === newFarmerName.value) newFarmerName.value = '';
+        showStatus(res.data.restored ? `החקלאי ${name} שוחזר` : `החקלאי ${name} נוסף בהצלחה`, 'success');
       } catch (err) {
         showStatus(`שגיאה בהוספת חקלאי: ${err.response?.data?.error || err.message}`, 'error');
       } finally {
         isWorking.value = false;
       }
     };
+    const restoreFarmer = (name) => addFarmer(name);
 
-    const confirmDeleteFarmer = (name) => {
-      farmerToDelete.value = name;
-      confirmChecks.app = false;
-      confirmChecks.sheet = false;
+    const setGidon = async (farmer) => {
+      try {
+        await axios.patch(farmerUrl(farmer.name), { allowGidon: farmer.allowGidon });
+      } catch (err) {
+        farmer.allowGidon = !farmer.allowGidon;
+        showStatus(`שגיאה בעדכון: ${err.response?.data?.error || err.message}`, 'error');
+      }
     };
+
+    const confirmDeleteFarmer = (name) => { farmerToDelete.value = name; };
 
     const deleteFarmer = async () => {
       const name = farmerToDelete.value;
       isWorking.value = true;
       try {
-        // 1. Delete sheet if requested
-        if (confirmChecks.sheet) {
-          await axios.post(`${baseUrl}/api/admin/delete-sheet`, { name });
-        }
-
-        // 2. Update Firestore
-        localConfig.farmers = localConfig.farmers.filter(f => f.name !== name);
-        await saveConfig();
-        
+        await axios.delete(farmerUrl(name));
         farmerToDelete.value = null;
-        showStatus(`החקלאי ${name} הוסר`, 'success');
+        showStatus(`החקלאי ${name} הוסתר`, 'success');
       } catch (err) {
-        showStatus(`שגיאה במחיקת חקלאי: ${err.response?.data?.error || err.message}`, 'error');
+        showStatus(`שגיאה בהסתרת חקלאי: ${err.response?.data?.error || err.message}`, 'error');
       } finally {
         isWorking.value = false;
       }
@@ -508,10 +505,12 @@ export default {
       }
     };
 
+
     return {
       profileFarmer, exporting, exportSeason,
       localConfig, newFarmerName, isWorking, saveConfig, addFarmer,
-      confirmDeleteFarmer, farmerToDelete, confirmChecks, deleteFarmer,
+      confirmDeleteFarmer, farmerToDelete, deleteFarmer,
+      activeFarmers, archivedFarmers, restoreFarmer, setGidon,
       status,
       usersList, usersLoading, newUserEmail, newUserRole, isWorkingUsers,
       addUser, deleteUser, isLastAdmin,
