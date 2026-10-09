@@ -74,9 +74,9 @@ Mounted at `/api/certificates` above the global `/api` chain with its own `verif
 | Method | Path | Body / query | Success | Errors |
 |---|---|---|---|---|
 | POST | `/api/certificates/preview` | `{farmer, recordIds[]}` | `200 {destination, shipmentDate, chunks: [{rows, pallets}]}` — how the selection would split (13 rows per certificate); writes nothing | 400 missing fields / unknown farmer / `NO_PROFILE` / `INVALID_SELECTION {errors[]}`; 404 `RECORD_NOT_FOUND`; 409 `ALREADY_CERTIFIED {conflicts[]}` |
-| POST | `/api/certificates` | `{farmer, recordIds[]}` | `201 {certificates: [{id, number, snapshot}]}` — atomic; stamps `cardId` + `sent` on the pallets, writes audit + a `bulk_update` event | same as preview |
+| POST | `/api/certificates` | `{farmer, recordIds[]}` | `201 {certificates: [{id, number, snapshot}]}` — atomic; stamps `{cardId: number, sent: true, mark: false, editedBy, editedAt}` on the pallets, writes audit + a `bulk_update` event | same as preview |
 | GET | `/api/certificates` | `?farmer=` (required), `from`, `to` (shipment date, `yyyy-mm-dd`) | `200 {certificates: [...]}` | 400 no farmer |
-| GET | `/api/certificates/:id` | `id = {farmer}__{number}` | `200` certificate + current snapshot | 404 |
+| GET | `/api/certificates/:id` | `id = {farmer}__{number}` | `200 {certificate: {id, ...doc}, versions: [{n, reason, createdBy, createdAt}]}` — no snapshot; fetch one via `/versions/:n`, reprint or remove-pallet | 404 |
 | GET | `/api/certificates/:id/versions/:n` | — | `200 {snapshot}` | 404 |
 | POST | `/api/certificates/:id/reprint` | — | `200 {snapshot, version, created}` — returns the current snapshot; creates a new version only when the pallet data changed since the last one | 404 `CERTIFICATE_NOT_FOUND`; 409 `CERTIFICATE_CANCELLED` |
 | POST | `/api/certificates/:id/remove-pallet` | `{recordId}` | `200 {snapshot, version, cancelled}` — clears the pallet's `cardId`/`sent`, writes a new version, cancels the certificate if it was the last pallet; audit + event | 400 no recordId / `NOT_ON_CERTIFICATE`; 404 `CERTIFICATE_NOT_FOUND` |

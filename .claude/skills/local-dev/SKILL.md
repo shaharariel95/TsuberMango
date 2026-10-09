@@ -9,8 +9,8 @@ description: Use when running or testing TsuberMango locally - the backend test 
 
 ```bash
 cd backend && npm test        # ~10s: 107 Vitest tests on the auth + Firestore emulators
-cd frontend && npm test       # Vitest unit tests (certificate PDF builder, sheet names)
-cd frontend && npm run e2e    # Playwright, real UI on desktop + tablet viewports
+cd frontend && npm test       # 18 Vitest unit tests (certificate PDF builder, sheet names)
+cd frontend && npm run e2e    # 18 Playwright runs (9 specs x 2 projects), real UI on desktop + tablet viewports
 ```
 
 | Layer | File(s) | Covers |
@@ -20,7 +20,7 @@ cd frontend && npm run e2e    # Playwright, real UI on desktop + tablet viewport
 | Firestore rules | `backend/tests/firestore.rules.test.js` | client read gating |
 | **HTTP API** | `backend/tests/api.test.js` | every `/api` route via supertest with **real auth-emulator ID tokens**: auth gates, intake → weigh → mark → certificate stamp → reset, audit + realtime events, admin users/config, Sheets isolation |
 | Certificates | `backend/tests/certificateCore.test.js`, `certificates.repo.test.js`, `certificates.api.test.js` | pure chunking/validation/`planIssue`; atomic issue/reprint/remove-pallet against the Firestore emulator; the `/api/certificates` + admin profile endpoints with real tokens |
-| Frontend unit | `frontend/src/**/*.test.js` (`cd frontend && npm test`) | `certificatePdf.js` (bidi, layout, row guard), `sheetName.js` |
+| Frontend unit | `frontend/tests/*.test.js` (`cd frontend && npm test`) | `certificatePdf.js` (bidi, layout, row guard), `sheetName.js` |
 | **Browser E2E** | `frontend/e2e/*.spec.js` | full season flow through the UI; realtime update between two clients; `certificates.spec.js` covers issue → תעודות screen → reprint → remove pallet → Settings profile |
 
 Adding an endpoint or changing a write path → add a case to `api.test.js`. Changing a user flow →
