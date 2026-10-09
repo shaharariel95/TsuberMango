@@ -21,7 +21,11 @@ Google Sheets is only a cold archive of past seasons. There is no per-season spr
    cd backend
    node scripts/clearSeason.js
    ```
-3. Compare the backup's row count (shown in the **גיבויים** list) with the dry run's total record count. **If the backup has fewer rows, do NOT execute** - the backup service skips a farmer whose fetch fails instead of failing the whole backup. Take another backup and re-check.
+3. Compare the backup's row count (Settings -> **גיבויים**, column "שורות") with the dry run's total record count. They must be equal. **If the backup has fewer rows, do NOT execute.** Two possible causes:
+   - (a) A farmer with records is missing from the farmers list. The backup covers only the farmers in `config/global.farmers`, while the reset deletes records of every `farmers/{name}` doc, so a second backup would repeat the gap. Find the farmer in the dry run's per-farmer counts, add or restore that exact name in Settings (**ניהול חקלאים** / **חקלאים מוסתרים**), take a new backup and re-run the dry run until the counts match.
+   - (b) A farmer's fetch failed during the backup (the service skips that farmer instead of failing the whole backup). Take another backup.
+
+   Execute with a mismatch only when the difference is known test data.
 4. Execute:
    ```bash
    node scripts/clearSeason.js --execute --center tsuberi
