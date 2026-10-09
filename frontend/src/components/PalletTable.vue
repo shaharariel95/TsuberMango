@@ -530,6 +530,7 @@ export default {
             const ok = await requestConfirm({ title: 'מחיקת משטח', confirmText: 'מחק משטח',
                 message: `למחוק את משטח ${p.palletNumber}? מנהל יכול לשחזר אותו מההגדרות (משטחים שנמחקו).` });
             if (!ok) return;
+            this.isLoading = true;
             try {
                 await deleteRecord(this.farmer, p.id);
                 this.$emit('update:pallets', this.pallets.filter(x => x.id !== p.id));
@@ -537,6 +538,8 @@ export default {
                 this.editingPallet = null;
             } catch (e) {
                 await requestAlert({ title: 'המחיקה נכשלה', message: e.message, variant: 'error' });
+            } finally {
+                this.isLoading = false;
             }
         },
 
@@ -667,6 +670,15 @@ export default {
                     body: JSON.stringify(this.editingPallet),
                 });
 
+                if (response.status === 404) {
+                    // Deleted on another device and this tab missed the realtime event.
+                    this.$emit('update:pallets', this.pallets.filter(x => x.id !== this.editingId));
+                    this.editingId = null;
+                    this.editingPallet = null;
+                    this.isLoading = false;
+                    await requestAlert({ title: 'המשטח נמחק', message: 'המשטח נמחק במכשיר אחר ולכן לא נשמר.', variant: 'warning' });
+                    return;
+                }
                 if (!response.ok) {
                     this.isLoading = false;
                     throw new Error('Failed to update pallet');

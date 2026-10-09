@@ -4,6 +4,7 @@
     <select v-model="farmer" aria-label="חקלאי למשטחים שנמחקו" class="input-field text-sm max-w-xs">
       <option v-for="name in farmers" :key="name" :value="name">{{ name }}</option>
     </select>
+    <p v-if="restoreError" class="text-sm text-red-600">{{ restoreError }}</p>
     <p v-if="loading" class="text-sm text-slate-500">טוען...</p>
     <p v-else-if="error" class="text-sm text-red-600">{{ error }}</p>
     <p v-else-if="!records.length" class="text-sm text-slate-500">אין משטחים שנמחקו</p>
@@ -55,6 +56,7 @@ const records = ref([]);
 const loading = ref(false);
 const restoring = ref(false);
 const error = ref('');
+const restoreError = ref('');
 const message = ref('');
 
 const formatAt = (iso) => (iso ? String(iso).slice(0, 16).replace('T', ' ') : '');
@@ -62,6 +64,7 @@ const formatAt = (iso) => (iso ? String(iso).slice(0, 16).replace('T', ' ') : ''
 async function load() {
   records.value = [];
   error.value = '';
+  restoreError.value = '';
   message.value = '';
   if (!farmer.value) return;
   const requested = farmer.value;
@@ -78,14 +81,14 @@ async function load() {
 
 async function restore(r) {
   restoring.value = true;
-  error.value = '';
+  restoreError.value = '';
   message.value = '';
   try {
     await restoreRecord(farmer.value, r.id);
     records.value = records.value.filter(x => x.id !== r.id);
     message.value = `המשטח ${r.palletNumber} שוחזר`;
   } catch (e) {
-    error.value = e.message;
+    restoreError.value = e.message;
   } finally {
     restoring.value = false;
   }

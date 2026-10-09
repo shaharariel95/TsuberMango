@@ -10,6 +10,7 @@ class RecordRepository {
   getRecordsByPallet(farmer, palletNumber) { throw new Error('not implemented'); }
   getLastPallet(farmer) { throw new Error('not implemented'); }
   appendRecord(farmer, record) { throw new Error('not implemented'); }
+  // Throws RecordStateError 404 when the record is missing or soft-deleted.
   updateRecord(farmer, id, record) { throw new Error('not implemented'); }
   updateRecords(farmer, ids, records) { throw new Error('not implemented'); }
   updateSentStatus(farmer, ids, value) { throw new Error('not implemented'); }
