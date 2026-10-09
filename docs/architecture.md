@@ -50,6 +50,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `controllers/certificateController.js` — Thin HTTP layer over the service (farmer validated with `assertKnownFarmer`).
 - `routes/certificateRoutes.js` — `/api/certificates/*`. Mounted in `app.js` **above** the global `/api` chain with its own `verifyFirebaseToken` + `ensureCenterAccess`. The admin profile and season-export endpoints are defined directly in `app.js`.
 - `services/backupService.js` — Backs up all active-season records (read from the Firestore repository) **and certificates** and records metadata in the Firestore `backups` collection. Invoked by the manual admin endpoint and by Cloud Scheduler (see `backend/CLOUD_SCHEDULER.md`).
+- `services/seasonReset.js` — Season reset: counts, then (on execute) deletes all records, audit, certificates and farmer events for a center; keeps config, users, farmer docs/`certificateProfile` and backups. Execute requires a `backups` doc from the last 24 h unless skipped.
 - `models/palletRecord.js` — Pallet data model + required-field validation + boolean coercion (see PalletRecord below).
 - `utils/requestContext.js` — per-request async context carrying the `X-Client-Id`, stamped on realtime events as `updatedByClient`.
 - `utils/logger.js` — Winston logger (`logger.info`, `logger.error`), console transport.
@@ -59,6 +60,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 
 - `scripts/seedCertificateProfiles.js` — One-time seed of each farmer's `certificateProfile` (header lines, driver, next number) from the old shipping-label spreadsheets. Supports `--dry-run`. Farmers whose sheets aren't shared with the service account are entered manually in Settings.
 
+- `scripts/clearSeason.js` — CLI for `seasonReset`: dry run by default; `--execute --center <CENTER_ID>` deletes; `--skip-backup-check` bypasses the recent-backup guard. See `NEW_SEASON.md`.
 - `scripts/seedCenterNamespace.js` — One-time idempotent carry-over: copies top-level `config/global` + `users/*` into `centers/{centerId}/`.
 - `scripts/addTestFarmers.js` — Appends test farmers to the namespaced config.
 - `scripts/seedTestCenter.js` — Idempotent: stands up `centers/test` (config, one admin user, one fake farmer + record) for local emulator smoke-testing. Run: `node scripts/seedTestCenter.js <admin-email>`.

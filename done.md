@@ -5,6 +5,11 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Pre-season ops tooling — season reset + NEW_SEASON.md
+- `scripts/clearSeason.js` (via `services/seasonReset.js`) deletes all records, audit, certificates and farmer events; keeps config, users, farmer docs with `certificateProfile`, and backups.
+- Guards: dry run by default, `--execute --center <CENTER_ID>` required, refuses without a backup from the last 24 h unless `--skip-backup-check`.
+- `NEW_SEASON.md` rewritten for the Firestore era (end of season, reset procedure, first-time setup, deploy pointer).
+
 ### ✅ Task 36 — Naming cleanup
 - Renamed `controllers/sheetController.js` → `recordController.js`, `routes/sheetRoutes.js` → `recordRoutes.js`, `models/sheetModel.js` → `models/palletRecord.js` (`SheetModel` → `PalletRecord`) with `git mv`; docs and the README stale auth lines updated.
 - Removed dead code: `toArray()` (Sheets row serializer) and the two `Invalid farmer sheet` catch branches; `PalletInput.vue` now maps the real `Unknown farmer` error to the Hebrew message. No API path, response shape or log change.

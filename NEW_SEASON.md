@@ -1,60 +1,53 @@
-# TsuberMango - New Season Setup & Deployment Guide
+# TsuberMango - New Season Guide
 
-This document explains how the project works, how to set up the system for a new season, and how to deploy updates to both the frontend and the backend.
+## 1. How the data is laid out
+Everything lives in Firestore under `centers/tsuberi/…`:
+- `config/global` - kinds, sizes, destinations, and the farmers list (`{name, allowGidon, archived?}`).
+- `users` - authorization (email -> role).
+- `farmers/{name}` - holds `certificateProfile` (header lines, driver, next certificate number), with sub-collections `records` and `audit`.
+- `certificates/{farmer}__{number}` - issued shipping certificates, with a `versions` sub-collection.
+- `farmer_events` - real-time sync events (disposable).
 
-## 1. How The Project Works
-- **Frontend (Firebase)**: A Vue 3 + Vite Single Page Application styled with TailwindCSS.
-- **Backend (Google Cloud)**: A Node.js Express server that exposes an API for the frontend and enforces Admin/User roles (roles are statically defined in `backend/users.json`).
-- **Database (Google Sheets)**: The system doesn't use a traditional database. Instead, the backend uses the Google Sheets API to read and write directly to Google Sheets, effectively using them as database tables. 
+Google Sheets is only a cold archive of past seasons. There is no per-season spreadsheet any more.
 
----
+## 2. End of season
+1. Settings -> **ייצוא נתוני עונה** - downloads the Excel file used for the after-season calculations.
+2. Settings -> **גיבויים** - run a backup (JSON of all records + certificates, stored in the GCS bucket). Confirm it appears in the list.
 
-## 2. Setting Up New Sheets for the New Season
-To transition to the new season, you need to point the backend to brand-new Google Sheets. Follow these steps carefully:
-
-1. **Duplicate the Old Sheets**
-   Go into your Google Drive and make a copy of last year's sheets. This is highly important as it ensures you keep the exact column structure and headers that the backend API expects.
-
-2. **Retrieve the New IDs**
-   Open the new Google Sheets and copy the **Spreadsheet ID** from the URL. 
-   *(Example: `https://docs.google.com/spreadsheets/d/`<THE_NEW_ID>`/edit`)*
-
-3. **Update Local Environment**
-   Open `backend/.env` and replace the old IDs with the new ones.
-   ```env
-   SPREADSHEET_ID=<NEW_ID>
+## 3. Before the next season
+1. Take a fresh backup (Settings -> **גיבויים**). The reset refuses to run without a `backups` entry from the last 24 h.
+2. Dry run (deletes nothing, prints counts):
+   ```bash
+   cd backend
+   node scripts/clearSeason.js
    ```
+3. Compare the backup's row count (shown in the **גיבויים** list) with the dry run's total record count. **If the backup has fewer rows, do NOT execute** - the backup service skips a farmer whose fetch fails instead of failing the whole backup. Take another backup and re-check.
+4. Execute:
+   ```bash
+   node scripts/clearSeason.js --execute --center tsuberi
+   ```
+   `--center` must match the resolved `CENTER_ID`, otherwise the script falls back to a dry run.
+5. What it deletes: every farmer's records and audit, all certificates (with their versions), all `farmer_events`.
+   What it keeps: `config/**` (kinds, sizes, destinations, farmers list), `users/**`, `farmers/{name}` docs including `certificateProfile` (certificate numbering continues across seasons), and backup metadata + GCS backup files.
+6. Then in Settings:
+   - **ניהול חקלאים**: hide farmers who left (their data stays; restore them from **חקלאים מוסתרים**), add new farmers.
+   - For each farmer check **פרטי תעודה**: header lines, driver, next number.
+   - Review the kinds / sizes / destinations lists and the users list.
 
-   **Shipping certificates:** certificates are in the app (Firestore), so there are no shipping-label spreadsheets to copy and no `SHIPPING_LABELS_ID_*` variables. At season start, check Settings → פרטי תעודה per farmer (header lines and next number).
+## 4. First-time setup only (2026 season)
+1. Clear the pre-season test data. There is no real backup to guard, so skip the check:
+   ```bash
+   node scripts/clearSeason.js                                          # dry run first
+   node scripts/clearSeason.js --execute --center tsuberi --skip-backup-check
+   ```
+2. AFTER clearing (never delete `farmers/{name}` docs afterwards - they hold `certificateProfile`), seed profiles from the old label sheets:
+   ```bash
+   node scripts/seedCertificateProfiles.js --dry-run
+   node scripts/seedCertificateProfiles.js
+   ```
+3. Enter the Avner / Idan / Kopler profiles manually in Settings -> **פרטי תעודה**, then check all farmers (names must match the config exactly).
+4. Printer check: Settings -> **פרטי תעודה** -> **תצוגה מקדימה**. Never issue a real certificate to test - it consumes a real number.
+5. Once seeded, delete `backend/scripts/seedCertificateProfiles.js` and the `googleapis` dependency.
 
-4. **Update Production Environment**
-   Because the backend runs on Google Cloud, updating the local `.env` won't affect the live production server. 
-   - Log into the Google Cloud Console.
-   - Navigate to your service's settings (Cloud Run).
-   - Edit your deployment / revision and update the Environment Variables there with the new IDs.
-   - Deploy the new revision.
-
----
-
-## 3. How to Deploy (Pushing Updates)
-
-### Deploying the Frontend (Firebase Hosting)
-Whenever you make changes to the Vue components in the `frontend/` directory, you need to build and deploy to Firebase.
-
-Open your terminal and run the following commands:
-```bash
-cd frontend
-npm run build
-npx firebase-tools deploy --only hosting
-```
-*(If you have `firebase-tools` installed globally, you can omit the `npx firebase-tools` prefix and just use `firebase deploy`)*
-
-### Deploying the Backend (Google Cloud)
-Thanks to the `Dockerfile` in the backend, the server is containerized and most likely runs on Google Cloud Run. Whenever you update Express routes, logic, or add dependencies, you must push to GCP.
-
-Open your terminal and run:
-```bash
-cd backend
-gcloud run deploy --source .
-```
-*Note: The gcloud CLI might prompt you for the Service Name and Region. Be sure to provide whatever name you picked previously for this server (e.g., `tsuberi-mango-backend`).*
+## 5. Deploying
+See the `deploy` skill (`.claude/skills/deploy/SKILL.md`) for the exact commands and ordering. Backend: Cloud Run service `backend-service` (project `tsuberi-mangos`, region `europe-west1`). Frontend: Firebase Hosting (project `tsuberi-mangos-7e449`). There are no per-season env vars any more; remove `SPREADSHEET_ID` / `SHIPPING_LABELS_ID_*` from Cloud Run if still set.
