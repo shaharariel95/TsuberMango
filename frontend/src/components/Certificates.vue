@@ -13,8 +13,8 @@
           <option v-for="d in destinations" :key="d" :value="d">{{ d }}</option>
         </select>
         <input v-model="search" @input="exactNumber = ''" placeholder="חיפוש מספר..." class="input-field !w-32 text-sm" />
-        <button class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3" :disabled="!selected.length || busy" @click="printSelected">הדפס נבחרות</button>
-        <button class="btn-primary text-sm min-h-[36px] px-3" :disabled="!filtered.length || busy" @click="exportExcel">ייצוא לאקסל</button>
+        <button class="btn-ghost text-sm border border-slate-200 min-h-[40px] px-3" :disabled="!selected.length || busy" @click="printSelected">הדפס נבחרות</button>
+        <button class="btn-primary text-sm min-h-[40px] px-3" :disabled="!filtered.length || busy" @click="exportExcel">ייצוא לאקסל</button>
       </div>
     </div>
 
@@ -45,8 +45,8 @@
                 <span :class="c.status === 'cancelled' ? 'text-red-600' : 'text-emerald-600'">{{ c.status === 'cancelled' ? 'מבוטלת' : 'הונפקה' }}</span>
               </td>
               <td class="p-2 whitespace-nowrap space-x-1 space-x-reverse">
-                <button class="btn-ghost text-xs border border-slate-200 px-2 py-1" :disabled="c.status === 'cancelled'" @click="reprint(c)">הדפס</button>
-                <button class="btn-ghost text-xs border border-slate-200 px-2 py-1" @click="toggle(c)">{{ open[c.id] ? 'סגור' : 'פרטים' }}</button>
+                <button class="btn-ghost text-sm border border-slate-200 px-3 py-2 min-h-[40px]" :disabled="c.status === 'cancelled'" @click="reprint(c)">הדפס</button>
+                <button class="btn-ghost text-sm border border-slate-200 px-3 py-2 min-h-[40px]" @click="toggle(c)">{{ open[c.id] ? 'סגור' : 'פרטים' }}</button>
               </td>
             </tr>
             <tr v-if="open[c.id]" class="bg-slate-50/60">
@@ -58,7 +58,7 @@
                       <tr class="text-slate-500"><th>משטח</th><th>זן</th><th>גודל</th><th>ארגזים</th><th>משקל</th><th></th></tr>
                       <tr v-for="r in open[c.id].latest.rows" :key="r.recordId" class="border-t border-slate-100">
                         <td>{{ r.palletNumber }}</td><td>{{ r.kind }}</td><td>{{ r.size }}</td><td>{{ r.boxes }}</td><td>{{ r.weight }}</td>
-                        <td><button v-if="c.status !== 'cancelled'" class="text-red-600 underline text-xs" @click="removePallet(c, r)">הסר מתעודה</button></td>
+                        <td><button v-if="c.status !== 'cancelled'" class="btn-ghost text-red-600 text-xs border border-red-200 px-3 py-2 min-h-[40px]" @click="removePallet(c, r)">הסר מתעודה</button></td>
                       </tr>
                     </table>
                   </div>
@@ -67,7 +67,7 @@
                     <ul class="space-y-1 text-xs">
                       <li v-for="v in open[c.id].versions" :key="v.n" class="flex items-center justify-between bg-white rounded px-2 py-1">
                         <span>גרסה {{ v.n }} · {{ reasonLabel(v.reason) }} · {{ v.createdBy }} · {{ fmtTime(v.createdAt) }}</span>
-                        <button class="underline" @click="printVersion(c, v.n)">הדפס גרסה</button>
+                        <button class="btn-ghost text-xs border border-slate-200 px-3 py-2 min-h-[40px]" @click="printVersion(c, v.n)">הדפס גרסה</button>
                       </li>
                     </ul>
                   </div>
@@ -88,7 +88,7 @@ import LoadingState from './shared/LoadingState.vue';
 import ErrorState from './shared/ErrorState.vue';
 import EmptyState from './shared/EmptyState.vue';
 import { listCertificates, getCertificate, getCertificateVersion, reprintCertificate, removePalletFromCertificate } from '../api/certificates';
-import { printCertificates } from '../data/certificatePdf';
+import { printWithRetap, preloadPdf } from '../data/certificatePdf';
 import { requestConfirm, requestAlert } from '../composables/useDialogs';
 
 export default {
@@ -116,11 +116,14 @@ export default {
       (exactNumber.value ? String(c.number) === exactNumber.value
         : (!search.value || String(c.number).includes(search.value.trim())))));
 
+    let loadSeq = 0;
     async function load() {
       if (!farmer.value) return;
+      const seq = ++loadSeq; // an older response must not overwrite a newer farmer's list
       loading.value = true; error.value = '';
       try {
         const list = (await listCertificates(farmer.value)).certificates;
+        if (seq !== loadSeq) return;
         certificates.value = list;
         const live = new Set(list.filter(c => c.status !== 'cancelled').map(c => c.id));
         selected.value = selected.value.filter(id => live.has(id));
@@ -128,10 +131,11 @@ export default {
         const keep = Object.keys(open.value).map(id => list.find(c => String(c.id) === id)).filter(Boolean);
         const next = {};
         await Promise.all(keep.map(async c => { try { next[c.id] = await details(c); } catch { /* row stays collapsed */ } }));
+        if (seq !== loadSeq) return;
         open.value = next;
       }
-      catch (e) { error.value = e.message; }
-      finally { loading.value = false; }
+      catch (e) { if (seq === loadSeq) error.value = e.message; }
+      finally { if (seq === loadSeq) loading.value = false; }
     }
 
     async function details(c) {
@@ -147,7 +151,7 @@ export default {
     const fail = (e) => requestAlert({ title: 'שגיאה', message: e.message, variant: 'error' });
     const fmtTime = (t) => (t || '').slice(0, 16).replace('T', ' ');
     async function print(snapshots, name) {
-      try { await printCertificates(snapshots, name); }
+      try { await printWithRetap(snapshots, name, requestConfirm); }
       catch { await requestAlert({ title: 'ההדפסה לא הושלמה', message: 'נסה שוב', variant: 'warning' }); }
     }
     async function reprint(c) {
@@ -211,7 +215,7 @@ export default {
     const reasonLabel = (r) => ({ issue: 'הנפקה', reprint: 'עדכון', 'remove-pallet': 'הסרת משטח' }[r] || r);
 
     watch(farmer, load);
-    onMounted(load);
+    onMounted(() => { preloadPdf(); load(); });
     return { farmer, highlight, loading, error, from, to, destination, search, selected, open, busy, fmtTime, exactNumber, destinations, filtered,
       load, toggle, reprint, printVersion, printSelected, removePallet, exportExcel, reasonLabel };
   },

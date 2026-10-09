@@ -233,7 +233,7 @@ import ErrorToast from './shared/ErrorToast.vue';
 import { requestAlert, requestConfirm } from '../composables/useDialogs';
 import { getToken } from '../utils/auth';
 import { previewCertificates, issueCertificates } from '../api/certificates';
-import { printCertificates } from '../data/certificatePdf';
+import { printWithRetap, preloadPdf } from '../data/certificatePdf';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
@@ -646,12 +646,15 @@ export default {
                     throw new Error('Failed to update pallet');
                 }
 
+                // The server decides cardId/sent (a certified row keeps its own) — take the stored values back.
+                const { data: stored } = await response.json().catch(() => ({}));
                 const index = this.pallets.findIndex(pallet => pallet.id === this.editingId);
 
                 if (index !== -1) {
                     // Create a new array to trigger reactivity
                     const newPallets = [...this.pallets];
-                    newPallets[index] = { ...originalPallet, ...this.editingPallet };
+                    newPallets[index] = { ...originalPallet, ...this.editingPallet,
+                        ...(stored ? { cardId: stored.cardId, sent: stored.sent } : {}) };
                     this.$emit('update:pallets', newPallets);
                 }
 
@@ -697,6 +700,7 @@ export default {
         async sendSelectedPallets() {
             const ids = [...this.selectedPallets];
             this.isCreatingLabel = true;
+            preloadPdf(); // warm pdfmake + font now so printing right after issue stays within the tap window
             try {
                 const pv = await previewCertificates(this.farmer, ids);
                 const sizes = pv.chunks.map(c => c.rows);
@@ -719,7 +723,7 @@ export default {
                 this.selectedPallets = [];
                 const numbers = certificates.map(c => c.number).join('-');
                 try {
-                    await printCertificates(certificates.map(c => c.snapshot), `תעודת-משלוח-${numbers}.pdf`);
+                    await printWithRetap(certificates.map(c => c.snapshot), `תעודת-משלוח-${numbers}.pdf`, requestConfirm);
                 } catch {
                     await requestAlert({ title: 'ההדפסה לא הושלמה',
                         message: `התעודה נשמרה (${numbers}). ניתן להדפיס אותה שוב ממסך "תעודות".`, variant: 'warning' });
@@ -790,9 +794,12 @@ export default {
                     throw new Error('Failed to send pallets');
                 }
 
+                // The server reports the stored state (certified rows also lose cardId and return to prep).
+                const { updated = [] } = await response.json().catch(() => ({}));
+                const byId = new Map(updated.map(u => [u.id, u]));
                 const updatedPallets = this.pallets.map(p => {
                     if (selectedPalletIds.includes(p.id)) {
-                        return { ...p, sent: false };
+                        return { ...p, sent: false, ...(byId.get(p.id) || {}) };
                     }
                     return p;
                 });

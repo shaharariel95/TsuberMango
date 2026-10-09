@@ -135,10 +135,6 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-base">
                     <div>
-                        <label class="block text-slate-600 mb-1.5 text-sm">מספר תעודה</label>
-                        <input type="number" v-model="formData.cardId" class="input-field" />
-                    </div>
-                    <div>
                         <label class="block text-slate-600 mb-1.5 text-sm">משקל</label>
                         <input type="number" v-model="formData.weight" min="0" class="input-field" />
                     </div>
@@ -234,10 +230,6 @@
                         <span class="font-semibold">{{ lastFormData.palletNumber }}</span>
                     </div>
                     <div class="bg-slate-50 rounded-lg p-2.5">
-                        <span class="text-slate-400 text-xs block">מספר כרטיס</span>
-                        <span class="font-semibold">{{ lastFormData.cardId || 'לא צוין' }}</span>
-                    </div>
-                    <div class="bg-slate-50 rounded-lg p-2.5">
                         <span class="text-slate-400 text-xs block">זן</span>
                         <span class="font-semibold">{{ lastFormData.kind }}</span>
                     </div>
@@ -306,7 +298,6 @@ export default {
             size: 'גודל',
             weight: 'משקל',
             destination: 'יעד',
-            cardId: 'מספר תעודה',
             farmer: 'שם חקלאי',
         }
 
@@ -335,7 +326,6 @@ export default {
 
         const formData = reactive({
             farmer: props.selectedFarmer,
-            cardId: null,
             harvestDate: new Date().toISOString().split('T')[0],
             palletNumber: null,
             kind: '',
@@ -373,7 +363,6 @@ export default {
         }, { immediate: true })
 
         const resetForm = () => {
-            formData.cardId = null
             formData.palletNumber = null
             formData.boxes = null
             formData.weight = null
