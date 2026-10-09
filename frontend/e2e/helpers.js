@@ -64,5 +64,9 @@ export async function navTo(page, label) {
   if (await menuButton.isVisible()) await menuButton.click();
   const link = page.getByRole('link', { name: label });
   await expect(link).toBeInViewport();
+  const href = await link.getAttribute('href');
   await link.click();
+  // Wait for the route to commit: until then the previous page is still on screen, and an
+  // immediate click lands on its (identical-looking) rows, which are then unmounted.
+  if (href) await expect.poll(() => new URL(page.url()).pathname).toBe(href.split('?')[0]);
 }

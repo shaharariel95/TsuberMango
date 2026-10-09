@@ -260,6 +260,7 @@ import ListEditor from './ListEditor.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
 import CertificateProfileEditor from './CertificateProfileEditor.vue';
 import { exportSeasonRecords } from '../api/certificates';
+import { safeSheetName } from '../utils/sheetName';
 
 
 
@@ -487,6 +488,7 @@ export default {
         const { farmers } = await exportSeasonRecords();
         const XLSX = await import('xlsx');
         const wb = XLSX.utils.book_new();
+        const usedSheetNames = new Set();
         for (const [name, records] of Object.entries(farmers)) {
           const rows = records.map(r => ({
             'מגדל': name, 'מספר תעודה': r.cardId ?? '', 'תאריך משלוח': r.shipmentDate || '',
@@ -495,7 +497,7 @@ export default {
           }));
           const ws = XLSX.utils.json_to_sheet(rows);
           ws['!views'] = [{ RTL: true }];
-          XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+          XLSX.utils.book_append_sheet(wb, ws, safeSheetName(name, usedSheetNames));
         }
         if (!wb.SheetNames.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[]]), 'ריק');
         XLSX.writeFile(wb, `נתוני-עונה-${new Date().toISOString().slice(0, 10)}.xlsx`);

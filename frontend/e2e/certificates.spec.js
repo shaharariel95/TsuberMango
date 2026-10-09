@@ -115,18 +115,56 @@ test('settings: edit certificate details per farmer, reject a lower number, seas
   await stubPrinting(page);
   await signIn(page);
   await navTo(page, 'ניהול הגדרות');
-  await page.getByRole('button', { name: 'פרטי תעודה' }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'פרטי תעודה' });
-  await expect(dialog.getByLabel('שורת כותרת 1')).toHaveValue(/^חקלאי טסט/); // the second project sees the first project's edit
+  const openEditor = async () => {
+    await page.getByRole('button', { name: 'פרטי תעודה' }).first().click();
+    return page.getByRole('dialog', { name: 'פרטי תעודה' });
+  };
+  // Click save and return the PUT response, so assertions never read a stale message
+  const save = async (dialog) => {
+    const [res] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/certificate-profile') && r.request().method() === 'PUT'),
+      dialog.getByRole('button', { name: 'שמור' }).click(),
+    ]);
+    return res;
+  };
+
+  let dialog = await openEditor();
+  await expect(dialog.getByLabel('שורת כותרת 1')).toHaveValue(/^חקלאי טסט/); // the second project sees the first one's edit
   await dialog.getByLabel('שורת כותרת 1').fill('חקלאי טסט מעודכן');
+
+  // A low number: rejected (400) once any certificate exists, accepted (200) otherwise
   await dialog.getByLabel('מספר התעודה הבא').fill('1');
-  await dialog.getByRole('button', { name: 'שמור' }).click();
-  // Either saved (nothing issued yet) or rejected - both must be explicit
-  await expect(dialog.getByText(/נשמר|חייב להיות גדול/)).toBeVisible();
-  // Unique, growing number: always above anything issued by earlier tests/projects
-  await dialog.getByLabel('מספר התעודה הבא').fill(String(Math.floor(Date.now() / 1000)));
-  await dialog.getByRole('button', { name: 'שמור' }).click();
+  const low = await save(dialog);
+  expect([200, 400]).toContain(low.status());
+  if (low.status() === 400) {
+    await expect(dialog.getByText('חייב להיות גדול')).toBeVisible();
+  } else {
+    await expect(dialog.getByText('נשמר', { exact: true })).toBeVisible();
+  }
+
+  // A number above anything issued by earlier tests/projects
+  const next = String(Math.floor(Date.now() / 1000));
+  await dialog.getByLabel('מספר התעודה הבא').fill(next);
+  const ok = await save(dialog);
+  expect(ok.status()).toBe(200);
   await expect(dialog.getByText('נשמר', { exact: true })).toBeVisible();
+
+  // Close and reopen: the saved values are loaded from the server
+  await dialog.getByRole('button', { name: 'סגור' }).click();
+  await expect(dialog).toHaveCount(0);
+  dialog = await openEditor();
+  await expect(dialog.getByLabel('שורת כותרת 1')).toHaveValue('חקלאי טסט מעודכן');
+  await expect(dialog.getByLabel('מספר התעודה הבא')).toHaveValue(next);
+
+  // Client-side validation: a non-positive number never reaches the server
+  let putSent = false;
+  page.on('request', r => { if (r.url().includes('/certificate-profile') && r.method() === 'PUT') putSent = true; });
+  await dialog.getByLabel('מספר התעודה הבא').fill('0');
+  await dialog.getByRole('button', { name: 'שמור' }).click();
+  await expect(dialog.getByText('מספר התעודה הבא חייב להיות מספר שלם חיובי')).toBeVisible();
+  expect(putSent).toBe(false);
+  await dialog.getByLabel('מספר התעודה הבא').fill(next);
+
   await dialog.getByRole('button', { name: 'תצוגה מקדימה' }).click();
   await expect.poll(() => page.evaluate(() => window.__printed.length)).toBe(1);
   await dialog.getByRole('button', { name: 'סגור' }).click();
