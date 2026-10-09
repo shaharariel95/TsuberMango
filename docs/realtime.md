@@ -18,7 +18,7 @@ Run is only woken by actual HTTP requests.
 |---|---|---|
 | `create` | `pallet` | Append to bottom if passes filter |
 | `update` | `pallet` | Update in-place if passes filter; remove if no longer qualifies |
-| `bulk_update` | `pallets[]` | Per-row: update in-place / remove / ignore |
+| `bulk_update` | `pallets[]` | Per-row: update in-place / remove / ignore. Also emitted by certificate writes (issue, remove-pallet) with the affected pallets, so `cardId`/`sent` changes show up live on other clients |
 | `reset_sent` | `palletIds[]` | Set `sent: false` in-place; remove if view filters on sent |
 | `mark_destination` | `pallets[]`, `newValue` | Only updates `mark` field on existing rows; appends if view filters on mark |
 | `shipment_date` | `palletIds[]`, `shipmentDate` | Set `shipmentDate` in-place on existing rows (never appends/removes) |

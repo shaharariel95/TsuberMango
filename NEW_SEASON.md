@@ -23,14 +23,9 @@ To transition to the new season, you need to point the backend to brand-new Goog
    Open `backend/.env` and replace the old IDs with the new ones.
    ```env
    SPREADSHEET_ID=<NEW_ID>
-   SHIPPING_LABELS_ID_TSUBERI=<NEW_ID>
-   SHIPPING_LABELS_ID_AVNER=<NEW_ID>
-   SHIPPING_LABELS_ID_IDAN=<NEW_ID>
-   SHIPPING_LABELS_ID_PESAH=<NEW_ID>
-   SHIPPING_LABELS_ID_KOPLER=<NEW_ID>
-   SHIPPING_LABELS_ID_SHAHAK=<NEW_ID>
-   SHIPPING_LABELS_ID_MELTZER=<NEW_ID>
    ```
+
+   **Shipping certificates:** certificates are in the app (Firestore), so there are no shipping-label spreadsheets to copy and no `SHIPPING_LABELS_ID_*` variables. At season start, check Settings → פרטי תעודה per farmer (header lines and next number).
 
 4. **Update Production Environment**
    Because the backend runs on Google Cloud, updating the local `.env` won't affect the live production server. 

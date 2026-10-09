@@ -5,6 +5,22 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 20 (+4) — Shipping certificates off Google Sheets
+- Certificates now live in Firestore: `centers/{c}/certificates/{farmer}__{number}` with immutable `versions/{n}`, and `farmers/{name}.certificateProfile {headerLines[5], driverName, nextNumber}`. Issuing is one atomic transaction (number allocation, certificate + v1 snapshot, `cardId`/`sent` stamped on the pallets), which fixes the old `D7` numbering race and the orphan-certificate problem.
+- Task 4 absorbed: selections over 13 rows auto-split into ≤13-row certificates, grouped by pallet number (a pallet never straddles two certificates); the single-destination guard is kept. Preview and issue share one `planIssue`, so they cannot disagree.
+- Backend: `certificateCore.js`, `FirestoreCertificateRepository.js`, `certificateService.js`, `certificateController.js`, `certificateRoutes.js` (mounted above the global `/api` chain with its own auth), admin profile + season-export endpoints in `app.js`, `scripts/seedCertificateProfiles.js` (`--dry-run`). Backup includes certificates; certificate writes emit `bulk_update` events. `resetPallets` routes a certified pallet through remove-pallet only when a certificate doc exists (legacy cardIds get a plain reset); `updateRecord` preserves `cardId`/`sent` of a certified pallet.
+- Frontend: PDF built in the browser (`certificatePdf.js`, pdfmake + `bidi-js` real bidi ordering), issue flow with split preview in `PalletTable.vue` (cardId links to the certificate), new תעודות screen (history, reprint, remove pallet, merged PDF, Excel export), per-farmer "פרטי תעודה" editor + season Excel export in Settings, `utils/sheetName.js`.
+- Deleted: `shippingLabelsService.js`, `labelController.js`, `POST /api/shipping/newlabel`, and the `SHIPPING_LABELS_ID_*` env-var usage. Google Sheets is now only the admin create/delete-sheet path.
+- Tests: backend 107 (new `certificateCore`, `certificates.repo`, `certificates.api`), frontend Vitest 18 (new, `npm test`), Playwright 18 across desktop + tablet (new `certificates.spec.js`; `navTo()` now waits for the route to commit).
+- Seeding numbers (profile `nextNumber` from the old sheets): Tsuberi 51466, Pesach 90048, Shahak 507, Meltzer 3. Avner, Idan and Kopler are entered manually in Settings because their sheets aren't shared with the service account.
+- **Rollout checklist:**
+  1. Deploy backend, then frontend (no Firestore rules change needed; certificates are backend-only).
+  2. `cd backend && node scripts/seedCertificateProfiles.js --dry-run`, review, then run it for real against production.
+  3. Enter the Avner / Idan / Kopler profiles in Settings → פרטי תעודה.
+  4. Print one certificate on the packhouse printer and compare it with the 51219 sample.
+  5. Remove the `SHIPPING_LABELS_ID_*` env vars from the Cloud Run service.
+- Known follow-up F1 (tracked by the controller): the e2e `signIn` helper can occasionally fail intermittently on the login page.
+
 ### ✅ Task 5 — CR#3 Edit destination & weight after a certificate was issued
 - Clicking "ערוך" on a row that is `sent === true` or has a non-empty certificate number now opens a confirmation first ("המשטח כבר יצא — הונפקה לו תעודה — לשנות בכל זאת?"); cancel leaves the row read-only. Rows that have not left are unaffected.
 - Saving goes through the existing `PUT /records/:id` (already stamps `editedBy`/`editedAt` and audits). Frontend only (`PalletTable.vue`).

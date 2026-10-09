@@ -11,7 +11,7 @@ destinations, and shipping labels for farmers. The UI is in Hebrew, rendered rig
 | Frontend | Vue 3.5 + Vite 5, Vue Router 4, Tailwind CSS 3, Axios |
 | Backend | Node.js + Express 5 |
 | Primary DB | Firebase Firestore — pallet records, audit, config, users, real-time events (all under `centers/{centerId}/…`) |
-| Legacy DB | Google Sheets API — now only shipping-label spreadsheets + farmer-sheet provisioning |
+| Legacy DB | Google Sheets API — now only farmer-sheet provisioning (admin create/delete-sheet) |
 | Auth | Firebase Auth (Google provider) — ID tokens; Firestore `users` collection for authorization |
 | PDF | pdfmake · **Logging** winston |
 | Hosting | Firebase Hosting (frontend), Google Cloud Run (backend) |
@@ -64,7 +64,7 @@ breaks and scrolling stops working. Current pages that do this: `Destination.vue
 
 ## Known Issues / Deferrals
 
-- **Google Sheets is not fully removed.** `googleSheetsService.js` is retained for shipping-label provisioning and the admin `create-sheet`/`delete-sheet`/`refresh-cache` + startup cache-warm paths — deleting it would break server boot. Its removal + Firestore-based farmer provisioning is **task 6**; shipping labels off Sheets is **task 20**.
+- **Google Sheets is not fully removed.** `googleSheetsService.js` is retained for the admin `create-sheet`/`delete-sheet`/`refresh-cache` + startup cache-warm paths — deleting it would break server boot. Its removal + Firestore-based farmer provisioning is **task 6**. Shipping certificates (task 20) are already off Sheets.
 - **`centerId` is still the constant `'tsuberi'`** (env-resolved via `config/center.js`, not per-subdomain). Task 23 shipped the Firebase-Auth/claim side — client reads are authed + center-matched, and `ensureCenterAccess` gates every backend request — but real per-subdomain center *resolution* (hostname → `centerId`) is still not implemented. **Task 23 status: SHIPPED to production 2026-07-26**; see `done.md` for the cutover log.
 - **Deliberately deferred, not oversights:** putting `role` in the custom claim (it stays live-read from Firestore), and running staging on a separate Firebase project (still the same project as production — note this is the *only* way to rehearse a rules flip, since rules and Auth users are both project-scoped).
 - **`main` is deliberately stale — do not "fix" it.** `main` is pinned to the last state validated by a real customer (`94b2272`, 2026-06-11, pre-Firestore), kept as a fast rollback anchor. All redesign work lives on `arch-redesign` (~42 commits ahead, 0 behind), which is what production runs. This is safe right now because there is no active season: prod has no farmers on it and serves as a testing environment. The merge to `main` happens only after **all** redesign tasks are complete, tested, and a farmer has verified the existing functionality still works — verified by the local suites (`npm test` + `npm run e2e`). Do not propose merging or syncing `main` before then.

@@ -45,7 +45,6 @@ additionally require `ensureAdmin`.
 | PUT | `/api/farmers/:farmer/records/shipmentDate` | `updateShipmentDate` | Body `{palletIds[], shipmentDate: 'yyyy-mm-dd'}`. Partial update (only `shipmentDate` + `editedBy`/`editedAt`), works on unweighed pallets; audit `עדכון תאריך משלוח`; emits `shipment_date`. 400 bad date/ids/unknown farmer, 404 unknown id |
 | PUT | `/api/farmers/:farmer/records/updatemany` | `updateMultipleRecords` | Batch update records |
 | PUT | `/api/farmers/:farmer/records/:id` | `updateRecord` | Single record update |
-| POST | `/api/shipping/newlabel/` | `createNewShippingLabel` | Create shipping label sheet |
 | POST | `/api/farmers/:farmer/destinations/toSend` | `sendToDestination` | Set mark=true |
 | POST | `/api/farmers/:farmer/destinations/Sent` | `removeFromDestination` | Set mark=false |
 | GET | `/api/auth/me` | — | Current user info — `{email, role, centerId, refreshToken}`; role read live from Firestore |
@@ -57,9 +56,36 @@ additionally require `ensureAdmin`.
 | POST | `/api/admin/users` | — | Admin: add user |
 | DELETE | `/api/admin/users/:email` | — | Admin: remove user |
 | POST | `/api/admin/refresh-cache` | — | Admin: clear the legacy Sheets caches (records are uncached — read live from Firestore) |
+| GET | `/api/admin/farmers/:farmer/certificate-profile` | — | Admin: `{profile}` (null if none) |
+| PUT | `/api/admin/farmers/:farmer/certificate-profile` | — | Admin: see Certificates below |
+| GET | `/api/admin/export/records` | — | Admin: `{farmers: {name: records[]}}` for the season Excel export (built in the browser) |
 | GET | `/api/admin/backups` | — | Admin: list recent backups from Firestore |
 | POST | `/api/admin/backup` | — | Admin: trigger manual backup |
 | POST | `/api/internal/backup` | — | Cloud Scheduler backup trigger. **Not** token-auth'd — verifies a Google OIDC token (or `CRON_SECRET` in dev). Defined before the `verifyFirebaseToken`/`ensureCenterAccess` block. |
+
+---
+
+## Certificates API
+
+Mounted at `/api/certificates` above the global `/api` chain with its own `verifyFirebaseToken` +
+`ensureCenterAccess`. Errors from the certificate layer have the shape
+`{error: <Hebrew message>, code, ...details}`; unknown/invalid input is `400 {error}`.
+
+| Method | Path | Body / query | Success | Errors |
+|---|---|---|---|---|
+| POST | `/api/certificates/preview` | `{farmer, recordIds[]}` | `200 {destination, shipmentDate, chunks: [{rows, pallets}]}` — how the selection would split (13 rows per certificate); writes nothing | 400 missing fields / unknown farmer / `NO_PROFILE` / `INVALID_SELECTION {errors[]}`; 404 `RECORD_NOT_FOUND`; 409 `ALREADY_CERTIFIED {conflicts[]}` |
+| POST | `/api/certificates` | `{farmer, recordIds[]}` | `201 {certificates: [{id, number, snapshot}]}` — atomic; stamps `cardId` + `sent` on the pallets, writes audit + a `bulk_update` event | same as preview |
+| GET | `/api/certificates` | `?farmer=` (required), `from`, `to` (shipment date, `yyyy-mm-dd`) | `200 {certificates: [...]}` | 400 no farmer |
+| GET | `/api/certificates/:id` | `id = {farmer}__{number}` | `200` certificate + current snapshot | 404 |
+| GET | `/api/certificates/:id/versions/:n` | — | `200 {snapshot}` | 404 |
+| POST | `/api/certificates/:id/reprint` | — | `200 {snapshot, version, created}` — returns the current snapshot; creates a new version only when the pallet data changed since the last one | 404 `CERTIFICATE_NOT_FOUND`; 409 `CERTIFICATE_CANCELLED` |
+| POST | `/api/certificates/:id/remove-pallet` | `{recordId}` | `200 {snapshot, version, cancelled}` — clears the pallet's `cardId`/`sent`, writes a new version, cancels the certificate if it was the last pallet; audit + event | 400 no recordId / `NOT_ON_CERTIFICATE`; 404 `CERTIFICATE_NOT_FOUND` |
+| PUT | `/api/admin/farmers/:farmer/certificate-profile` | `{headerLines: string[5], driverName?, nextNumber: int>=1}` | `200 {profile}` | 400 not exactly 5 lines; 400 bad `nextNumber`; 400 `nextNumber` not greater than the highest issued number |
+
+Related behavior in the record endpoints: `resetPallets` routes a certified pallet through
+remove-pallet (so the certificate stays consistent) only when a certificate doc exists — a legacy
+`cardId` with no certificate gets a plain reset. `updateRecord` preserves the `cardId`/`sent` of a
+certified pallet.
 
 ---
 

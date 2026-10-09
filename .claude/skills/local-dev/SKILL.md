@@ -8,8 +8,9 @@ description: Use when running or testing TsuberMango locally - the backend test 
 ## Verify a change — run both before calling anything done
 
 ```bash
-cd backend && npm test        # ~10s: 53 Vitest tests on the auth + Firestore emulators
-cd frontend && npm run e2e    # ~45s: Playwright, real UI on desktop + tablet viewports
+cd backend && npm test        # ~10s: 107 Vitest tests on the auth + Firestore emulators
+cd frontend && npm test       # Vitest unit tests (certificate PDF builder, sheet names)
+cd frontend && npm run e2e    # Playwright, real UI on desktop + tablet viewports
 ```
 
 | Layer | File(s) | Covers |
@@ -18,7 +19,9 @@ cd frontend && npm run e2e    # ~45s: Playwright, real UI on desktop + tablet vi
 | Auth middleware | `backend/tests/auth.middleware.test.js` | token verify, center gate, admin gate, claim sync |
 | Firestore rules | `backend/tests/firestore.rules.test.js` | client read gating |
 | **HTTP API** | `backend/tests/api.test.js` | every `/api` route via supertest with **real auth-emulator ID tokens**: auth gates, intake → weigh → mark → certificate stamp → reset, audit + realtime events, admin users/config, Sheets isolation |
-| **Browser E2E** | `frontend/e2e/*.spec.js` | full season flow through the UI; realtime update between two clients |
+| Certificates | `backend/tests/certificateCore.test.js`, `certificates.repo.test.js`, `certificates.api.test.js` | pure chunking/validation/`planIssue`; atomic issue/reprint/remove-pallet against the Firestore emulator; the `/api/certificates` + admin profile endpoints with real tokens |
+| Frontend unit | `frontend/src/**/*.test.js` (`cd frontend && npm test`) | `certificatePdf.js` (bidi, layout, row guard), `sheetName.js` |
+| **Browser E2E** | `frontend/e2e/*.spec.js` | full season flow through the UI; realtime update between two clients; `certificates.spec.js` covers issue → תעודות screen → reprint → remove pallet → Settings profile |
 
 Adding an endpoint or changing a write path → add a case to `api.test.js`. Changing a user flow →
 extend `frontend/e2e/`. Table cells carry `data-col="<column key>"` for stable selectors.
@@ -40,10 +43,11 @@ java/node listeners on the emulator ports (plus 3000/5173 with `--dev`). If anyt
 ## Google Sheets is blocked under the emulators
 
 `utils/sheetsGuard.js` makes every Google Sheets call throw while `FIRESTORE_EMULATOR_HOST` or
-`FIREBASE_AUTH_EMULATOR_HOST` is set. The Sheets services hold **production** spreadsheet ids, so
-without this a local certificate would be written into a live customer file. Consequences:
-- Certificate creation ("צור תעודת משלוח") and admin create/delete-sheet fail under the
+`FIREBASE_AUTH_EMULATOR_HOST` is set. The Sheets service holds the **production** farmer-sheet
+ids, so without this a local action could touch a live customer file. Consequences:
+- This now applies **only to the admin create-sheet / delete-sheet buttons**, which fail under the
   emulators with "Google Sheets access is disabled…". The E2E asserts exactly that.
+- Shipping certificates are Firestore-only and work fully under the emulators.
 - Override only deliberately: `ALLOW_REAL_SHEETS=true`.
 
 ## Manual click-through against the emulators
