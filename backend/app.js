@@ -121,57 +121,6 @@ app.use(
   sheetRoutes
 );
 
-// 🛠️ Admin Sheet Management
-app.post("/api/admin/create-sheet", ensureAdmin, async (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: "Sheet name is required" });
-
-  try {
-    const sheetsService = require("./services/googleSheetsService");
-    await sheetsService.addSheet(name);
-    res.json({ success: true, message: `Sheet '${name}' created successfully` });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to create sheet", details: error.message });
-  }
-});
-
-app.post("/api/admin/delete-sheet", ensureAdmin, async (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: "Sheet name is required" });
-
-  try {
-    const sheetsService = require("./services/googleSheetsService");
-    await sheetsService.deleteSheet(name);
-    res.json({ success: true, message: `Sheet '${name}' deleted successfully` });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete sheet", details: error.message });
-  }
-});
-
-// 🔄 Manual Cache Refresh Endpoint (Admin only)
-app.post("/api/admin/refresh-cache", ensureAdmin, async (req, res) => {
-  try {
-    const sheetsService = require("./services/googleSheetsService");
-    sheetsService.cachedSheetNames = null;
-    sheetsService.cachedAuditSheetExists.clear();
-    sheetsService.cachedFarmerRecords.clear();
-    sheetsService.activeRecordFetches.clear();
-    await sheetsService.initialize();
-    
-    // Eagerly pre-populate farmer sheet names
-    const response = await sheetsService.sheets.spreadsheets.get({
-      spreadsheetId: sheetsService.SPREADSHEET_ID
-    });
-    sheetsService.cachedSheetNames = response.data.sheets.map(sheet => sheet.properties.title);
-    
-    logger.info("[POST /api/admin/refresh-cache] Backend cache manually refreshed successfully.");
-    res.json({ success: true, message: "זיכרון המטמון רענן בהצלחה" });
-  } catch (error) {
-    logger.error("[POST /api/admin/refresh-cache] Cache refresh failed:", error);
-    res.status(500).json({ error: "Failed to refresh cache", details: error.message });
-  }
-});
-
 // 🔒 Secure Config Management (Proxy for Firestore)
 app.post("/api/admin/config", ensureAdmin, async (req, res) => {
   try {

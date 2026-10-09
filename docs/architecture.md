@@ -32,7 +32,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 
 ### Backend (`/backend`)
 
-- `server.js` — Process entry point: `users` collection seeding (from `users.json` if empty), `listen()`, and the startup Sheets cache warm (skipped in emulator mode). Requires the app from `app.js`.
+- `server.js` — Process entry point: `users` collection seeding (from `users.json` if empty), and `listen()`. Requires the app from `app.js`.
 - `app.js` — The Express app, exported without `listen()` so the API tests can import it: CORS (`credentials: false` — Bearer tokens, not cookies), Firebase Admin init (skipped if already initialized), `FRONT_CORS` required at load, `/api/*` guarded by `verifyFirebaseToken` + `ensureCenterAccess` (admin-only routes additionally by `ensureAdmin`), `/api/auth/me` and `/api/auth/logout`, admin/backup endpoints. No Passport, no express-session, no dev-bypass route. Auth, admin, and internal endpoints are defined directly here (not in a route file).
 - `middleware/auth.js` — `verifyFirebaseToken` (verifies the `Authorization: Bearer <idToken>` header via `admin.auth().verifyIdToken`, sets `req.user = {email, uid, centers}`), `ensureCenterAccess` (403 unless `CENTER_ID` is in the token's `centers` claim), `ensureAdmin` (reads the role **live** from Firestore `centers/{CENTER_ID}/users/{email}` — not from the claim, so role changes take effect immediately), `syncUserClaims(email)` (computes the set of centers a user belongs to via a `users` collection-group scan and stamps a minimal `{centers}` custom claim; returns whether it changed).
 - `routes/sheetRoutes.js` — The `/api/*` sheet + destination endpoints (mounted under the `verifyFirebaseToken` + `ensureCenterAccess` guard).
@@ -41,8 +41,6 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `repositories/FirestoreRepository.js` — The **live** implementation. Records at `centers/{centerId}/farmers/{farmer}/records/{autoId}`, audit at `.../audit/{autoId}`. Constructor takes an injectable `db` (lazy `admin.firestore()`); record ids are Firestore auto-ID strings.
 - `config/center.js` — Exports `CENTER_ID` (`process.env.CENTER_ID || 'tsuberi'`), the single source of the current tenant id. Real per-subdomain resolution is deferred.
 - `services/farmerRegistry.js` — Farmer registry: transactional add / archive (hide) / restore / `allowGidon` edits on `config/global.farmers`, each writing only the `farmers` field. Farmer entry shape `{name, allowGidon, archived?}`; archived farmers are hidden in the UI but their records, audit, certificates and profile are kept, and they stay in backups and the season export.
-- `services/googleSheetsService.js` — Google Sheets API wrapper. **No longer the records store** — retained only for farmer-sheet provisioning via the admin `create-sheet`/`delete-sheet`/`refresh-cache` + startup cache-warm paths in `server.js`/`app.js`.
-- `utils/sheetsGuard.js` — `assertRealSheetsAllowed()` is called by both Sheets services' `initialize()`: any Google Sheets call throws while the Firebase emulators are active (`FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` set) unless `ALLOW_REAL_SHEETS=true`. Keeps local/test runs out of the production spreadsheets.
 - `services/firestoreEventService.js` — Emits real-time events to `centers/{centerId}/farmer_events/{farmer}` in Firestore. All functions are fire-and-forget (`emit().catch(logger.error)`). See [realtime.md](realtime.md).
 - `services/certificateCore.js` — Pure certificate logic (no I/O): chunking pallets into certificates, snapshot building, selection validation, and `planIssue`, which preview and issue share so they can never disagree.
 - `repositories/FirestoreCertificateRepository.js` — Certificates + per-farmer profile (`certificateProfile`). Atomic issue/reprint/remove-pallet transactions, immutable versions, `CertificateError(status, code, details)`. Dedupes `recordIds`; reconciles `recordIds` drift against the pallet cardIds with a warn log. Exposed as `require('../repositories').certificates`.
@@ -198,10 +196,7 @@ Children inject with `inject('config')`, `inject('selectedFarmer')`, `inject('ce
 records cache, request-coalescing, and per-farmer append-lock were removed with the Sheets migration
 (Firestore reads are fast and its writes are atomic).
 
-`googleSheetsService.js` still holds its in-memory caches (`cachedSheetNames`, `cachedFarmerRecords`,
-`cachedAuditSheetExists`, `activeRecordFetches`), but these now serve **only the legacy Sheets paths**
-(farmer-sheet provisioning + the admin `create-sheet`/`delete-sheet`/`refresh-cache` and startup
-cache-warm). `POST /api/admin/refresh-cache` clears them and re-warms `cachedSheetNames`.
+The backend has no Google Sheets dependency, except the one-off `scripts/seedCertificateProfiles.js` (uses `googleapis` directly).
 
 The controller's `assertKnownFarmer` write-validation keeps a small in-memory TTL (~5 min) cache of
 known farmer names read from `centers/{centerId}/config/global`.
@@ -225,7 +220,6 @@ known farmer names read from `centers/{centerId}/config/global`.
 |---|---|
 | `PORT` | Express port (3000) |
 | `NODE_ENV` | `development` / `production` |
-| `SPREADSHEET_ID` | Legacy pallet-sheets spreadsheet — now only farmer-sheet provisioning (records live in Firestore) |
 | `CENTER_ID` | Tenant id (optional; defaults to `tsuberi`) — drives which Firestore `centers/{id}` tree the backend reads/writes and which id `ensureCenterAccess` checks against the token's `centers` claim |
 | `FRONT` | Frontend base URL for post-login/logout redirects |
 | `FRONT_CORS` | Comma-separated allowed CORS origins |

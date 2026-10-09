@@ -3,7 +3,6 @@
 require("dotenv").config();
 const logger = require("./utils/logger");
 const { app, db, usersCol } = require("./app");
-const { isEmulatorMode } = require("./utils/sheetsGuard");
 
 // 🌱 Seed Firestore users collection from users.json on startup (if empty)
 async function seedUsersIfEmpty() {
@@ -30,19 +29,4 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-
-  if (isEmulatorMode()) {
-    logger.info("[STARTUP] Emulator mode — skipping Google Sheets cache warm");
-    return;
-  }
-
-  // Warm the sheet name cache so the first real request doesn't pay the miss cost
-  const sheetsService = require('./services/googleSheetsService');
-  sheetsService.initialize()
-    .then(() => sheetsService.sheets.spreadsheets.get({ spreadsheetId: sheetsService.SPREADSHEET_ID }))
-    .then(response => {
-      sheetsService.cachedSheetNames = response.data.sheets.map(s => s.properties.title);
-      logger.info(`[STARTUP] Sheet name cache warmed — ${sheetsService.cachedSheetNames.length} sheets cached`);
-    })
-    .catch(err => logger.error(`[STARTUP] Failed to warm sheet name cache: ${err.message}`));
 });

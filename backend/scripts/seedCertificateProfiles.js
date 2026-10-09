@@ -1,3 +1,4 @@
+// One-off pre-season script (task 20): reads the old per-farmer label sheets once. It is the last user of `googleapis` — delete it and drop `googleapis` from package.json after production seeding.
 // One-time, idempotent: seed centers/{CENTER_ID}/farmers/{name}.certificateProfile from each
 // farmer's legacy label spreadsheet (read-only on Sheets). Skips farmers that already have a
 // profile or whose sheet is not readable. Run: node scripts/seedCertificateProfiles.js [--dry-run]

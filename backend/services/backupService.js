@@ -5,8 +5,8 @@ const admin = require('firebase-admin');
 const repo = require('../repositories');
 const logger = require('../utils/logger');
 
-// GCS client — reuses the same service-account key already present for Sheets/Firebase.
-// The key file path mirrors how googleSheetsService.js resolves it.
+// GCS client — reuses the same service-account key already present for Firebase.
+// The key file lives in services/ (same one app.js uses).
 const storage = new Storage({
     keyFilename: path.join(__dirname, 'SheetsCred.env.json'),
 });

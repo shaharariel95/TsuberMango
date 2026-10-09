@@ -18,7 +18,7 @@ cd frontend && npm run e2e    # 18 Playwright runs (9 specs x 2 projects), real 
 | Repository | `backend/tests/FirestoreRepository.test.js` | Firestore reads/writes/bulk/audit |
 | Auth middleware | `backend/tests/auth.middleware.test.js` | token verify, center gate, admin gate, claim sync |
 | Firestore rules | `backend/tests/firestore.rules.test.js` | client read gating |
-| **HTTP API** | `backend/tests/api.test.js` | every `/api` route via supertest with **real auth-emulator ID tokens**: auth gates, intake → weigh → mark → certificate stamp → reset, audit + realtime events, admin users/config, Sheets isolation |
+| **HTTP API** | `backend/tests/api.test.js` | every `/api` route via supertest with **real auth-emulator ID tokens**: auth gates, intake → weigh → mark → certificate stamp → reset, audit + realtime events, admin users/config |
 | Certificates | `backend/tests/certificateCore.test.js`, `certificates.repo.test.js`, `certificates.api.test.js` | pure chunking/validation/`planIssue`; atomic issue/reprint/remove-pallet against the Firestore emulator; the `/api/certificates` + admin profile endpoints with real tokens |
 | Frontend unit | `frontend/tests/*.test.js` (`cd frontend && npm test`) | `certificatePdf.js` (bidi, layout, row guard), `sheetName.js` |
 | **Browser E2E** | `frontend/e2e/*.spec.js` | full season flow through the UI; realtime update between two clients; `certificates.spec.js` covers issue → תעודות screen → reprint → remove pallet → Settings profile |
@@ -39,16 +39,6 @@ extend `frontend/e2e/`. Table cells carry `data-col="<column key>"` for stable s
 running. `scripts/freePorts.js` runs before/after `npm test` and before `local:test` and kills
 java/node listeners on the emulator ports (plus 3000/5173 with `--dev`). If anything still reports
 "port taken": `node backend/scripts/freePorts.js --dev`.
-
-## Google Sheets is blocked under the emulators
-
-`utils/sheetsGuard.js` makes every Google Sheets call throw while `FIRESTORE_EMULATOR_HOST` or
-`FIREBASE_AUTH_EMULATOR_HOST` is set. The Sheets service holds the **production** farmer-sheet
-ids, so without this a local action could touch a live customer file. Consequences:
-- This now applies **only to the admin create-sheet / delete-sheet buttons**, which fail under the
-  emulators with "Google Sheets access is disabled…". The E2E asserts exactly that.
-- Shipping certificates are Firestore-only and work fully under the emulators.
-- Override only deliberately: `ALLOW_REAL_SHEETS=true`.
 
 ## Manual click-through against the emulators
 

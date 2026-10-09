@@ -317,10 +317,9 @@ describe('admin: config', () => {
   });
 });
 
-describe('Google Sheets is unreachable from the emulator stack', () => {
-  it('admin create-sheet fails loudly instead of touching the real farmers spreadsheet', async () => {
-    const res = await api('post', '/api/admin/create-sheet').send({ name: 'x' });
-    expect(res.status).toBe(500);
-    expect(res.body.details).toMatch(/Google Sheets access is disabled/);
+describe('Google Sheets is gone', () => {
+  it.each(['create-sheet', 'delete-sheet', 'refresh-cache'])('POST /api/admin/%s no longer exists', async (path) => {
+    const res = await api('post', `/api/admin/${path}`).send({ name: 'x' });
+    expect(res.status).toBe(404);
   });
 });

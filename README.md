@@ -15,7 +15,7 @@ A specialized agricultural management platform for mango shipping and pallet sor
 
 ### Backend
 1. `cd backend`
-2. Create `.env` from template (needs `SPREADSHEET_ID`, `GOOGLE_CLIENT_ID`, etc.)
+2. Create `.env` from template (needs `GOOGLE_CLIENT_ID`, etc.)
 3. Add `SheetsCred.env.json` (Google Service Account key)
 4. `npm install`
 5. `npm run dev`

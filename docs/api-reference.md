@@ -48,8 +48,6 @@ additionally require `ensureAdmin`.
 | POST | `/api/farmers/:farmer/destinations/Sent` | `removeFromDestination` | Set mark=false |
 | GET | `/api/auth/me` | — | Current user info — `{email, role, centerId, refreshToken}`; role read live from Firestore |
 | POST | `/api/auth/logout` | — | Logout — revokes the user's Firebase refresh tokens server-side |
-| POST | `/api/admin/create-sheet` | — | Admin: create farmer sheet |
-| POST | `/api/admin/delete-sheet` | — | Admin: delete farmer sheet |
 | POST | `/api/admin/config` | — | Admin: save config (kinds/sizes/destinations) to Firestore with merge; **ignores `farmers`** (owned by the endpoints below) |
 | POST | `/api/admin/farmers` | `{name}` | Admin: add a farmer (name trimmed, max 50, no `/`, `.`, `..`, `__x__`). `201 {name, restored:false}`; `200 {name, restored:true}` when un-archiving; 400 invalid name; 409 active duplicate |
 | DELETE | `/api/admin/farmers/:name` | — | Admin: hide (archive) a farmer; data is kept. `200 {name}`; 404 unknown |
@@ -57,7 +55,6 @@ additionally require `ensureAdmin`.
 | GET | `/api/admin/users` | — | Admin: list all users |
 | POST | `/api/admin/users` | — | Admin: add user |
 | DELETE | `/api/admin/users/:email` | — | Admin: remove user |
-| POST | `/api/admin/refresh-cache` | — | Admin: clear the legacy Sheets caches (records are uncached — read live from Firestore) |
 | GET | `/api/admin/farmers/:farmer/certificate-profile` | — | Admin: `{profile}` (null if none) |
 | PUT | `/api/admin/farmers/:farmer/certificate-profile` | — | Admin: see Certificates below |
 | GET | `/api/admin/export/records` | — | Admin: `{farmers: {name: records[]}}` for the season Excel export (built in the browser) |
