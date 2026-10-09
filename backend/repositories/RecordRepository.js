@@ -1,5 +1,5 @@
 // Storage-agnostic contract for pallet-record persistence.
-// Anchored to what sheetController.js and backupService.js consume — NOT to any
+// Anchored to what recordController.js and backupService.js consume — NOT to any
 // backend's mechanics — so a future PostgresRepository stays a mechanical swap.
 class RecordRepository {
   // eslint-disable-next-line no-unused-vars

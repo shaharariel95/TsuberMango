@@ -13,21 +13,19 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 8. When done **and verified** (tests/app actually run), append an entry to `done.md` and remove the task from this board.
 
 ## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season, season ≈ early Dec 2026
-1. **Task 36 — Naming cleanup** (unblocked: 6 and 20 have shipped).
-2. **Pre-season ops:** verify the nightly backup actually runs (task 12 scope check), rewrite `NEW_SEASON.md` for the Firestore era, clear test farmers/data from production (**including `centers/tsuberi/certificates/**`, and BEFORE seeding** — never delete `farmers/{name}` docs afterwards, they hold `certificateProfile`), run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles, then check all 7 farmers in Settings (names must match config exactly); remove `SPREADSHEET_ID` from Cloud Run; after seeding, delete `scripts/seedCertificateProfiles.js` and the `googleapis` dependency. Printer check = Settings → פרטי תעודה → תצוגה מקדימה, NOT a real issue (it consumes a real number).
-3. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
-4. Then P2 nice-to-haves (25 soft-delete first), and the fridge layout last.
+1. **Pre-season ops:** verify the nightly backup actually runs (task 12 scope check), rewrite `NEW_SEASON.md` for the Firestore era, clear test farmers/data from production (**including `centers/tsuberi/certificates/**`, and BEFORE seeding** — never delete `farmers/{name}` docs afterwards, they hold `certificateProfile`), run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles, then check all 7 farmers in Settings (names must match config exactly); remove `SPREADSHEET_ID` from Cloud Run; after seeding, delete `scripts/seedCertificateProfiles.js` and the `googleapis` dependency. Printer check = Settings → פרטי תעודה → תצוגה מקדימה, NOT a real issue (it consumes a real number).
+2. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
+3. Then P2 nice-to-haves (25 soft-delete first), and the fridge layout last.
 
-## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 15+16, 20, 23 are in the reference doc / `done.md`)
+## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 15+16, 20, 23, 36 are in the reference doc / `done.md`)
 Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-08 (`api.test.js` + Playwright e2e); CI half DROPPED. Optional leftover: frontend unit tests for `PalletInput` / `PalletTable` filter+sort.
 
 | # | Task | Priority | Effort | Depends on |
 |---|---|---|---|---|
 | 7 | Shipping-certificate table layout (only if a customer needs a different one) | P2 | 1–2d | 6 (shipped) |
 | 8 | Config-driven optional fields (generalize `gidon`) | P1 | 3–4d | 6 (shipped; builds on `config/global.farmers` entries `{name, allowGidon, archived?}`, not per-farmer registry docs) |
-| 36 | Naming cleanup (Sheets-named files that no longer touch Sheets) | P2 | 0.5–1d | unblocked (6 and 20 shipped); before 9 |
 | 34 | Frontend toolchain majors (Vite 8, then Tailwind 4) | P2 | 4–6d | after CRs, before 9 |
-| 9 | PalletTable refactor | P2 | 2–3d | after 1/3 land, 36 |
+| 9 | PalletTable refactor | P2 | 2–3d | after 1/3 land (36 shipped) |
 | 10 | Pagination / virtual scrolling | P2 | 2–3d | 9 |
 | 11 | Season management & archival | P2 | 5–7d | 6 (shipped; builds on `config/global.farmers` entries, not per-farmer registry docs) |
 | 12 | Automatic daily backup (Cloud Scheduler) | P2 | 2–3d | — |
@@ -49,24 +47,12 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 Header lines per farmer were delivered by task 20. Remaining scope: only if a customer needs a different table layout (columns/rows per certificate); the layout lives in `frontend/src/data/certificatePdf.js` and `certificateCore.js` (`MAX_ROWS`).
 
 ### 8 — Config-driven optional fields (generalize `gidon`)
-**Problem:** `gidon` (column L) is a single-customer flag in `SheetModel` and `farmerConfigs: { "גבי צוברי": { allowGidon: true } }`.
+**Problem:** `gidon` (column L) is a single-customer flag in `PalletRecord` and `farmerConfigs: { "גבי צוברי": { allowGidon: true } }`.
 **How:** `customFields: [{ key, label, type, column }]` on the farmer registry (task 6, shipped: `config/global.farmers` entries); table, intake form and model read the list. Incremental: keep `gidon` working, add the generic path, then migrate `gidon` onto it. Only do when a second customer needs a distinct field.
-Files: `backend/models/sheetModel.js`, `googleSheetsService.js`, `frontend/src/data/data.js`, `PalletInput.vue`, `PalletTable.vue`.
-
-### 36 — Naming cleanup
-Pure rename, zero behavior change, `git mv`. Unblocked: tasks 6 and 20 have shipped (their deletions removed the accurately-named `create-sheet`/`delete-sheet` code); do before 9.
-
-| Now | Proposed |
-|---|---|
-| `controllers/sheetController.js` (619 lines) | `recordController.js` |
-| `routes/sheetRoutes.js` (records + shipping + destinations) | `apiRoutes.js` (open decision) |
-| `models/sheetModel.js` / `SheetModel` | `models/palletRecord.js` / `PalletRecord`; drop dead `toArray()` |
-| `services/googleSheetsService.js` | deleted (task 6) |
-
-Gate: `cd backend && npm test` before and after, plus a manual intake → weight → destination smoke. Update `CLAUDE.md`, `docs/architecture.md`, `docs/api-reference.md` and this board in the same commit. Files: `backend/controllers|routes|models/`, `backend/app.js` requires, `docs/*.md`, `CLAUDE.md`.
+Files: `backend/models/palletRecord.js`, `googleSheetsService.js`, `frontend/src/data/data.js`, `PalletInput.vue`, `PalletTable.vue`.
 
 ## P2 backlog (one-liners)
-- **9 PalletTable refactor** (~860 lines): extract `usePalletTableState` + `PalletTableToolbar.vue` + `PalletTableRow.vue`; start only after CRs 1/3/4 and 36 to avoid churn.
+- **9 PalletTable refactor** (~860 lines): extract `usePalletTableState` + `PalletTableToolbar.vue` + `PalletTableRow.vue`; start only after CRs 1/3/4 (36 shipped) to avoid churn.
 - **10 Pagination / virtual scroll:** server-side pagination or `useVirtualList`; counter "מציג 50 מתוך 347".
 - **11 Season management:** Firestore `seasons`, close-season archive, season selector; replaces the manual `NEW_SEASON.md` ritual.
 - **12 Daily backup:** Cloud Scheduler nightly export, now sourced from Firestore records; endpoints scaffolded (`/api/internal/backup`, see `backend/CLOUD_SCHEDULER.md`); admin "גיבויים" list.

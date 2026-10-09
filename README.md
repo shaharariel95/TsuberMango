@@ -4,7 +4,7 @@ A specialized agricultural management platform for mango shipping and pallet sor
 
 ## 🚀 Architecture Overview
 - **Frontend**: Vue 3 (Vite, TailwindCSS)
-- **Backend**: Node.js (Express, Passport.js Google OAuth)
+- **Backend**: Node.js (Express, Firebase Auth ID tokens via firebase-admin)
 - **Primary Database**: Firebase Firestore — pallet records, audit, config, users, sessions, real-time events (all under `centers/{centerId}/…`), accessed via a storage-agnostic `RecordRepository`
 - **Legacy Store**: Google Sheets — cold archive of past seasons only (no live code path)
 - **Deployment**: Firebase Hosting (Frontend) + Google Cloud Run (Backend)
@@ -66,4 +66,4 @@ The system is now fully dynamic. Admins can manage settings directly in the app:
 ---
 
 ## 🔒 Security Note
-Backend routes are protected by the Passport.js Google OAuth strategy; access is restricted to emails in the Firestore `users` collection. All Firestore **writes** go through the backend (Admin SDK), which bypasses security rules — clients only **read** the tenant config + real-time events (see `frontend/firestore.rules`; those paths are `read: if true` because cookie sessions leave `request.auth` null client-side). Tightening to real per-tenant / per-user rules via Firebase Auth is planned (redesign task 23).
+Backend routes require a Bearer Firebase ID token verified by `firebase-admin`; access is restricted to emails in the Firestore `users` collection (role read live per request). All Firestore **writes** go through the backend (Admin SDK); clients only **read** the tenant config + real-time events, gated by the `centers` custom claim (see `frontend/firestore.rules`).

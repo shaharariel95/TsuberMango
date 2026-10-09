@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const sheetRoutes = require("./routes/sheetRoutes");
+const recordRoutes = require("./routes/recordRoutes");
 const admin = require("firebase-admin");
 const path = require("path");
 const logger = require("./utils/logger");
@@ -119,7 +119,7 @@ app.use(
   verifyFirebaseToken,
   ensureCenterAccess,
   (req, res, next) => { logger.info(`API ${req.method} ${req.url}`); next(); },
-  sheetRoutes
+  recordRoutes
 );
 
 // 🔒 Secure Config Management (Proxy for Firestore)
@@ -128,7 +128,7 @@ app.post("/api/admin/config", ensureAdmin, async (req, res) => {
     // Farmers are owned by /api/admin/farmers (transactional); a stale Settings tab must not revert them.
     const { farmers: _ignored, ...rest } = req.body || {};
     await configDoc().set(rest, { merge: true });
-    require('./controllers/sheetController').invalidateKnownFarmersCache();
+    require('./controllers/recordController').invalidateKnownFarmersCache();
     logger.info("[POST /api/admin/config] Config saved; known-farmers cache invalidated");
     res.json({ success: true, message: "Configuration saved to Firestore via Backend" });
   } catch (error) {
@@ -138,10 +138,10 @@ app.post("/api/admin/config", ensureAdmin, async (req, res) => {
 });
 
 // 💾 Backup Endpoints
-const sheetController = require('./controllers/sheetController');
+const recordController = require('./controllers/recordController');
 
-app.post('/api/admin/backup', ensureAdmin, sheetController.triggerBackup.bind(sheetController));
-app.get('/api/admin/backups', ensureAdmin, sheetController.listBackups.bind(sheetController));
+app.post('/api/admin/backup', ensureAdmin, recordController.triggerBackup.bind(recordController));
+app.get('/api/admin/backups', ensureAdmin, recordController.listBackups.bind(recordController));
 
 // 📄 Certificate profile per farmer (header lines, driver, next number) — task 20.
 const certRepo = require('./repositories').certificates;
@@ -158,7 +158,7 @@ app.get("/api/admin/farmers/:farmer/certificate-profile", ensureAdmin, async (re
 app.put("/api/admin/farmers/:farmer/certificate-profile", ensureAdmin, async (req, res) => {
   const { farmer } = req.params;
   const { headerLines, driverName = '', nextNumber } = req.body || {};
-  const farmerError = await sheetController.assertKnownFarmer(farmer);
+  const farmerError = await recordController.assertKnownFarmer(farmer);
   if (farmerError) return res.status(400).json({ error: farmerError });
   if (!Array.isArray(headerLines) || headerLines.length !== 5 || headerLines.some(l => typeof l !== 'string')) {
     return res.status(400).json({ error: "נדרשות בדיוק 5 שורות כותרת" });
@@ -188,7 +188,7 @@ function farmerRegistryHandler(label, run) {
   return async (req, res) => {
     try {
       const { status = 200, body } = await run(req);
-      sheetController.invalidateKnownFarmersCache();
+      recordController.invalidateKnownFarmersCache();
       logger.info(`[${label}] ${JSON.stringify(body)} by ${req.user.email}`);
       res.status(status).json(body);
     } catch (err) {

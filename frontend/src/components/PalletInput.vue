@@ -308,7 +308,7 @@ export default {
                 const translated = fields.split(',').map(f => FIELD_NAMES_HE[f.trim()] || f.trim()).join(', ')
                 return `שדות חובה חסרים: ${translated}`
             }
-            if (msg.includes('Invalid farmer sheet')) return 'שם החקלאי לא נמצא במערכת'
+            if (msg.startsWith('Unknown farmer')) return 'שם החקלאי לא נמצא במערכת'
             if (msg.includes('Farmer name is required')) return 'שם חקלאי הוא שדה חובה'
             if (msg.includes('Failed to add record')) return 'שגיאה בהוספת הרשומה, נסה שוב'
             return 'שגיאה בשליחת הטופס'

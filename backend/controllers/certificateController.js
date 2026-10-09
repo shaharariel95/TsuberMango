@@ -1,5 +1,5 @@
 const service = require('../services/certificateService');
-const { assertKnownFarmer } = require('./sheetController');
+const { assertKnownFarmer } = require('./recordController');
 const logger = require('../utils/logger');
 
 const actorOf = (req) => req.user?.email || 'unknown';

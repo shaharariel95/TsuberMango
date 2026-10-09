@@ -68,13 +68,12 @@ breaks and scrolling stops working. Current pages that do this: `Destination.vue
 - **`main` is deliberately stale — do not "fix" it.** `main` is pinned to the last state validated by a real customer (`94b2272`, 2026-06-11, pre-Firestore), kept as a fast rollback anchor. All redesign work lives on `arch-redesign` (~42 commits ahead, 0 behind), which is what production runs. This is safe right now because there is no active season: prod has no farmers on it and serves as a testing environment. The merge to `main` happens only after **all** redesign tasks are complete, tested, and a farmer has verified the existing functionality still works — verified by the local suites (`npm test` + `npm run e2e`). Do not propose merging or syncing `main` before then.
 - **Gaps left open after the task-23 cutover** (none blocking): the dead auth env vars are still set on the Cloud Run service; legacy top-level `users/{email}` docs from the 15/16 migration still exist but grant nothing; and `DELETE /api/admin/users/:email` recomputes the claim but does not revoke refresh tokens, so center-membership revocation lags up to an hour (admin *role* revocation is immediate).
 - **No GitHub CI, by owner decision.** The repo is public and must have nothing connected to it except the code (no Actions, secrets, or integrations). Task 22's CI half is dropped; tests run locally.
-- **Minor dead code:** a couple of `error.message.includes("Invalid farmer sheet")` catch branches remain in read-only controller handlers — harmless, since the repository no longer throws that string.
 
 ---
 
 ## Rules to Follow
 
-1. **Records go through the `RecordRepository`** (Firestore), not Sheets. Controllers depend on `require('../repositories')`, never on a storage SDK directly. When adding a record field, update `SheetModel` and the record-fields table in [docs/architecture.md](docs/architecture.md). Keep the repository interface storage-agnostic so the parked Postgres option stays a mechanical swap.
+1. **Records go through the `RecordRepository`** (Firestore), not Sheets. Controllers depend on `require('../repositories')`, never on a storage SDK directly. When adding a record field, update `PalletRecord` (`models/palletRecord.js`) and the record-fields table in [docs/architecture.md](docs/architecture.md). Keep the repository interface storage-agnostic so the parked Postgres option stays a mechanical swap.
 2. **Auth checks** — backend endpoints need `verifyFirebaseToken` + `ensureCenterAccess`; admin ones also need `ensureAdmin`. Frontend routes use `meta: { requiresAuth, requiresAdmin }`.
 3. **Tailwind only** — use Tailwind utility classes; avoid scoped vanilla CSS unless truly necessary.
 4. **Logging** — add `logger.info` / `logger.error` calls in any new controller or service method.

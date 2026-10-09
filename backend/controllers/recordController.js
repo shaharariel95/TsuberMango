@@ -1,5 +1,5 @@
-// sheetController.js
-const SheetModel = require("../models/sheetModel");
+// recordController.js
+const PalletRecord = require("../models/palletRecord");
 const repo = require("../repositories");
 const backupService = require("../services/backupService");
 const logger = require("../utils/logger");
@@ -60,7 +60,7 @@ async function assertKnownFarmer(farmer) {
   return null;
 }
 
-class SheetController {
+class RecordController {
   async createRecord(req, res) {
     try {
       const {
@@ -89,7 +89,7 @@ class SheetController {
       const editedAt = new Date().toISOString();
 
       // A certificate number only ever comes from issuing a certificate; intake never accepts one.
-      const sheetRecord = new SheetModel(
+      const palletRecord = new PalletRecord(
         shipmentDate,
         '' /*cardId*/,
         harvestDate,
@@ -106,7 +106,7 @@ class SheetController {
         editedAt
       );
 
-      const result = await repo.appendRecord(farmer, { ...sheetRecord });
+      const result = await repo.appendRecord(farmer, { ...palletRecord });
 
       repo.appendAuditLog(farmer, {
         recordId: result.id,
@@ -116,7 +116,7 @@ class SheetController {
         editedAt,
       }).catch(err => logger.error(`appendAuditLog failed on create: ${err.message}`));
 
-      firestoreEventService.emitCreate(farmer, { id: result.id, ...sheetRecord }, editedBy);
+      firestoreEventService.emitCreate(farmer, { id: result.id, ...palletRecord }, editedBy);
 
       res.status(201).json({
         message: "Record added successfully",
@@ -148,14 +148,10 @@ class SheetController {
         data: records,
       });
     } catch (error) {
-      if (error.message.includes("Invalid farmer sheet")) {
-        return res.status(400).json({ error: error.message });
-      } else {
-        return res.status(500).json({
-          error: "Failed to fetch records",
-          details: error.message,
-        });
-      }
+      return res.status(500).json({
+        error: "Failed to fetch records",
+        details: error.message,
+      });
     }
   }
 
@@ -208,14 +204,10 @@ class SheetController {
         data: records,
       });
     } catch (error) {
-      if (error.message.includes("Invalid farmer sheet")) {
-        return res.status(400).json({ error: error.message });
-      } else {
-        return res.status(500).json({
-          error: "Failed to fetch records",
-          details: error.message,
-        });
-      }
+      return res.status(500).json({
+        error: "Failed to fetch records",
+        details: error.message,
+      });
     }
   }
 
@@ -286,7 +278,7 @@ class SheetController {
       const effectiveCardId = certified ? existing.cardId : cardId;
       const effectiveSent = certified ? existing.sent : sent;
 
-      const sheetRecord = new SheetModel(
+      const palletRecord = new PalletRecord(
         shipmentDate,
         effectiveCardId,
         harvestDate,
@@ -303,7 +295,7 @@ class SheetController {
         editedAt
       );
 
-      const result = await repo.updateRecord(farmer, id, { ...sheetRecord });
+      const result = await repo.updateRecord(farmer, id, { ...palletRecord });
 
       repo.appendAuditLog(farmer, {
         recordId: id,
@@ -313,7 +305,7 @@ class SheetController {
         editedAt,
       }).catch(err => logger.error(`appendAuditLog failed on update: ${err.message}`));
 
-      firestoreEventService.emitUpdate(farmer, { id, ...sheetRecord }, editedBy);
+      firestoreEventService.emitUpdate(farmer, { id, ...palletRecord }, editedBy);
 
       res.json({
         message: "Record updated successfully",
@@ -547,7 +539,7 @@ class SheetController {
 
 
 
-module.exports = new SheetController();
+module.exports = new RecordController();
 
 // Called after an admin config write so a newly added farmer can take intake
 // immediately instead of after the cache TTL.

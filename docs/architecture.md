@@ -37,8 +37,8 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `server.js` — Process entry point: `users` collection seeding (from `users.json` if empty), and `listen()`. Requires the app from `app.js`.
 - `app.js` — The Express app, exported without `listen()` so the API tests can import it: CORS (`credentials: false` — Bearer tokens, not cookies), Firebase Admin init (skipped if already initialized), `FRONT_CORS` required at load, `/api/*` guarded by `verifyFirebaseToken` + `ensureCenterAccess` (admin-only routes additionally by `ensureAdmin`), `/api/auth/me` and `/api/auth/logout`, admin/backup endpoints. No Passport, no express-session, no dev-bypass route. Auth, admin, and internal endpoints are defined directly here (not in a route file).
 - `middleware/auth.js` — `verifyFirebaseToken` (verifies the `Authorization: Bearer <idToken>` header via `admin.auth().verifyIdToken`, sets `req.user = {email, uid, centers}`), `ensureCenterAccess` (403 unless `CENTER_ID` is in the token's `centers` claim), `ensureAdmin` (reads the role **live** from Firestore `centers/{CENTER_ID}/users/{email}` — not from the claim, so role changes take effect immediately), `syncUserClaims(email)` (computes the set of centers a user belongs to via a `users` collection-group scan and stamps a minimal `{centers}` custom claim; returns whether it changed).
-- `routes/sheetRoutes.js` — The `/api/*` sheet + destination endpoints (mounted under the `verifyFirebaseToken` + `ensureCenterAccess` guard).
-- `controllers/sheetController.js` — Pallet record CRUD logic + backup trigger/list handlers. Depends on the `RecordRepository` (via `require('../repositories')`), **not** on Sheets directly. Each write emits a fire-and-forget Firestore event after the repository write succeeds. Write endpoints validate the farmer against `config.farmers` (`assertKnownFarmer` → 400 on unknown; 5-min cached, invalidated by `POST /api/admin/config` and the `/api/admin/farmers` endpoints, fail-open on config-read error).
+- `routes/recordRoutes.js` — The `/api/*` pallet-record + destination endpoints (mounted under the `verifyFirebaseToken` + `ensureCenterAccess` guard).
+- `controllers/recordController.js` — Pallet record CRUD logic + backup trigger/list handlers. Depends on the `RecordRepository` (via `require('../repositories')`), **not** on Sheets directly. Each write emits a fire-and-forget Firestore event after the repository write succeeds. Write endpoints validate the farmer against `config.farmers` (`assertKnownFarmer` → 400 on unknown; 5-min cached, invalidated by `POST /api/admin/config` and the `/api/admin/farmers` endpoints, fail-open on config-read error).
 - `repositories/RecordRepository.js` — Storage-agnostic contract for pallet-record persistence (`getRecords`, `getRecord`, `getRecordsByPallet`, `getLastPallet`, `appendRecord`, `updateRecord(s)`, `updateSentStatus`, `updateMarkStatus`, `appendAuditLog`). `repositories/index.js` exports the active implementation singleton.
 - `repositories/FirestoreRepository.js` — The **live** implementation. Records at `centers/{centerId}/farmers/{farmer}/records/{autoId}`, audit at `.../audit/{autoId}`. Constructor takes an injectable `db` (lazy `admin.firestore()`); record ids are Firestore auto-ID strings.
 - `config/center.js` — Exports `CENTER_ID` (`process.env.CENTER_ID || 'tsuberi'`), the single source of the current tenant id. Real per-subdomain resolution is deferred.
@@ -50,7 +50,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `controllers/certificateController.js` — Thin HTTP layer over the service (farmer validated with `assertKnownFarmer`).
 - `routes/certificateRoutes.js` — `/api/certificates/*`. Mounted in `app.js` **above** the global `/api` chain with its own `verifyFirebaseToken` + `ensureCenterAccess`. The admin profile and season-export endpoints are defined directly in `app.js`.
 - `services/backupService.js` — Backs up all active-season records (read from the Firestore repository) **and certificates** and records metadata in the Firestore `backups` collection. Invoked by the manual admin endpoint and by Cloud Scheduler (see `backend/CLOUD_SCHEDULER.md`).
-- `models/sheetModel.js` — Pallet data model + required-field validation + boolean coercion (see SheetModel below).
+- `models/palletRecord.js` — Pallet data model + required-field validation + boolean coercion (see PalletRecord below).
 - `utils/requestContext.js` — per-request async context carrying the `X-Client-Id`, stamped on realtime events as `updatedByClient`.
 - `utils/logger.js` — Winston logger (`logger.info`, `logger.error`), console transport.
 - `users.json` — Seed-only email → role map. Copied into the Firestore `users` collection on first startup if that collection is empty; the live authorization source is Firestore, not this file.
@@ -98,16 +98,15 @@ are the **legacy Sheets layout, kept for reference** (the field names are what l
 Records started **fresh** on Firestore for the new season — no data was migrated from Sheets; the
 old per-farmer sheets remain only as a cold historical archive.
 
-### SheetModel
+### PalletRecord
 
-`backend/models/sheetModel.js` validates and normalizes pallet data before persistence.
+`backend/models/palletRecord.js` validates and normalizes pallet data before persistence.
 
 Required fields: `harvestDate`, `palletNumber`, `boxes`, `kind`, `size`. Throws `Error` if any are
 missing. Coerces `sent`/`gidon`/`mark` to real booleans.
 
-Controllers construct a `SheetModel` and pass the object (spread) to the repository, which stores it
-as a Firestore document (id assigned by Firestore). `toArray()` (the legacy 14-element Sheets row
-serializer) still exists on the model but is no longer used on the write path.
+Controllers construct a `PalletRecord` and pass the object (spread) to the repository, which stores it
+as a Firestore document (id assigned by Firestore).
 
 ### Audit Log
 

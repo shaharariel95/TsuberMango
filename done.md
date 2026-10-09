@@ -5,6 +5,11 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 36 — Naming cleanup
+- Renamed `controllers/sheetController.js` → `recordController.js`, `routes/sheetRoutes.js` → `recordRoutes.js`, `models/sheetModel.js` → `models/palletRecord.js` (`SheetModel` → `PalletRecord`) with `git mv`; docs and the README stale auth lines updated.
+- Removed dead code: `toArray()` (Sheets row serializer) and the two `Invalid farmer sheet` catch branches; `PalletInput.vue` now maps the real `Unknown farmer` error to the Hebrew message. No API path, response shape or log change.
+- Deliberately kept: `services/SheetsCred.env.json` (secret provided out-of-band to Cloud Run) and `frontend/src/utils/sheetName.js` (builds Excel sheet names, so the name is accurate).
+
 ### ✅ Task 6 — Farmer registry off Google Sheets (lean)
 - Farmers live in `config/global.farmers` as `{name, allowGidon, archived?}`. New transactional `POST` / `DELETE` / `PATCH /api/admin/farmers` endpoints (`services/farmerRegistry.js`) add, hide (archive) and toggle `allowGidon`. Hiding keeps all of the farmer's data and removes them from every menu; restoring is re-adding the same name. The config save (`POST /api/admin/config`) no longer owns the farmers list.
 - Google Sheets is removed from the backend: `googleSheetsService.js`, its guard, the `create-sheet` / `delete-sheet` / `refresh-cache` admin endpoints and the startup cache warm. `googleapis` stays only for `scripts/seedCertificateProfiles.js` until seeding is done.
