@@ -103,25 +103,60 @@ export function previewSnapshot(profile) {
   };
 }
 
-async function loadPdfMake() {
-  const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
-    import('pdfmake/build/pdfmake'),
-    import('../../fonts/vfs_fonts.js'),
-  ]);
-  pdfMake.vfs = pdfFonts;
-  pdfMake.fonts = { Rubik: { normal: 'Rubik-VariableFont_wght.ttf', bold: 'Rubik-Bold.ttf' } };
-  return pdfMake;
+let pdfMakePromise = null;
+function loadPdfMake() {
+  if (!pdfMakePromise) {
+    pdfMakePromise = (async () => {
+      const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
+        import('pdfmake/build/pdfmake'),
+        import('../../fonts/vfs_fonts.js'),
+      ]);
+      pdfMake.vfs = pdfFonts;
+      pdfMake.fonts = { Rubik: { normal: 'Rubik-VariableFont_wght.ttf', bold: 'Rubik-Bold.ttf' } };
+      return pdfMake;
+    })().catch((e) => { pdfMakePromise = null; throw e; }); // a failed load can be retried
+  }
+  return pdfMakePromise;
+}
+
+// Start loading pdfmake + the font early (idempotent). The first import over Wi-Fi is slow, and a
+// share sheet needs a user tap that is at most ~5 s old (transient activation), so the import must not
+// eat into that window.
+export function preloadPdf() {
+  loadPdfMake().catch(() => {});
+}
+
+// Thrown when the share sheet refuses because the user's tap is too old (NotAllowedError). Carries the
+// ready PDF so the caller can ask for a fresh tap and share it from that click.
+export class ShareNeedsTapError extends Error {
+  constructor(file) {
+    super('SHARE_NEEDS_TAP');
+    this.name = 'ShareNeedsTapError';
+    this.file = file;
+  }
+}
+
+// Shares a prepared PDF file. Returns 'shared', or 'cancelled' when the user dismissed the sheet.
+export async function shareFile(file) {
+  try {
+    await navigator.share({ files: [file], title: file.name });
+    return 'shared';
+  } catch (e) {
+    if (e?.name === 'AbortError') return 'cancelled';
+    if (e?.name === 'NotAllowedError') throw new ShareNeedsTapError(file);
+    throw e;
+  }
 }
 
 // Tablet: native share sheet (→ Wi-Fi printer). PC: open in a new tab; fallback download.
+// Resolves 'shared' | 'cancelled' | 'opened' | 'downloaded'; throws ShareNeedsTapError (see above).
 export async function printCertificates(snapshots, filename) {
   const pdfMake = await loadPdfMake();
   const pdf = pdfMake.createPdf(buildCertificateDoc(snapshots));
   const blob = await new Promise((resolve) => pdf.getBlob(resolve));
   const file = new File([blob], filename, { type: 'application/pdf' });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({ files: [file], title: filename }); // throws on cancel/failure — caller decides
-    return 'shared';
+    return shareFile(file); // other failures propagate — caller decides
   }
   const url = URL.createObjectURL(blob);
   const win = window.open(url, '_blank');
@@ -133,4 +168,17 @@ export async function printCertificates(snapshots, filename) {
   a.href = url; a.download = filename; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   return 'downloaded';
+}
+
+// printCertificates plus the fresh-tap fallback: if the browser refuses the share for lack of a recent
+// tap, ask for one with a confirm dialog and share the already-built file from that click.
+export async function printWithRetap(snapshots, filename, requestConfirm) {
+  try {
+    return await printCertificates(snapshots, filename);
+  } catch (e) {
+    if (!(e instanceof ShareNeedsTapError)) throw e;
+    const ok = await requestConfirm({ title: 'הדפסה', message: 'התעודה מוכנה להדפסה', confirmText: 'הדפס' });
+    if (!ok) return 'cancelled';
+    return shareFile(e.file);
+  }
 }

@@ -2,15 +2,21 @@ import { test, expect } from '@playwright/test';
 import { navTo, signIn, intakePallet, editRow, rowByPallet, uniquePalletNumber, DESTINATION } from './helpers.js';
 
 // Capture the generated PDF instead of a real share sheet / new tab.
-async function stubPrinting(page, { failShare = false } = {}) {
-  await page.addInitScript((failShare) => {
+// notAllowedOnce: the first share throws NotAllowedError (stale tap), later ones succeed.
+// cancel: share throws AbortError (user dismissed the sheet).
+async function stubPrinting(page, { failShare = false, notAllowedOnce = false, cancel = false } = {}) {
+  await page.addInitScript(({ failShare, notAllowedOnce, cancel }) => {
     window.__printed = [];
+    window.__shareCalls = 0;
     navigator.canShare = () => true;
     navigator.share = async ({ files }) => {
+      window.__shareCalls += 1;
       if (failShare) throw new Error('share blocked');
+      if (cancel) throw new DOMException('cancelled', 'AbortError');
+      if (notAllowedOnce && window.__shareCalls === 1) throw new DOMException('needs a fresh tap', 'NotAllowedError');
       window.__printed.push(files[0].name);
     };
-  }, failShare);
+  }, { failShare, notAllowedOnce, cancel });
 }
 
 // Intake + weigh + destination + date, then mark for shipment and open the prep page.
@@ -56,6 +62,34 @@ test('a failed print still keeps the certificate and says where to reprint', asy
   await expect(page.getByText(/התעודה נשמרה/)).toBeVisible();
   await page.getByRole('button', { name: 'הבנתי' }).click();
   await expect(rowByPallet(page, pallet).locator('td[data-col="cardId"]')).toHaveText(/^\d+$/);
+});
+
+test('a stale-tap share refusal asks for a fresh tap and prints on it', async ({ page }) => {
+  await stubPrinting(page, { notAllowedOnce: true });
+  const pallet = uniquePalletNumber();
+  await signIn(page);
+  await preparePallet(page, pallet);
+  await rowByPallet(page, pallet).locator('td[data-col="selected"] input[type="checkbox"]').check();
+  await page.getByRole('button', { name: 'צור תעודת משלוח' }).click();
+  await page.getByRole('button', { name: 'אשר' }).click();
+  await expect(page.getByText('התעודה מוכנה להדפסה')).toBeVisible();
+  expect(await page.evaluate(() => window.__printed.length)).toBe(0);
+  await page.getByRole('button', { name: 'הדפס', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__printed.length)).toBe(1);
+  await expect(rowByPallet(page, pallet).locator('td[data-col="cardId"]')).toHaveText(/^\d+$/);
+});
+
+test('cancelling the share sheet is not a failure: no warning dialog', async ({ page }) => {
+  await stubPrinting(page, { cancel: true });
+  const pallet = uniquePalletNumber();
+  await signIn(page);
+  await preparePallet(page, pallet);
+  await rowByPallet(page, pallet).locator('td[data-col="selected"] input[type="checkbox"]').check();
+  await page.getByRole('button', { name: 'צור תעודת משלוח' }).click();
+  await page.getByRole('button', { name: 'אשר' }).click();
+  await expect(rowByPallet(page, pallet).locator('td[data-col="cardId"]')).toHaveText(/^\d+$/);
+  await expect.poll(() => page.evaluate(() => window.__shareCalls)).toBe(1);
+  await expect(page.getByText(/התעודה נשמרה/)).toHaveCount(0);
 });
 
 async function issueOne(page, pallet) {
