@@ -275,7 +275,10 @@ class RecordController {
       const editedAt = new Date().toISOString();
 
       const existing = await repo.getRecord(farmer, id);
-      if (!existing) return res.status(404).json({ error: `Row with ID ${id} not found` });
+      if (!existing) {
+        logger.info(`[updateRecord] ${farmer}/${id} not found or soft-deleted -> 404`);
+        return res.status(404).json({ error: `Row with ID ${id} not found` });
+      }
       const certified = await certificateService.isCertified(farmer, existing);
       const effectiveCardId = certified ? existing.cardId : cardId;
       const effectiveSent = certified ? existing.sent : sent;
@@ -314,6 +317,7 @@ class RecordController {
         data: result,
       });
     } catch (error) {
+      if (error instanceof RecordStateError) return res.status(error.status).json({ error: error.message });
       if (
         error.message.includes("Row with ID") &&
         error.message.includes("not found")
@@ -509,11 +513,17 @@ class RecordController {
       if (farmerError) {
         return res.status(400).json({ error: farmerError });
       }
-      const palletIds = palletsData.map(pallet => pallet.id); // Extract the 'id' field from each pallet
+      // Drop pallets whose record is not live (missing or soft-deleted).
+      const liveIds = new Set((await repo.getRecords(farmer)).map(r => r.id));
+      const livePallets = palletsData.filter(pallet => liveIds.has(pallet.id));
+      if (livePallets.length === 0) {
+        return res.status(404).json({ error: "המשטחים לא נמצאו" });
+      }
+      const palletIds = livePallets.map(pallet => pallet.id);
       // Bulk update logic
       const results = await repo.updateMarkStatus(farmer, palletIds, false);
 
-      firestoreEventService.emitMarkDestination(farmer, palletsData, false, req.user?.email || 'unknown');
+      firestoreEventService.emitMarkDestination(farmer, livePallets, false, req.user?.email || 'unknown');
 
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {
@@ -542,11 +552,17 @@ class RecordController {
       if (farmerError) {
         return res.status(400).json({ error: farmerError });
       }
-      const palletIds = palletsData.map(pallet => pallet.id); // Extract the 'id' field from each pallet
+      // Drop pallets whose record is not live (missing or soft-deleted).
+      const liveIds = new Set((await repo.getRecords(farmer)).map(r => r.id));
+      const livePallets = palletsData.filter(pallet => liveIds.has(pallet.id));
+      if (livePallets.length === 0) {
+        return res.status(404).json({ error: "המשטחים לא נמצאו" });
+      }
+      const palletIds = livePallets.map(pallet => pallet.id);
       // Bulk update logic
       const results = await repo.updateMarkStatus(farmer, palletIds, true);
 
-      firestoreEventService.emitMarkDestination(farmer, palletsData, true, req.user?.email || 'unknown');
+      firestoreEventService.emitMarkDestination(farmer, livePallets, true, req.user?.email || 'unknown');
 
       res.json({ message: "Pallets updated successfully", updated: results });
     } catch (error) {

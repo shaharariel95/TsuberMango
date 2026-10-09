@@ -136,3 +136,30 @@ describe('restore (admin)', () => {
     expect((await api('post', `/api/admin/farmers/${enc(FARMER)}/records/${live}/restore`, 'user')).status).toBe(403);
   });
 });
+
+describe('bulk paths ignore deleted pallets', () => {
+  it('shipmentDate PUT on a deleted id 404s and leaves shipmentDate unchanged', async () => {
+    const id = await addRecord(521);
+    await api('delete', `/api/farmers/${enc(FARMER)}/records/${id}`);
+    const res = await api('put', `/api/farmers/${enc(FARMER)}/records/shipmentDate`).send({ palletIds: [id], shipmentDate: '2027-01-01' });
+    expect(res.status).toBe(404);
+    expect((await farmerDoc.collection('records').doc(id).get()).data().shipmentDate).toBe('2026-12-01');
+  });
+
+  it('destinations/toSend skips a deleted id: mark unchanged, not in the event', async () => {
+    const live = await addRecord(522, { mark: false });
+    const gone = await addRecord(523, { mark: false });
+    await api('delete', `/api/farmers/${enc(FARMER)}/records/${gone}`);
+    const res = await api('post', `/api/farmers/${enc(FARMER)}/destinations/toSend`).send([{ id: live }, { id: gone }]);
+    expect(res.status).toBe(200);
+    expect((await farmerDoc.collection('records').doc(gone).get()).data().mark).toBe(false);
+    expect((await farmerDoc.collection('records').doc(live).get()).data().mark).toBe(true);
+    const evt = await waitFor(async () => {
+      const d = (await center.collection('farmer_events').doc(FARMER).get()).data();
+      return d?.type === 'mark_destination' ? d : null;
+    });
+    expect(evt.pallets.map(p => p.id)).toEqual([live]);
+    const none = await api('post', `/api/farmers/${enc(FARMER)}/destinations/toSend`).send([{ id: gone }]);
+    expect(none.status).toBe(404);
+  });
+});

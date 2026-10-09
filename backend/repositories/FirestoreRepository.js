@@ -85,7 +85,13 @@ class FirestoreRepository extends RecordRepository {
 
   async updateRecord(farmer, id, record) {
     const data = { ...record };
-    await this.recordsCol(farmer).doc(id).set(data); // full overwrite (mirrors updateRowById)
+    const ref = this.recordsCol(farmer).doc(id);
+    // Transactional so a concurrent soft delete is never overwritten (set() would wipe the deleted markers).
+    await this.db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      if (!snap.exists || snap.data().deleted === true) throw new RecordStateError(404, 'המשטח לא נמצא');
+      t.set(ref, data); // full overwrite (mirrors updateRowById)
+    });
     return { id, ...data };
   }
 
@@ -119,7 +125,7 @@ class FirestoreRepository extends RecordRepository {
   async updateShipmentDate(farmer, ids, shipmentDate, editedBy, editedAt) {
     const refs = ids.map(id => this.recordsCol(farmer).doc(id));
     const snaps = await this.db.getAll(...refs);
-    const missing = snaps.find(s => !s.exists);
+    const missing = snaps.find(s => !s.exists || s.data().deleted === true);
     if (missing) throw new Error(`Row with ID ${missing.id} not found`);
     const batch = this.db.batch();
     refs.forEach(ref => batch.update(ref, { shipmentDate, editedBy, editedAt }));

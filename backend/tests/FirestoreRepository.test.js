@@ -163,3 +163,13 @@ describe('soft-deleted records', () => {
     expect(await repo.getLastPallet(FARMER)).not.toBe(72);
   });
 });
+
+describe('updateRecord vs soft delete', () => {
+  it('rejects 404 on a soft-deleted record and leaves it deleted', async () => {
+    const gone = await repo.appendRecord(FARMER, { palletNumber: '81', sent: false, cardId: '' });
+    await repo.softDeleteRecord(FARMER, gone.id, 'a@b.c', '2026-10-10T00:00:00Z');
+    await expect(repo.updateRecord(FARMER, gone.id, { palletNumber: '81', boxes: 1 })).rejects.toMatchObject({ status: 404 });
+    const stored = (await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('records').doc(gone.id).get()).data();
+    expect(stored.deleted).toBe(true);
+  });
+});
