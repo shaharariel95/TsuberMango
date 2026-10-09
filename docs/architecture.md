@@ -40,6 +40,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `repositories/RecordRepository.js` — Storage-agnostic contract for pallet-record persistence (`getRecords`, `getRecord`, `getRecordsByPallet`, `getLastPallet`, `appendRecord`, `updateRecord(s)`, `updateSentStatus`, `updateMarkStatus`, `appendAuditLog`). `repositories/index.js` exports the active implementation singleton.
 - `repositories/FirestoreRepository.js` — The **live** implementation. Records at `centers/{centerId}/farmers/{farmer}/records/{autoId}`, audit at `.../audit/{autoId}`. Constructor takes an injectable `db` (lazy `admin.firestore()`); record ids are Firestore auto-ID strings.
 - `config/center.js` — Exports `CENTER_ID` (`process.env.CENTER_ID || 'tsuberi'`), the single source of the current tenant id. Real per-subdomain resolution is deferred.
+- `services/farmerRegistry.js` — Farmer registry: transactional add / archive (hide) / restore / `allowGidon` edits on `config/global.farmers`, each writing only the `farmers` field. Farmer entry shape `{name, allowGidon, archived?}`; archived farmers are hidden in the UI but their records, audit, certificates and profile are kept, and they stay in backups and the season export.
 - `services/googleSheetsService.js` — Google Sheets API wrapper. **No longer the records store** — retained only for farmer-sheet provisioning via the admin `create-sheet`/`delete-sheet`/`refresh-cache` + startup cache-warm paths in `server.js`/`app.js`.
 - `utils/sheetsGuard.js` — `assertRealSheetsAllowed()` is called by both Sheets services' `initialize()`: any Google Sheets call throws while the Firebase emulators are active (`FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` set) unless `ALLOW_REAL_SHEETS=true`. Keeps local/test runs out of the production spreadsheets.
 - `services/firestoreEventService.js` — Emits real-time events to `centers/{centerId}/farmer_events/{farmer}` in Firestore. All functions are fire-and-forget (`emit().catch(logger.error)`). See [realtime.md](realtime.md).
@@ -153,7 +154,7 @@ backups/{autoId}                backup metadata: timestamp, filename, farmerCoun
 
 | Path | Purpose | Written by |
 |---|---|---|
-| `centers/{c}/config/global` | Dynamic lists: kinds, sizes, destinations, farmers + farmerConfigs | Admin SDK via `POST /api/admin/config` |
+| `centers/{c}/config/global` | Dynamic lists: kinds, sizes, destinations, farmers + farmerConfigs | Admin SDK via `POST /api/admin/config` (lists) and `/api/admin/farmers` (farmers: `{name, allowGidon, archived?}`) |
 | `centers/{c}/users/{email}` | Role map. Seeded from `users.json` on startup only if empty; live authorization source thereafter | Admin SDK (seed + user management endpoints) |
 | `centers/{c}/farmers/{f}/records/{id}` | Pallet records — the primary data store | Admin SDK via `FirestoreRepository` |
 | `centers/{c}/farmers/{f}/audit/{id}` | Per-record audit trail | `FirestoreRepository.appendAuditLog` (fire-and-forget) |

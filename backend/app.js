@@ -175,7 +175,9 @@ app.post("/api/admin/refresh-cache", ensureAdmin, async (req, res) => {
 // 🔒 Secure Config Management (Proxy for Firestore)
 app.post("/api/admin/config", ensureAdmin, async (req, res) => {
   try {
-    await configDoc().set(req.body);
+    // Farmers are owned by /api/admin/farmers (transactional); a stale Settings tab must not revert them.
+    const { farmers: _ignored, ...rest } = req.body || {};
+    await configDoc().set(rest, { merge: true });
     require('./controllers/sheetController').invalidateKnownFarmersCache();
     logger.info("[POST /api/admin/config] Config saved; known-farmers cache invalidated");
     res.json({ success: true, message: "Configuration saved to Firestore via Backend" });
@@ -228,6 +230,35 @@ app.put("/api/admin/farmers/:farmer/certificate-profile", ensureAdmin, async (re
     res.status(500).json({ error: "Failed to save profile", details: err.message });
   }
 });
+
+// 👨‍🌾 Farmer registry (task 6) — add / hide / restore / gidon flag. Hiding keeps all data.
+const farmerRegistry = require('./services/farmerRegistry');
+
+function farmerRegistryHandler(label, run) {
+  return async (req, res) => {
+    try {
+      const { status = 200, body } = await run(req);
+      sheetController.invalidateKnownFarmersCache();
+      logger.info(`[${label}] ${JSON.stringify(body)} by ${req.user.email}`);
+      res.status(status).json(body);
+    } catch (err) {
+      if (err instanceof farmerRegistry.FarmerRegistryError) return res.status(err.status).json({ error: err.message });
+      logger.error(`[${label}] ${err.message}`);
+      res.status(500).json({ error: 'Failed to update farmers', details: err.message });
+    }
+  };
+}
+
+app.post('/api/admin/farmers', ensureAdmin, farmerRegistryHandler('POST /api/admin/farmers', async (req) => {
+  const body = await farmerRegistry.addFarmer(req.body?.name);
+  return { status: body.restored ? 200 : 201, body };
+}));
+
+app.delete('/api/admin/farmers/:name', ensureAdmin, farmerRegistryHandler('DELETE /api/admin/farmers',
+  async (req) => ({ body: await farmerRegistry.archiveFarmer(req.params.name) })));
+
+app.patch('/api/admin/farmers/:name', ensureAdmin, farmerRegistryHandler('PATCH /api/admin/farmers',
+  async (req) => ({ body: await farmerRegistry.setAllowGidon(req.params.name, req.body?.allowGidon) })));
 
 // 📤 Season export — all farmers' pallet records (the frontend builds the Excel file).
 app.get("/api/admin/export/records", ensureAdmin, async (req, res) => {

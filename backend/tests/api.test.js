@@ -308,12 +308,9 @@ describe('admin: users', () => {
 });
 
 describe('admin: config', () => {
-  it('a farmer added through config can take intake immediately', async () => {
-    const cfg = (await center.collection('config').doc('global').get()).data();
-    const res = await api('post', '/api/admin/config').send({
-      ...cfg, farmers: [...cfg.farmers, { name: 'חקלאי-חדש', allowGidon: false }],
-    });
-    expect(res.status).toBe(200);
+  it('a farmer added through the farmers endpoint can take intake immediately', async () => {
+    const res = await api('post', '/api/admin/farmers').send({ name: 'חקלאי-חדש' });
+    expect(res.status).toBe(201);
 
     const intake = await api('post', '/api/records').send(pallet({ farmer: 'חקלאי-חדש' }));
     expect(intake.status).toBe(201);
