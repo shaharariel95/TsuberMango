@@ -51,3 +51,24 @@ test('the same account on two devices sees its own changes live', async ({ brows
 
   await expect(rowByPallet(b, pallet).locator('td[data-col="weight"]')).toHaveText('613');
 });
+
+test('a pallet deleted on one client disappears from another live', async ({ browser }) => {
+  const pallet = uniquePalletNumber();
+  const { baseURL, viewport, locale } = test.info().project.use;
+  const a = await (await browser.newContext({ baseURL, viewport, locale })).newPage();
+  const b = await (await browser.newContext({ baseURL, viewport, locale })).newPage();
+  await signIn(a);
+  await signIn(b, SECOND_ADMIN_EMAIL);
+  await intakePallet(a, pallet);
+  await navTo(a, 'טבלת נתונים');
+  await navTo(b, 'טבלת נתונים');
+  await expect(rowByPallet(a, pallet)).toHaveCount(1);
+  await expect(rowByPallet(b, pallet)).toHaveCount(1);
+
+  await editRow(a, pallet);
+  await a.getByRole('button', { name: 'מחק', exact: true }).click();
+  await a.getByRole('button', { name: 'מחק משטח' }).click();
+  await expect(rowByPallet(a, pallet)).toHaveCount(0);
+
+  await expect(rowByPallet(b, pallet)).toHaveCount(0);
+});

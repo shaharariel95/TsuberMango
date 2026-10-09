@@ -18,7 +18,7 @@ Run is only woken by actual HTTP requests.
 |---|---|---|
 | `create` | `pallet` | Append to bottom if passes filter |
 | `update` | `pallet` | Update in-place if passes filter; remove if no longer qualifies |
-| `bulk_update` | `pallets[]` | Per-row: update in-place / remove / ignore. Also emitted by certificate writes (issue, remove-pallet) and `resetPallets` with the affected pallets (exactly one event per request, so rapid writes to the same doc can't be coalesced away), so `cardId`/`sent` changes show up live on other clients |
+| `bulk_update` | `pallets[]` | Per-row: update in-place / remove / ignore. Also emitted by certificate writes (issue, remove-pallet) and `resetPallets` with the affected pallets (exactly one event per request, so rapid writes to the same doc can't be coalesced away), so `cardId`/`sent` changes show up live on other clients. Soft-delete emits `[{ id, deleted: true }]`; `applyPallet` (`utils/applyPallet.js`) removes that row and never adds a deleted one. Restore emits the full record as a normal `bulk_update` |
 | `reset_sent` | `palletIds[]` | Set `sent: false` in-place; remove if view filters on sent (no longer emitted by the backend — `resetPallets` sends a `bulk_update` — but still handled) |
 | `mark_destination` | `pallets[]`, `newValue` | Only updates `mark` field on existing rows; appends if view filters on mark |
 | `shipment_date` | `palletIds[]`, `shipmentDate` | Set `shipmentDate` in-place on existing rows (never appends/removes) |

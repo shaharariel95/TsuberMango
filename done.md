@@ -5,6 +5,12 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 25 — Soft-delete + restore
+- Any center user can delete a pallet from the table (row edit mode → מחק → confirm), only if it is unsent and has no certificate (`cardId`); the server enforces it (409). Admins restore from Settings → משטחים שנמחקו.
+- Delete sets `deleted: true` + `deletedBy`/`deletedAt` on the record; every read and bulk path ignores deleted pallets, and backups include them. `PUT` on a deleted pallet returns 404.
+- Realtime: delete arrives on other clients as `bulk_update` `{id, deleted: true}` (row removed by `applyPallet`), restore as a normal `bulk_update`; both are audit-logged.
+- Tests: backend `softDelete.api.test.js`; frontend `applyPallet.test.js`; e2e `delete-restore.spec.js` and a two-client live-removal case in `realtime.spec.js`.
+
 ### ✅ Pre-season ops tooling — season reset + NEW_SEASON.md
 - `scripts/clearSeason.js` (via `services/seasonReset.js`) deletes all records, audit, certificates and farmer events; keeps config, users, farmer docs with `certificateProfile`, and backups.
 - Guards: dry run by default, `--execute --center <CENTER_ID>` required, refuses without a backup from the last 24 h unless `--skip-backup-check`.

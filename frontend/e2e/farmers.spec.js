@@ -5,7 +5,7 @@ import { navTo, signIn } from './helpers.js';
 
 test('settings: add, hide and restore a farmer', async ({ page }) => {
   const name = `חקלאי-${Date.now() % 1000000}`;
-  const option = page.locator(`select option[value="${name}"]`);
+  const option = page.locator(`select:not([aria-label="חקלאי למשטחים שנמחקו"]) option[value="${name}"]`);
   await signIn(page);
   await navTo(page, 'ניהול הגדרות');
 

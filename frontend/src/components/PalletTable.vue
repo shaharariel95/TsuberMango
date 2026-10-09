@@ -168,6 +168,10 @@
                                         class="text-xs px-2 py-1.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 font-medium transition-colors min-h-[32px]">
                                         ביטול
                                     </button>
+                                    <button v-if="canDeleteEditing" @click="deleteEditing" :disabled="isLoading"
+                                        class="text-xs px-2 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-colors min-h-[32px]">
+                                        מחק
+                                    </button>
                                 </div>
                             </td>
                         </template>
@@ -232,6 +236,7 @@ import SpinnerButton from './shared/SpinnerButton.vue';
 import ErrorToast from './shared/ErrorToast.vue';
 import { requestAlert, requestConfirm } from '../composables/useDialogs';
 import { authHeaders } from '../utils/auth';
+import { deleteRecord } from '../api/records';
 import { previewCertificates, issueCertificates } from '../api/certificates';
 import { printWithRetap, preloadPdf } from '../data/certificatePdf';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
@@ -361,6 +366,11 @@ export default {
         kinds() { return this.config.kinds || []; },
         sizes() { return this.config.sizes || []; },
         destinations() { return this.config.destinations || []; },
+        // Only unsent pallets without a certificate number can be deleted (the server enforces it too).
+        canDeleteEditing() {
+            const p = this.pallets.find(x => x.id === this.editingId);
+            return !!p && !p.sent && (p.cardId === '' || p.cardId == null);
+        },
         isCreateLabelAllowed() {
             return this.selectedPallets.length === 0
         },
@@ -514,6 +524,22 @@ export default {
     },
 
     methods: {
+        async deleteEditing() {
+            const p = this.pallets.find(x => x.id === this.editingId);
+            if (!p) return;
+            const ok = await requestConfirm({ title: 'מחיקת משטח', confirmText: 'מחק משטח',
+                message: `למחוק את משטח ${p.palletNumber}? מנהל יכול לשחזר אותו מההגדרות (משטחים שנמחקו).` });
+            if (!ok) return;
+            try {
+                await deleteRecord(this.farmer, p.id);
+                this.$emit('update:pallets', this.pallets.filter(x => x.id !== p.id));
+                this.editingId = null;
+                this.editingPallet = null;
+            } catch (e) {
+                await requestAlert({ title: 'המחיקה נכשלה', message: e.message, variant: 'error' });
+            }
+        },
+
         toggleCollapse(palletNumber) {
             const k = String(palletNumber);
             if (this.collapsedPallets.has(k)) {

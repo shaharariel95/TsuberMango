@@ -4,6 +4,7 @@ import { doc, onSnapshot } from 'firebase/firestore'
 import { centerId } from './useCenter'
 import { isOwnEcho } from '../utils/echo'
 import { clientId } from '../utils/clientId'
+import { applyPallet } from '../utils/applyPallet'
 
 export function useFarmerEvents(farmer, pallets, options = {}) {
   // options.currentUserEmail — Ref<string>; echo-suppression fallback for events without updatedByClient
@@ -16,16 +17,6 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
     setTimeout(() => ids.forEach(id => highlightedIds.value.delete(id)), 3000)
   }
 
-  function applyOne(p, list) {
-    const { filter } = options
-    const idx = list.findIndex(x => x.id === p.id)
-    const passes = !filter || filter(p)
-    if (idx !== -1 && !passes) { list.splice(idx, 1); return null }
-    if (idx !== -1)             { list[idx] = { ...list[idx], ...p }; return p.id }
-    if (idx === -1 && passes)   { list.push(p); return p.id }
-    return null
-  }
-
   function applyEvent(event) {
     if (isOwnEcho(event, { clientId, email: options.currentUserEmail?.value })) return
 
@@ -35,13 +26,13 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
     switch (event.type) {
       case 'create':
       case 'update': {
-        const id = applyOne(event.pallet, list)
+        const id = applyPallet(list, event.pallet, options.filter)
         if (id != null) flashed.push(id)
         break
       }
       case 'bulk_update':
         event.pallets.forEach(p => {
-          const id = applyOne(p, list)
+          const id = applyPallet(list, p, options.filter)
           if (id != null) flashed.push(id)
         })
         break

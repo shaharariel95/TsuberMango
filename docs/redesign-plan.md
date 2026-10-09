@@ -15,9 +15,9 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 ## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season, season ≈ early Dec 2026
 1. **Pre-season ops:** verify the nightly backup actually runs (task 12 scope check), follow `NEW_SEASON.md`, clear pre-season test data with `scripts/clearSeason.js` (see `NEW_SEASON.md` §4) (**including `centers/tsuberi/certificates/**`, and BEFORE seeding** — never delete `farmers/{name}` docs afterwards, they hold `certificateProfile`), run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles, then check all 7 farmers in Settings (names must match config exactly); remove `SPREADSHEET_ID` from Cloud Run; after seeding, delete `scripts/seedCertificateProfiles.js` and the `googleapis` dependency. Printer check = Settings → פרטי תעודה → תצוגה מקדימה, NOT a real issue (it consumes a real number).
 2. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
-3. Then P2 nice-to-haves (25 soft-delete first), and the fridge layout last.
+3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
 
-## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 15+16, 20, 23, 36 are in the reference doc / `done.md`)
+## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 15+16, 20, 23, 25, 36 are in the reference doc / `done.md`)
 Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-08 (`api.test.js` + Playwright e2e); CI half DROPPED. Optional leftover: frontend unit tests for `PalletInput` / `PalletTable` filter+sort.
 
 | # | Task | Priority | Effort | Depends on |
@@ -58,7 +58,7 @@ Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInp
 - **12 Daily backup:** Cloud Scheduler nightly export, now sourced from Firestore records; endpoints scaffolded (`/api/internal/backup`, see `backend/CLOUD_SCHEDULER.md`); admin "גיבויים" list.
 - **13 Mobile audit:** 390px / 768px, collapse low-priority columns, ≥44px tap targets; add a Playwright project at the packhouse tablet's resolution (≤1366px uses the drawer layout, so tests must open the ☰ menu first).
 - **24 Farmer-scoped roles:** `farmer` role linked to a farmer; `ensureOwnFarmerOrAdmin`; builds on the shipped task-6 `config/global.farmers` entries (an `ownerEmails` link would be added there).
-- **25 Soft-delete + restore** (audit-logged, admin "שחזר") — likely the biggest real gap. **26 Weight sanity checks** (per-box range / missing on send, via modal). **27 QR on pallet sticker** (pallet id; covers L3). **28 Pallet timeline view** from the audit trail (H3 base). **29 Global pallet/certificate search.** **30 Batch sticker printing + preview** (covers M2). **31 Stale-pallet nudges on Dashboard.** **32 Undo last bulk action** (30s toast). **33 Driver manifest PDF** per destination/truck.
+- **26 Weight sanity checks** (per-box range / missing on send, via modal). **27 QR on pallet sticker** (pallet id; covers L3). **28 Pallet timeline view** from the audit trail (H3 base). **29 Global pallet/certificate search.** **30 Batch sticker printing + preview** (covers M2). **31 Stale-pallet nudges on Dashboard.** **32 Undo last bulk action** (30s toast). **33 Driver manifest PDF** per destination/truck.
 - **17–19 platform layer:** parked until a confirmed second customer — see the reference doc.
 
 ### 34 — Frontend toolchain majors (before 9/10/13, after the CRs; not mid-season)

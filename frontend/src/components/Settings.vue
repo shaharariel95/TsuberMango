@@ -65,6 +65,7 @@
       <p class="text-sm text-slate-500">קובץ אקסל עם כל המשטחים של כל המגדלים — לחישובי סוף עונה.</p>
       <SpinnerButton @click="exportSeason" :loading="exporting" class="btn-primary">ייצוא נתוני עונה</SpinnerButton>
     </section>
+    <DeletedPallets :farmers="localConfig.farmers.map(f => f.name)" />
     <CertificateProfileEditor v-if="profileFarmer" :farmer="profileFarmer" @close="profileFarmer = ''" />
 
     <!-- 2. User Management -->
@@ -263,13 +264,14 @@ import axios from 'axios';
 import ListEditor from './ListEditor.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
 import CertificateProfileEditor from './CertificateProfileEditor.vue';
+import DeletedPallets from './DeletedPallets.vue';
 import { exportSeasonRecords } from '../api/certificates';
 import { safeSheetName } from '../utils/sheetName';
 
 
 
 export default {
-  components: { ListEditor, SpinnerButton, CertificateProfileEditor },
+  components: { ListEditor, SpinnerButton, CertificateProfileEditor, DeletedPallets },
   setup() {
     const localConfig = reactive({
       farmers: [],
