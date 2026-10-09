@@ -7,6 +7,7 @@ const certificateService = require("../services/certificateService");
 const firestoreEventService = require("../services/firestoreEventService");
 const admin = require("firebase-admin");
 const { CENTER_ID } = require("../config/center");
+const { RecordStateError } = require("../repositories/errors");
 
 // In-memory TTL cache for the known-farmer-names lookup, so write endpoints
 // don't hit Firestore on every request.
@@ -274,6 +275,7 @@ class RecordController {
       const editedAt = new Date().toISOString();
 
       const existing = await repo.getRecord(farmer, id);
+      if (!existing) return res.status(404).json({ error: `Row with ID ${id} not found` });
       const certified = await certificateService.isCertified(farmer, existing);
       const effectiveCardId = certified ? existing.cardId : cardId;
       const effectiveSent = certified ? existing.sent : sent;
@@ -325,6 +327,58 @@ class RecordController {
           details: error.message,
         });
       }
+    }
+  }
+
+  // Soft delete (task 25): any center user; only unsent pallets without a certificate number.
+  async deleteRecord(req, res) {
+    const { farmer, id } = req.params;
+    const farmerError = await assertKnownFarmer(farmer);
+    if (farmerError) return res.status(400).json({ error: farmerError });
+    const actor = req.user?.email || 'unknown';
+    const at = new Date().toISOString();
+    try {
+      const rec = await repo.softDeleteRecord(farmer, id, actor, at);
+      repo.appendAuditLog(farmer, { recordId: id, palletNumber: rec.palletNumber, action: 'מחיקה', editedBy: actor, editedAt: at })
+        .catch(err => logger.error(`appendAuditLog failed on delete: ${err.message}`));
+      firestoreEventService.emitBulkUpdate(farmer, [{ id, deleted: true }], actor);
+      logger.info(`[deleteRecord] ${farmer}/${id} pallet ${rec.palletNumber} by ${actor}`);
+      res.json({ id, deleted: true });
+    } catch (err) {
+      if (err instanceof RecordStateError) return res.status(err.status).json({ error: err.message });
+      logger.error(`[deleteRecord] ${farmer}/${id}: ${err.message}`);
+      res.status(500).json({ error: 'Failed to delete record', details: err.message });
+    }
+  }
+
+  async listDeletedRecords(req, res) {
+    const { farmer } = req.params;
+    try {
+      const records = (await repo.getDeletedRecords(farmer))
+        .sort((a, b) => String(b.deletedAt || '').localeCompare(String(a.deletedAt || '')));
+      logger.info(`[listDeletedRecords] ${farmer}: ${records.length}`);
+      res.json({ records });
+    } catch (err) {
+      logger.error(`[listDeletedRecords] ${farmer}: ${err.message}`);
+      res.status(500).json({ error: 'Failed to list deleted records', details: err.message });
+    }
+  }
+
+  async restoreRecord(req, res) {
+    const { farmer, id } = req.params;
+    const actor = req.user?.email || 'unknown';
+    const at = new Date().toISOString();
+    try {
+      const record = await repo.restoreRecord(farmer, id, actor, at);
+      repo.appendAuditLog(farmer, { recordId: id, palletNumber: record.palletNumber, action: 'שחזור', editedBy: actor, editedAt: at })
+        .catch(err => logger.error(`appendAuditLog failed on restore: ${err.message}`));
+      firestoreEventService.emitBulkUpdate(farmer, [record], actor);
+      logger.info(`[restoreRecord] ${farmer}/${id} pallet ${record.palletNumber} by ${actor}`);
+      res.json({ record });
+    } catch (err) {
+      if (err instanceof RecordStateError) return res.status(err.status).json({ error: err.message });
+      logger.error(`[restoreRecord] ${farmer}/${id}: ${err.message}`);
+      res.status(500).json({ error: 'Failed to restore record', details: err.message });
     }
   }
 

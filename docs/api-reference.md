@@ -43,7 +43,8 @@ additionally require `ensureAdmin`.
 | GET | `/api/farmers/:farmer/records/lastPallet` | `getLastPallet` | Highest pallet number |
 | PUT | `/api/farmers/:farmer/records/resetPallets` | `resetSentStatus` | Bulk reset sent=false |
 | PUT | `/api/farmers/:farmer/records/shipmentDate` | `updateShipmentDate` | Body `{palletIds[], shipmentDate: 'yyyy-mm-dd'}`. Partial update (only `shipmentDate` + `editedBy`/`editedAt`), works on unweighed pallets; audit `עדכון תאריך משלוח`; emits `shipment_date`. 400 bad date/ids/unknown farmer, 404 unknown id |
-| PUT | `/api/farmers/:farmer/records/:id` | `updateRecord` | Single record update |
+| PUT | `/api/farmers/:farmer/records/:id` | `updateRecord` | Single record update; 404 if the id is missing or soft-deleted |
+| DELETE | `/api/farmers/:farmer/records/:id` | `deleteRecord` | Soft delete (any center user): marks `deleted/deletedBy/deletedAt`. 200 `{id, deleted: true}`; 409 if the pallet is sent or has a `cardId`; 404 missing/already deleted. Audit `מחיקה`; emits `bulk_update` `[{id, deleted: true}]` |
 | POST | `/api/farmers/:farmer/destinations/toSend` | `sendToDestination` | Set mark=true |
 | POST | `/api/farmers/:farmer/destinations/Sent` | `removeFromDestination` | Set mark=false |
 | GET | `/api/auth/me` | — | Current user info — `{email, role, centerId, refreshToken}`; role read live from Firestore |
@@ -57,6 +58,8 @@ additionally require `ensureAdmin`.
 | DELETE | `/api/admin/users/:email` | — | Admin: remove user |
 | GET | `/api/admin/farmers/:farmer/certificate-profile` | — | Admin: `{profile}` (null if none) |
 | PUT | `/api/admin/farmers/:farmer/certificate-profile` | — | Admin: see Certificates below |
+| GET | `/api/admin/farmers/:farmer/deleted-records` | `listDeletedRecords` | Admin: `{records}` soft-deleted pallets, newest `deletedAt` first |
+| POST | `/api/admin/farmers/:farmer/records/:id/restore` | `restoreRecord` | Admin: restore a soft-deleted pallet, 200 `{record}`; 404 if not deleted. Audit `שחזור`; emits `bulk_update` with the full record |
 | GET | `/api/admin/export/records` | — | Admin: `{farmers: {name: records[]}}` for the season Excel export (built in the browser) |
 | GET | `/api/admin/backups` | — | Admin: list recent backups from Firestore |
 | POST | `/api/admin/backup` | — | Admin: trigger manual backup |

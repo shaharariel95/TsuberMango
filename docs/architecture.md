@@ -93,6 +93,9 @@ are the **legacy Sheets layout, kept for reference** (the field names are what l
 | M | 12 | סימון | Mark (boolean) |
 | N | 13 | editedBy | Last editor (user email) |
 | O | 14 | editedAt | Last edit timestamp (ISO string) |
+| — | — | deleted, deletedBy, deletedAt | Repository-managed soft-delete markers; absent on live records; not part of `PalletRecord` |
+
+Normal reads (`getRecords`, `getRecord`, by-pallet, last pallet, export, certificates) exclude soft-deleted records; backup includes them (`includeDeleted`).
 
 `sent` and `mark` are the two bulk-update targets used most frequently
 (`updateSentStatus` / `updateMarkStatus` — per-field Firestore batch writes).

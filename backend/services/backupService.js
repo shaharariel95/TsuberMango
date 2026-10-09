@@ -61,7 +61,8 @@ async function runBackup(triggeredBy) {
 
     for (const farmer of farmerNames) {
         try {
-            const records = await repo.getRecords(farmer);
+            // include soft-deleted rows (deleted: true) so the backup is complete and matches the season-reset counts
+            const records = await repo.getRecords(farmer, { includeDeleted: true });
             farmersData[farmer] = records;
             totalRows += records.length;
             logger.info(`[backupService] Fetched ${records.length} rows for farmer: ${farmer}`);

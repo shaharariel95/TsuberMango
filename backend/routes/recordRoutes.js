@@ -61,6 +61,12 @@ router.put('/farmers/:farmer/records/:id',
     recordController.updateRecord.bind(recordController)
 );
 
+// Soft delete a record (task 25)
+router.delete('/farmers/:farmer/records/:id',
+    validateFarmer,
+    recordController.deleteRecord.bind(recordController)
+);
+
 router.post('/farmers/:farmer/destinations/toSend',
     (req,res,next)=> {logger.info(`in /farmer/:farmer/destinations/toSend`); next()},
     recordController.sendToDestination.bind(recordController)

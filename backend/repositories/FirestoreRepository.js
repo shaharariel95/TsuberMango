@@ -2,6 +2,7 @@ const admin = require('firebase-admin');
 const RecordRepository = require('./RecordRepository');
 const { CENTER_ID } = require('../config/center');
 const logger = require('../utils/logger');
+const { RecordStateError } = require('./errors');
 
 class FirestoreRepository extends RecordRepository {
   constructor(db = null, centerId = CENTER_ID) {
@@ -18,14 +19,50 @@ class FirestoreRepository extends RecordRepository {
   recordsCol(farmer) { return this.farmerDoc(farmer).collection('records'); }
   auditCol(farmer) { return this.farmerDoc(farmer).collection('audit'); }
 
-  async getRecords(farmer) {
+  async getRecords(farmer, { includeDeleted = false } = {}) {
     const snap = await this.recordsCol(farmer).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return includeDeleted ? all : all.filter(r => r.deleted !== true);
   }
 
   async getRecord(farmer, id) {
     const snap = await this.recordsCol(farmer).doc(id).get();
-    return snap.exists ? { id: snap.id, ...snap.data() } : null;
+    return snap.exists && snap.data().deleted !== true ? { id: snap.id, ...snap.data() } : null;
+  }
+
+  async getDeletedRecords(farmer) {
+    return (await this.getRecords(farmer, { includeDeleted: true })).filter(r => r.deleted === true);
+  }
+
+  async softDeleteRecord(farmer, id, deletedBy, deletedAt) {
+    const ref = this.recordsCol(farmer).doc(id);
+    const out = await this.db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      if (!snap.exists || snap.data().deleted === true) throw new RecordStateError(404, 'המשטח לא נמצא');
+      const r = snap.data();
+      if (r.sent === true || (r.cardId !== '' && r.cardId != null)) {
+        throw new RecordStateError(409, 'לא ניתן למחוק משטח שנשלח או שיש לו תעודת משלוח');
+      }
+      t.update(ref, { deleted: true, deletedBy, deletedAt });
+      return { id, ...r, deleted: true, deletedBy, deletedAt };
+    });
+    logger.info(`[FirestoreRepository.softDeleteRecord] ${farmer}/${id} by ${deletedBy}`);
+    return out;
+  }
+
+  async restoreRecord(farmer, id, editedBy, editedAt) {
+    const ref = this.recordsCol(farmer).doc(id);
+    const { FieldValue } = admin.firestore;
+    const out = await this.db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      if (!snap.exists || snap.data().deleted !== true) throw new RecordStateError(404, 'משטח מחוק לא נמצא');
+      // eslint-disable-next-line no-unused-vars
+      const { deleted, deletedBy, deletedAt, ...rest } = snap.data();
+      t.update(ref, { deleted: FieldValue.delete(), deletedBy: FieldValue.delete(), deletedAt: FieldValue.delete(), editedBy, editedAt });
+      return { id, ...rest, editedBy, editedAt };
+    });
+    logger.info(`[FirestoreRepository.restoreRecord] ${farmer}/${id} by ${editedBy}`);
+    return out;
   }
 
   async getRecordsByPallet(farmer, palletNumber) {

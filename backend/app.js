@@ -143,6 +143,10 @@ const recordController = require('./controllers/recordController');
 app.post('/api/admin/backup', ensureAdmin, recordController.triggerBackup.bind(recordController));
 app.get('/api/admin/backups', ensureAdmin, recordController.listBackups.bind(recordController));
 
+// Soft-deleted pallets (task 25) - list + restore, admin only.
+app.get('/api/admin/farmers/:farmer/deleted-records', ensureAdmin, recordController.listDeletedRecords.bind(recordController));
+app.post('/api/admin/farmers/:farmer/records/:id/restore', ensureAdmin, recordController.restoreRecord.bind(recordController));
+
 // 📄 Certificate profile per farmer (header lines, driver, next number) — task 20.
 const certRepo = require('./repositories').certificates;
 

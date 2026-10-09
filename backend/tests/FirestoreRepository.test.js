@@ -148,3 +148,18 @@ describe('bulk status + audit', () => {
     expect(snap.docs[0].data().action).toBe('קליטה');
   });
 });
+
+describe('soft-deleted records', () => {
+  it('getRecords/getRecord hide deleted records; includeDeleted and getDeletedRecords show them', async () => {
+    const live = await repo.appendRecord(FARMER, { palletNumber: '71', sent: false, cardId: '' });
+    const gone = await repo.appendRecord(FARMER, { palletNumber: '72', sent: false, cardId: '' });
+    await repo.softDeleteRecord(FARMER, gone.id, 'a@b.c', '2026-10-10T00:00:00Z');
+    const ids = (await repo.getRecords(FARMER)).map(r => r.id);
+    expect(ids).toContain(live.id);
+    expect(ids).not.toContain(gone.id);
+    expect(await repo.getRecord(FARMER, gone.id)).toBeNull();
+    expect((await repo.getRecords(FARMER, { includeDeleted: true })).map(r => r.id)).toContain(gone.id);
+    expect((await repo.getDeletedRecords(FARMER)).map(r => r.id)).toEqual([gone.id]);
+    expect(await repo.getLastPallet(FARMER)).not.toBe(72);
+  });
+});

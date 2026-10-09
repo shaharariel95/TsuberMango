@@ -73,7 +73,7 @@ class FirestoreCertificateRepository {
       if (!profile || !Number.isInteger(profile.nextNumber)) throw new CertificateError(400, 'NO_PROFILE');
 
       const recSnaps = await t.getAll(...recordIds.map(id => this.recordsCol(farmer).doc(id)));
-      const missing = recSnaps.find(s => !s.exists);
+      const missing = recSnaps.find(s => !s.exists || s.data().deleted === true); // soft-deleted = gone
       if (missing) throw new CertificateError(404, 'RECORD_NOT_FOUND', { recordId: missing.id });
       const records = recSnaps.map(s => ({ id: s.id, ...s.data() }));
 
