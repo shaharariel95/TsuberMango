@@ -66,7 +66,6 @@ class SheetController {
       const {
         farmer,
         shipmentDate,
-        cardId,
         harvestDate,
         palletNumber,
         kind,
@@ -89,9 +88,10 @@ class SheetController {
       const editedBy = req.user?.email || 'unknown';
       const editedAt = new Date().toISOString();
 
+      // A certificate number only ever comes from issuing a certificate; intake never accepts one.
       const sheetRecord = new SheetModel(
         shipmentDate,
-        cardId,
+        '' /*cardId*/,
         harvestDate,
         palletNumber,
         kind,
@@ -249,159 +249,6 @@ class SheetController {
     }
   }
 
-  async updateMultipleRecords(req, res) {
-    try {
-      logger.info(
-        `Received request to update multiple records. Params: ${JSON.stringify(
-          req.params
-        )}`
-      );
-
-      const { farmer } = req.params;
-      logger.info(`Farmer name from request: ${farmer}`);
-      if (!farmer) {
-        logger.warn("Missing farmer name in request.");
-        return res.status(400).json({ error: "Farmer name is required" });
-      }
-
-      const farmerError = await assertKnownFarmer(farmer);
-      if (farmerError) {
-        return res.status(400).json({ error: farmerError });
-      }
-
-      const palletsData = req.body; // Array of pallets data
-      if (!Array.isArray(palletsData) || palletsData.length === 0) {
-        logger.warn("Invalid or missing pallets data.");
-        return res
-          .status(400)
-          .json({ error: "Pallets data is required and must be an array" });
-      }
-
-      const editedBy = req.user?.email || 'unknown';
-      const editedAt = new Date().toISOString();
-
-      const ids = [];
-      const updatedObjects = [];
-
-      for (const pallet of palletsData) {
-        const {
-          id,
-          shipmentDate,
-          cardId,
-          harvestDate,
-          palletNumber,
-          kind,
-          size,
-          boxes,
-          weight,
-          destination,
-          sent,
-          gidon,
-          mark = false,
-        } = pallet;
-
-        if (
-          !id ||
-          !shipmentDate ||
-          !harvestDate ||
-          !palletNumber ||
-          !kind ||
-          !size ||
-          !boxes ||
-          !weight ||
-          !destination
-        ) {
-          logger.warn(`Pallet validation failed: ${JSON.stringify(pallet)}`);
-          return res
-            .status(400)
-            .json({ error: "Missing required fields in one of the pallets" });
-        }
-
-        ids.push(id);
-        const sheetRecord = new SheetModel(
-          shipmentDate,
-          cardId,
-          harvestDate,
-          palletNumber,
-          kind,
-          size,
-          boxes,
-          weight,
-          destination,
-          sent,
-          gidon,
-          mark,
-          editedBy,
-          editedAt
-        );
-
-        updatedObjects.push({ ...sheetRecord });
-      }
-
-      logger.info(`Updating ${ids.length} records for farmer: ${farmer}`);
-
-      // Call the batch update function
-      const result = await repo.updateRecords(farmer, ids, updatedObjects);
-
-      if (!result || result.success !== true) {
-        logger.error(`Update function failed: ${JSON.stringify(result)}`);
-        return res
-          .status(500)
-          .json({ error: "Update function failed, response was invalid" });
-      }
-
-      logger.info(`Successfully updated records for farmer: ${farmer}`);
-
-      // Append audit log entries for each updated pallet — fire-and-forget, parallel
-      Promise.allSettled(palletsData.map(pallet =>
-        repo.appendAuditLog(farmer, {
-          recordId: pallet.id,
-          palletNumber: pallet.palletNumber,
-          action: 'עדכון',
-          editedBy,
-          editedAt,
-        })
-      )).then(results => {
-        const failed = results.filter(r => r.status === 'rejected');
-        if (failed.length) logger.error(`appendAuditLog failed for ${failed.length} pallets in batch update`);
-      });
-
-      const emitPallets = palletsData.map(p => ({
-        id: p.id, shipmentDate: p.shipmentDate, cardId: p.cardId,
-        harvestDate: p.harvestDate, palletNumber: p.palletNumber,
-        kind: p.kind, size: p.size, boxes: p.boxes, weight: p.weight,
-        destination: p.destination, sent: p.sent, gidon: p.gidon,
-        mark: p.mark ?? false, editedBy, editedAt,
-      }));
-      firestoreEventService.emitBulkUpdate(farmer, emitPallets, editedBy);
-
-      return res.json({
-        message: result.message, // Use the correct message from the response
-      });
-    } catch (error) {
-      logger.error(`Error updating records: ${error.message}`, {
-        stack: error.stack,
-      });
-
-      if (!res.headersSent) {
-        // ✅ Prevent multiple responses
-        if (
-          error.message.includes("Row with ID") &&
-          error.message.includes("not found")
-        ) {
-          return res.status(404).json({ error: error.message });
-        } else if (error.message.includes("Missing required fields")) {
-          return res.status(400).json({ error: error.message });
-        } else {
-          return res.status(500).json({
-            error: "Failed to update records",
-            details: error.message,
-          });
-        }
-      }
-    }
-  }
-
   async updateRecord(req, res) {
     try {
       const { farmer, id } = req.params;
@@ -434,8 +281,8 @@ class SheetController {
       const editedBy = req.user?.email || 'unknown';
       const editedAt = new Date().toISOString();
 
-      const existing = (await repo.getRecords(farmer)).find(r => r.id === id);
-      const certified = existing && existing.cardId !== '' && existing.cardId != null;
+      const existing = await repo.getRecord(farmer, id);
+      const certified = await certificateService.isCertified(farmer, existing);
       const effectiveCardId = certified ? existing.cardId : cardId;
       const effectiveSent = certified ? existing.sent : sent;
 
@@ -500,22 +347,41 @@ class SheetController {
       if (!Array.isArray(palletIds) || !palletIds.length) {
         return res.status(400).json({ error: "Invalid pallet IDs" });
       }
+      const actor = req.user?.email || 'unknown';
       const all = await repo.getRecords(farmer);
-      const withCard = all.filter(r => palletIds.includes(r.id) && r.cardId !== '' && r.cardId != null);
-      // Legacy pallets can carry a cardId with no certificate doc (pre-task-20 / manual stamping): those reset plainly.
+      const byId = new Map(all.map(r => [r.id, r]));
+      // Certified = a certificate doc exists for the record's cardId; those leave their certificate.
+      // Legacy cardIds (no doc) reset plainly and lose the stale cardId too.
       const certified = [];
-      for (const r of withCard) {
-        if (await certificateService.get(`${farmer}__${r.cardId}`)) certified.push(r);
+      const legacy = [];
+      const plain = [];
+      for (const id of palletIds) {
+        const r = byId.get(id);
+        if (r && await certificateService.isCertified(farmer, r)) certified.push(r);
+        else if (r && r.cardId !== '' && r.cardId != null) legacy.push(r);
+        else plain.push(id);
       }
-      const plain = palletIds.filter(id => !certified.some(r => r.id === id));
+      const touched = [];
       for (const r of certified) {
-        await certificateService.removePallet({ id: `${farmer}__${r.cardId}`, recordId: r.id, actor: req.user?.email || 'unknown' });
+        const out = await certificateService.removePallet({ id: `${farmer}__${r.cardId}`, recordId: r.id, actor }, { emit: false });
+        if (out.record) touched.push(out.record);
       }
-      const results = plain.length ? await repo.updateSentStatus(farmer, plain, false) : [];
-      if (plain.length) firestoreEventService.emitResetSent(farmer, plain, req.user?.email || 'unknown');
-      logger.info(`[resetSentStatus] ${farmer}: ${certified.length} removed from certificates, ${plain.length} reset`);
+      if (plain.length) await repo.updateSentStatus(farmer, plain, false);
+      if (legacy.length) {
+        const editedAt = new Date().toISOString();
+        await repo.updateRecords(farmer, legacy.map(r => r.id), legacy.map(({ id, ...rest }) =>
+          ({ ...rest, sent: false, cardId: '', editedBy: actor, editedAt })));
+      }
+      plain.forEach(id => { if (byId.has(id)) touched.push({ ...byId.get(id), sent: false }); });
+      legacy.forEach(r => touched.push({ ...r, sent: false, cardId: '' }));
+      // One realtime event per request (see certificateService).
+      if (touched.length) firestoreEventService.emitBulkUpdate(farmer, touched, actor);
+      logger.info(`[resetSentStatus] ${farmer}: ${certified.length} removed from certificates, ${legacy.length} legacy cardId cleared, ${plain.length} reset`);
 
-      res.json({ message: "Pallets updated successfully", updated: results });
+      res.json({
+        message: "Pallets updated successfully",
+        updated: touched.map(({ id, sent, cardId, mark }) => ({ id, sent, cardId, mark })),
+      });
     } catch (error) {
       return res
         .status(500)
@@ -524,7 +390,6 @@ class SheetController {
   }
 
   // Narrow bulk update: stamps only shipmentDate (+ editedBy/editedAt) on the given pallets.
-  // Deliberately not built on updatemany, which validates and overwrites whole rows.
   async updateShipmentDate(req, res) {
     try {
       const { farmer } = req.params;

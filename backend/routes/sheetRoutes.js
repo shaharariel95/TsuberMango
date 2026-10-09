@@ -55,13 +55,6 @@ router.put('/farmers/:farmer/records/shipmentDate',
     sheetController.updateShipmentDate.bind(sheetController)
 );
 
-// Update records
-router.put('/farmers/:farmer/records/updatemany',
-    validateFarmer,
-    (req,res,next)=> {logger.info(`in farmers/:farmer/records/updatemany`); next()},
-    sheetController.updateMultipleRecords.bind(sheetController)
-);
-
 // Update record
 router.put('/farmers/:farmer/records/:id',
     validateFarmer,

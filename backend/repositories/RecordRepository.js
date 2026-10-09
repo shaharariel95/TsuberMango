@@ -4,6 +4,8 @@
 class RecordRepository {
   // eslint-disable-next-line no-unused-vars
   getRecords(farmer) { throw new Error('RecordRepository.getRecords not implemented'); }
+  // Single record by id; resolves to null when missing.
+  getRecord(farmer, id) { throw new Error('not implemented'); }
   getRecordsByPallet(farmer, palletNumber) { throw new Error('not implemented'); }
   getLastPallet(farmer) { throw new Error('not implemented'); }
   appendRecord(farmer, record) { throw new Error('not implemented'); }

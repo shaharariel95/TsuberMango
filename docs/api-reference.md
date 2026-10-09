@@ -43,7 +43,6 @@ additionally require `ensureAdmin`.
 | GET | `/api/farmers/:farmer/records/lastPallet` | `getLastPallet` | Highest pallet number |
 | PUT | `/api/farmers/:farmer/records/resetPallets` | `resetSentStatus` | Bulk reset sent=false |
 | PUT | `/api/farmers/:farmer/records/shipmentDate` | `updateShipmentDate` | Body `{palletIds[], shipmentDate: 'yyyy-mm-dd'}`. Partial update (only `shipmentDate` + `editedBy`/`editedAt`), works on unweighed pallets; audit `עדכון תאריך משלוח`; emits `shipment_date`. 400 bad date/ids/unknown farmer, 404 unknown id |
-| PUT | `/api/farmers/:farmer/records/updatemany` | `updateMultipleRecords` | Batch update records |
 | PUT | `/api/farmers/:farmer/records/:id` | `updateRecord` | Single record update |
 | POST | `/api/farmers/:farmer/destinations/toSend` | `sendToDestination` | Set mark=true |
 | POST | `/api/farmers/:farmer/destinations/Sent` | `removeFromDestination` | Set mark=false |
@@ -78,14 +77,20 @@ Mounted at `/api/certificates` above the global `/api` chain with its own `verif
 | GET | `/api/certificates` | `?farmer=` (required), `from`, `to` (shipment date, `yyyy-mm-dd`) | `200 {certificates: [...]}` | 400 no farmer |
 | GET | `/api/certificates/:id` | `id = {farmer}__{number}` | `200 {certificate: {id, ...doc}, versions: [{n, reason, createdBy, createdAt}]}` — no snapshot; fetch one via `/versions/:n`, reprint or remove-pallet | 404 |
 | GET | `/api/certificates/:id/versions/:n` | — | `200 {snapshot}` | 404 |
-| POST | `/api/certificates/:id/reprint` | — | `200 {snapshot, version, created}` — returns the current snapshot; creates a new version only when the pallet data changed since the last one | 404 `CERTIFICATE_NOT_FOUND`; 409 `CERTIFICATE_CANCELLED` |
+| POST | `/api/certificates/:id/reprint` | — | `200 {snapshot, version, created}` — returns the current snapshot; creates a new version only when the pallet data changed since the last one (destination / shipment date are taken from the records' current values and written back to the certificate) | 404 `CERTIFICATE_NOT_FOUND`; 409 `CERTIFICATE_CANCELLED`; 409 `MIXED_ON_CERTIFICATE` (records disagree on destination/date; names the first odd pallet) |
 | POST | `/api/certificates/:id/remove-pallet` | `{recordId}` | `200 {snapshot, version, cancelled}` — clears the pallet's `cardId`/`sent`, writes a new version, cancels the certificate if it was the last pallet; audit + event | 400 no recordId / `NOT_ON_CERTIFICATE`; 404 `CERTIFICATE_NOT_FOUND` |
-| PUT | `/api/admin/farmers/:farmer/certificate-profile` | `{headerLines: string[5], driverName?, nextNumber: int>=1}` | `200 {profile}` | 400 not exactly 5 lines; 400 bad `nextNumber`; 400 `nextNumber` not greater than the highest issued number |
+| PUT | `/api/admin/farmers/:farmer/certificate-profile` | `{headerLines: string[5], driverName?, nextNumber: int>=1}` | `200 {profile}` | 400 unknown farmer; 400 not exactly 5 lines; 400 bad `nextNumber`; 400 `nextNumber` not greater than the highest issued number |
 
-Related behavior in the record endpoints: `resetPallets` routes a certified pallet through
-remove-pallet (so the certificate stays consistent) only when a certificate doc exists — a legacy
-`cardId` with no certificate gets a plain reset. `updateRecord` preserves the `cardId`/`sent` of a
-certified pallet.
+Issuing can also fail with 409 `NUMBER_TAKEN` when the farmer's `nextNumber` points at an
+already-issued number (fix it in Settings).
+
+Related behavior in the record endpoints. "Certified" means a certificate doc exists for
+`{farmer}__{cardId}` (`certificateService.isCertified`); a `cardId` with no doc is legacy data.
+`resetPallets` routes a certified pallet through remove-pallet (so the certificate stays consistent);
+a legacy pallet is reset plainly and its stale `cardId` is cleared. `updateRecord` preserves the
+`cardId`/`sent` of a certified pallet, while a legacy `cardId` may be edited or cleared.
+`createRecord` (intake) always stores `cardId: ''`. Each of issue / resetPallets emits exactly one
+`bulk_update` event per request, containing every touched record.
 
 ---
 

@@ -59,6 +59,25 @@ function snapshotsDiffer(a, b) {
   return PRINTED_FIELDS.some(f => JSON.stringify(a[f]) !== JSON.stringify(b[f]));
 }
 
+// Destination / shipment date of already-certified records, from their CURRENT values.
+// Returns { destination, shipmentDate } when uniform, or { odd } (the first record, by pallet number,
+// that differs from the baseline) when not. Baseline per field: the certificate's own value if any
+// record still carries it, else the most common value.
+function currentUniformValues(records, cert) {
+  const baseline = (field) => {
+    const counts = new Map();
+    records.forEach(r => counts.set(r[field], (counts.get(r[field]) || 0) + 1));
+    if (counts.size === 1) return [...counts.keys()][0];
+    if (counts.has(cert[field])) return cert[field];
+    return [...counts.entries()].sort((x, y) => y[1] - x[1])[0][0];
+  };
+  const destination = baseline('destination');
+  const shipmentDate = baseline('shipmentDate');
+  const odd = [...records].sort(byPalletNumber)
+    .find(r => r.destination !== destination || r.shipmentDate !== shipmentDate);
+  return odd ? { odd } : { destination, shipmentDate };
+}
+
 function validateIssueSelection(records) {
   if (!records.length) return { errors: ['לא נבחרו משטחים'] };
   const errors = [];
@@ -90,4 +109,4 @@ function planIssue(records) {
   return { conflicts, errors, destination, shipmentDate, chunks };
 }
 
-module.exports = { MAX_ROWS, chunkRecords, buildRows, buildSnapshot, snapshotsDiffer, validateIssueSelection, planIssue };
+module.exports = { MAX_ROWS, chunkRecords, buildRows, buildSnapshot, snapshotsDiffer, currentUniformValues, validateIssueSelection, planIssue };

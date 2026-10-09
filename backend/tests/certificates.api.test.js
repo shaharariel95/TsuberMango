@@ -74,6 +74,14 @@ describe('issue', () => {
     expect(pv.body.chunks.map(c => c.rows)).toEqual([13, 1]);
     const res = await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: ids });
     expect(res.body.certificates.map(c => c.number)).toEqual([51466, 51467]);
+    // One realtime event per request: the (final) event carries every pallet of both certificates.
+    const evt = await waitFor(async () => {
+      const snap = await center.collection('farmer_events').doc(FARMER).get();
+      return snap.data()?.type === 'bulk_update' && snap.data().pallets.length === 14 ? snap.data() : null;
+    });
+    expect(evt).toBeTruthy();
+    expect(evt.pallets.map(p => p.id).sort()).toEqual([...ids].sort());
+    expect(new Set(evt.pallets.map(p => p.cardId))).toEqual(new Set([51466, 51467]));
   });
 
   it('mixed destination → 400 Hebrew', async () => {
@@ -201,6 +209,11 @@ describe('admin: certificate profile + export', () => {
     expect(put.status).toBe(200);
     expect((await api('get', url)).body.profile.nextNumber).toBe(60000);
   });
+  it('rejects a profile for an unknown farmer', async () => {
+    const res = await api('put', `/api/admin/farmers/${enc('לא-קיים')}/certificate-profile`).send(profile);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/Unknown farmer/);
+  });
   it('validates shape: 5 header lines, integer nextNumber ≥ 1', async () => {
     expect((await api('put', url).send({ ...profile, headerLines: ['a'] })).status).toBe(400);
     expect((await api('put', url).send({ ...profile, nextNumber: 0 })).status).toBe(400);
@@ -231,6 +244,27 @@ describe('record paths stay consistent with certificates', () => {
     expect((await farmerDoc.collection('records').doc(id).get()).data()).toMatchObject({ cardId: '', sent: false });
     const got = await api('get', `/api/certificates/${enc(issued.id)}`);
     expect(got.body.certificate.status).toBe('cancelled');
+  });
+  it('resetPallets with certified + plain + legacy pallets emits one bulk event with the final state of all', async () => {
+    const cert = await addRecord(1);
+    await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [cert] });
+    const plain = await addRecord(2, { sent: true });
+    const legacy = await addRecord(3, { sent: true, cardId: 999 });
+    const res = await api('put', `/api/farmers/${enc(FARMER)}/records/resetPallets`).send({ palletIds: [cert, plain, legacy] });
+    expect(res.status).toBe(200);
+    const evt = await waitFor(async () => {
+      const snap = await center.collection('farmer_events').doc(FARMER).get();
+      return snap.data()?.type === 'bulk_update' && snap.data().pallets.length === 3 ? snap.data() : null;
+    });
+    expect(evt).toBeTruthy();
+    const by = Object.fromEntries(evt.pallets.map(p => [p.id, p]));
+    expect(by[cert]).toMatchObject({ cardId: '', sent: false, mark: true });
+    expect(by[plain]).toMatchObject({ sent: false });
+    expect(by[legacy]).toMatchObject({ cardId: '', sent: false });
+    expect((await farmerDoc.collection('records').doc(legacy).get()).data()).toMatchObject({ cardId: '', sent: false });
+  });
+  it('updatemany is gone', async () => {
+    expect((await api('put', `/api/farmers/${enc(FARMER)}/records/updatemany`).send([])).status).not.toBe(200);
   });
   it('single-record edit cannot change cardId/sent of a certified pallet', async () => {
     const id = await addRecord(421);

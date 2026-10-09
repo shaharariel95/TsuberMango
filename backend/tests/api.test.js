@@ -116,6 +116,13 @@ describe('season flow: intake → weigh → mark → certificate → sent', () =
     expect(evt).toMatchObject({ type: 'create', updatedBy: ADMIN });
   });
 
+  it('intake ignores a cardId in the body (certificate numbers only come from issuing)', async () => {
+    const res = await api('post', '/api/records').send(pallet({ palletNumber: 77, cardId: 555 }));
+    expect(res.status).toBe(201);
+    expect((await farmerDoc.collection('records').doc(res.body.data.id).get()).data().cardId).toBe('');
+    await farmerDoc.collection('records').doc(res.body.data.id).delete();
+  });
+
   it('intake rejects missing required fields with a 400', async () => {
     const res = await api('post', '/api/records').send(pallet({ kind: '', size: '' }));
     expect(res.status).toBe(400);
@@ -179,15 +186,6 @@ describe('season flow: intake → weigh → mark → certificate → sent', () =
     await api('post', `/api/farmers/${enc}/destinations/toSend`).send([{ id }]);
   });
 
-  it('updatemany rejects a pallet without shipment date or weight (blocks "apply to all" before weighing)', async () => {
-    const records = (await api('get', `/api/farmers/${enc}/records`)).body.data;
-    const unweighed = records.find(r => r.id !== id);
-    const res = await api('put', `/api/farmers/${enc}/records/updatemany`).send([
-      { ...unweighed, shipmentDate: '2026-10-09' },
-    ]);
-    expect(res.status).toBe(400);
-  });
-
   it('shipmentDate bulk update stamps only the date, works on unweighed pallets, audits and emits an event', async () => {
     const records = (await api('get', `/api/farmers/${enc}/records`)).body.data;
     const unweighed = records.find(r => r.id !== id);
@@ -236,27 +234,34 @@ describe('season flow: intake → weigh → mark → certificate → sent', () =
     expect(nope.status).toBe(404);
   });
 
-  it('stamping a certificate via updatemany sets cardId + sent and emits a bulk event', async () => {
-    const rec = (await api('get', `/api/farmers/${enc}/records/pallet/1`)).body.data[0];
-    const res = await api('put', `/api/farmers/${enc}/records/updatemany`).send([
-      { ...rec, shipmentDate: '2026-10-09', cardId: 1001, sent: true },
-    ]);
+  it('resetPallets clears the sent flag and emits one bulk event with the new state', async () => {
+    await farmerDoc.collection('records').doc(id).update({ sent: true });
+    const res = await api('put', `/api/farmers/${enc}/records/resetPallets`).send({ palletIds: [id] });
     expect(res.status).toBe(200);
+    expect(res.body.updated).toEqual([expect.objectContaining({ id, sent: false })]);
     const data = (await farmerDoc.collection('records').doc(id).get()).data();
-    expect(data).toMatchObject({ cardId: 1001, sent: true, shipmentDate: '2026-10-09', mark: true });
-
+    expect(data.sent).toBe(false);
     const evt = await waitFor(async () => {
       const s = await center.collection('farmer_events').doc(FARMER).get();
       return s.data()?.type === 'bulk_update' ? s.data() : null;
     });
-    expect(evt.pallets[0]).toMatchObject({ id, cardId: 1001, sent: true });
+    expect(evt.pallets[0]).toMatchObject({ id, sent: false });
   });
 
-  it('resetPallets clears the sent flag', async () => {
+  it('resetPallets on a legacy pallet (cardId without a certificate) clears the cardId too', async () => {
+    await farmerDoc.collection('records').doc(id).update({ cardId: 777, sent: true });
     const res = await api('put', `/api/farmers/${enc}/records/resetPallets`).send({ palletIds: [id] });
     expect(res.status).toBe(200);
-    const data = (await farmerDoc.collection('records').doc(id).get()).data();
-    expect(data.sent).toBe(false);
+    expect((await farmerDoc.collection('records').doc(id).get()).data()).toMatchObject({ cardId: '', sent: false });
+  });
+
+  it('a legacy cardId (no certificate doc) can be cleared through a single-record edit', async () => {
+    await farmerDoc.collection('records').doc(id).update({ cardId: 778, sent: true });
+    const res = await api('put', `/api/farmers/${enc}/records/${id}`).send({
+      ...pallet(), weight: 481, destination: 'יעד-א', cardId: '', sent: false, mark: false,
+    });
+    expect(res.status).toBe(200);
+    expect((await farmerDoc.collection('records').doc(id).get()).data()).toMatchObject({ cardId: '', sent: false });
   });
 
   it('bulk mark/unmark/reset reject an unknown farmer with a 400', async () => {

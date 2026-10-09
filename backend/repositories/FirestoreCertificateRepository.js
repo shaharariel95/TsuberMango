@@ -48,6 +48,24 @@ class FirestoreCertificateRepository {
     if (!recordIds?.length) throw new CertificateError(400, 'INVALID_SELECTION', { errors: ['לא נבחרו משטחים'] });
     recordIds = [...new Set(recordIds)];
     const now = new Date().toISOString();
+    const attempt = { start: null, count: 0 };
+    try {
+      return await this._issueTxn({ farmer, recordIds, actor, now, attempt });
+    } catch (err) {
+      // gRPC ALREADY_EXISTS (6): t.create hit a certificate doc that is already there, i.e. nextNumber is stale.
+      if (err.code === 6 && attempt.start != null) {
+        let taken = attempt.start;
+        for (let n = attempt.start; n < attempt.start + attempt.count; n++) {
+          if ((await this.certsCol().doc(certId(farmer, n)).get()).exists) { taken = n; break; }
+        }
+        logger.error(`Certificate number ${taken} for "${farmer}" already exists (nextNumber out of sync)`);
+        throw new CertificateError(409, 'NUMBER_TAKEN', { number: taken });
+      }
+      throw err;
+    }
+  }
+
+  async _issueTxn({ farmer, recordIds, actor, now, attempt }) {
     return this.db.runTransaction(async (t) => {
       // --- reads (all before writes) ---
       const farmerSnap = await t.get(this.farmerDoc(farmer));
@@ -66,6 +84,8 @@ class FirestoreCertificateRepository {
       }
       if (plan.errors.length) throw new CertificateError(400, 'INVALID_SELECTION', { errors: plan.errors });
       const { destination, shipmentDate, chunks } = plan;
+      attempt.start = profile.nextNumber;
+      attempt.count = chunks.length;
 
       // --- writes ---
       let number = profile.nextNumber;
@@ -92,13 +112,25 @@ class FirestoreCertificateRepository {
   }
 
   // Shared by reprint/removePallet: rebuild a snapshot from the current records + profile.
-  async _currentSnapshot(t, cert, recordIds) {
+  // Destination and shipment date come from the records' CURRENT values (they can be corrected
+  // after issue). If the records disagree, strict mode (reprint) throws MIXED_ON_CERTIFICATE naming the
+  // first odd pallet; lenient mode (removePallet, the remedy for mixing) falls back to the certificate's values.
+  async _currentSnapshot(t, cert, recordIds, { strict = true } = {}) {
     const farmerSnap = await t.get(this.farmerDoc(cert.farmer));
     const profile = (farmerSnap.exists && farmerSnap.data().certificateProfile) || { headerLines: [], driverName: '' };
     const recSnaps = recordIds.length ? await t.getAll(...recordIds.map(id => this.recordsCol(cert.farmer).doc(id))) : [];
     const records = recSnaps.filter(s => s.exists).map(s => ({ id: s.id, ...s.data() }));
-    return { snapshot: core.buildSnapshot({ profile, number: cert.number, destination: cert.destination,
-      shipmentDate: cert.shipmentDate, records }), records, existingIds: records.map(r => r.id) };
+    let { destination, shipmentDate } = cert;
+    if (records.length) {
+      const uniform = core.currentUniformValues(records, cert);
+      if (uniform.odd) {
+        if (strict) throw new CertificateError(409, 'MIXED_ON_CERTIFICATE', { recordId: uniform.odd.id, palletNumber: uniform.odd.palletNumber });
+      } else {
+        ({ destination, shipmentDate } = uniform);
+      }
+    }
+    return { snapshot: core.buildSnapshot({ profile, number: cert.number, destination, shipmentDate, records }),
+      records, existingIds: records.map(r => r.id), destination, shipmentDate };
   }
 
   async reprint({ id, actor }) {
@@ -109,7 +141,7 @@ class FirestoreCertificateRepository {
       const cert = certSnap.data();
       if (cert.status === 'cancelled') throw new CertificateError(409, 'CERTIFICATE_CANCELLED');
       const latestSnap = await t.get(this.versionsCol(id).doc(String(cert.currentVersion)));
-      const { snapshot, existingIds } = await this._currentSnapshot(t, cert, cert.recordIds);
+      const { snapshot, existingIds, destination, shipmentDate } = await this._currentSnapshot(t, cert, cert.recordIds);
       const drifted = existingIds.length !== cert.recordIds.length;
       if (drifted) logger.warn(`Certificate ${id}: ${cert.recordIds.length - existingIds.length} record(s) no longer exist; reconciling recordIds`);
       if (!drifted && !core.snapshotsDiffer(snapshot, latestSnap.data())) {
@@ -117,7 +149,7 @@ class FirestoreCertificateRepository {
       }
       const version = cert.currentVersion + 1;
       t.create(this.versionsCol(id).doc(String(version)), { ...snapshot, reason: 'reprint', createdBy: actor, createdAt: now });
-      t.update(this.certsCol().doc(id), { currentVersion: version, recordIds: existingIds, updatedBy: actor, updatedAt: now,
+      t.update(this.certsCol().doc(id), { currentVersion: version, recordIds: existingIds, destination, shipmentDate, updatedBy: actor, updatedAt: now,
         palletCount: snapshot.palletCount, totalBoxes: snapshot.totalBoxes, totalWeight: snapshot.totalWeight });
       return { snapshot, version, created: true };
     });
@@ -132,12 +164,12 @@ class FirestoreCertificateRepository {
       if (!cert.recordIds.includes(recordId)) throw new CertificateError(400, 'NOT_ON_CERTIFICATE');
       const remaining = cert.recordIds.filter(r => r !== recordId);
       const removedSnap = await t.get(this.recordsCol(cert.farmer).doc(recordId));
-      const { snapshot, existingIds } = await this._currentSnapshot(t, cert, remaining);
+      const { snapshot, existingIds, destination, shipmentDate } = await this._currentSnapshot(t, cert, remaining, { strict: false });
       if (existingIds.length !== remaining.length) logger.warn(`Certificate ${id}: ${remaining.length - existingIds.length} record(s) no longer exist; reconciling recordIds`);
       const version = cert.currentVersion + 1;
       const cancelled = existingIds.length === 0;
       t.create(this.versionsCol(id).doc(String(version)), { ...snapshot, reason: 'remove-pallet', createdBy: actor, createdAt: now });
-      t.update(this.certsCol().doc(id), { recordIds: existingIds, currentVersion: version,
+      t.update(this.certsCol().doc(id), { recordIds: existingIds, currentVersion: version, destination, shipmentDate,
         status: cancelled ? 'cancelled' : cert.status, updatedBy: actor, updatedAt: now,
         palletCount: snapshot.palletCount, totalBoxes: snapshot.totalBoxes, totalWeight: snapshot.totalWeight });
       const patch = { cardId: '', sent: false, mark: true, editedBy: actor, editedAt: now };
@@ -145,6 +177,10 @@ class FirestoreCertificateRepository {
       return { snapshot, version, cancelled, farmer: cert.farmer,
         record: removedSnap.exists ? { id: recordId, ...removedSnap.data(), ...patch } : null };
     });
+  }
+
+  async exists(id) {
+    return (await this.certsCol().doc(id).get()).exists;
   }
 
   async list(farmer) {

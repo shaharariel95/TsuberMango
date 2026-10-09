@@ -14,6 +14,8 @@ const MESSAGES = {
   CERTIFICATE_NOT_FOUND: () => 'התעודה לא נמצאה',
   CERTIFICATE_CANCELLED: () => 'התעודה בוטלה',
   NOT_ON_CERTIFICATE: () => 'המשטח אינו בתעודה זו',
+  MIXED_ON_CERTIFICATE: (d) => `משטח ${d.palletNumber} שונה ביעד/תאריך משאר התעודה — הסר אותו מהתעודה`,
+  NUMBER_TAKEN: (d) => `מספר התעודה ${d.number} כבר קיים — עדכן את "מספר התעודה הבא" בהגדרות`,
 };
 
 function toHttpError(err) {
@@ -23,12 +25,20 @@ function toHttpError(err) {
   return null;
 }
 
-function sideEffects(farmer, records, action, actor) {
+// Audit entries stay per record; the realtime event is one bulk_update per request (rapid writes to the
+// same farmer_events doc can be coalesced, so listeners would miss intermediate states).
+function audit(farmer, records, action, actor) {
   const editedAt = new Date().toISOString();
   Promise.allSettled(records.map(r => repo.appendAuditLog(farmer, {
     recordId: r.id, palletNumber: r.palletNumber, action, editedBy: actor, editedAt,
   })));
-  firestoreEventService.emitBulkUpdate(farmer, records, actor);
+}
+
+// "Certified" = the record's cardId points at an existing certificate doc. A cardId with no doc is legacy
+// (pre-task-20 / manual stamping) data: it can be edited, cleared or reset like an uncertified pallet.
+async function isCertified(farmer, record) {
+  if (!record || record.cardId === '' || record.cardId == null) return false;
+  return repo.certificates.exists(`${farmer}__${record.cardId}`);
 }
 
 async function preview({ farmer, recordIds }) {
@@ -50,7 +60,8 @@ async function preview({ farmer, recordIds }) {
 async function issue({ farmer, recordIds, actor }) {
   logger.info(`[certificateService.issue] farmer=${farmer} records=${recordIds.length} by=${actor}`);
   const issued = await repo.certificates.issue({ farmer, recordIds, actor });
-  issued.forEach(c => sideEffects(farmer, c.records, `הפקת תעודה ${c.number}`, actor));
+  issued.forEach(c => audit(farmer, c.records, `הפקת תעודה ${c.number}`, actor));
+  firestoreEventService.emitBulkUpdate(farmer, issued.flatMap(c => c.records), actor);
   logger.info(`[certificateService.issue] issued ${issued.map(c => c.number).join(', ')}`);
   return issued.map(({ id, number, snapshot }) => ({ id, number, snapshot }));
 }
@@ -61,11 +72,16 @@ async function reprint({ id, actor }) {
   return result;
 }
 
-async function removePallet({ id, recordId, actor }) {
+// opts.emit=false: the caller batches the realtime event itself (resetPallets); the touched record
+// is returned as `record` so it can be included in that single event. Audit is always written here.
+async function removePallet({ id, recordId, actor }, { emit = true } = {}) {
   const result = await repo.certificates.removePallet({ id, recordId, actor });
-  if (result.record) sideEffects(result.farmer, [result.record], `הוסר מתעודה ${result.snapshot.number}`, actor);
+  if (result.record) {
+    audit(result.farmer, [result.record], `הוסר מתעודה ${result.snapshot.number}`, actor);
+    if (emit) firestoreEventService.emitBulkUpdate(result.farmer, [result.record], actor);
+  }
   logger.info(`[certificateService.removePallet] ${id} record=${recordId} cancelled=${result.cancelled}`);
-  return { snapshot: result.snapshot, version: result.version, cancelled: result.cancelled };
+  return { snapshot: result.snapshot, version: result.version, cancelled: result.cancelled, record: result.record };
 }
 
 async function list({ farmer, from, to }) {
@@ -84,4 +100,4 @@ async function getVersion(id, n) {
   return repo.certificates.getVersion(id, n);
 }
 
-module.exports = { preview, issue, reprint, removePallet, list, get, getVersion, toHttpError };
+module.exports = { isCertified, preview, issue, reprint, removePallet, list, get, getVersion, toHttpError };

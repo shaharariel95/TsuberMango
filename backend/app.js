@@ -206,6 +206,8 @@ app.get("/api/admin/farmers/:farmer/certificate-profile", ensureAdmin, async (re
 app.put("/api/admin/farmers/:farmer/certificate-profile", ensureAdmin, async (req, res) => {
   const { farmer } = req.params;
   const { headerLines, driverName = '', nextNumber } = req.body || {};
+  const farmerError = await sheetController.assertKnownFarmer(farmer);
+  if (farmerError) return res.status(400).json({ error: farmerError });
   if (!Array.isArray(headerLines) || headerLines.length !== 5 || headerLines.some(l => typeof l !== 'string')) {
     return res.status(400).json({ error: "נדרשות בדיוק 5 שורות כותרת" });
   }

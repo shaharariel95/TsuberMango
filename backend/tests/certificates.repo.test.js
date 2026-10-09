@@ -121,6 +121,44 @@ describe('reprint', () => {
   });
 });
 
+describe('reprint picks up destination / shipment date corrections', () => {
+  it('destination edited on all records → version 2 with the new destination, cert doc updated', async () => {
+    const [c] = await repo.issue({ farmer: FARMER, recordIds: records, actor: ACTOR });
+    await Promise.all(records.map(id => recordsCol().doc(id).update({ destination: 'יעד חדש', shipmentDate: '2026-12-09' })));
+    const r = await repo.reprint({ id: c.id, actor: ACTOR });
+    expect(r).toMatchObject({ version: 2, created: true });
+    expect(r.snapshot).toMatchObject({ destination: 'יעד חדש', shipmentDate: '2026-12-09' });
+    expect((await repo.get(c.id)).certificate).toMatchObject({ destination: 'יעד חדש', shipmentDate: '2026-12-09', currentVersion: 2 });
+    expect((await repo.getVersion(c.id, 1)).destination).toBe('יעד');
+  });
+
+  it('destination edited on one record only → 409 MIXED_ON_CERTIFICATE naming that pallet', async () => {
+    const [c] = await repo.issue({ farmer: FARMER, recordIds: records, actor: ACTOR });
+    await recordsCol().doc(records[1]).update({ destination: 'אחר' });
+    await expect(repo.reprint({ id: c.id, actor: ACTOR }))
+      .rejects.toMatchObject({ status: 409, code: 'MIXED_ON_CERTIFICATE', details: { recordId: records[1], palletNumber: 2 } });
+    expect((await repo.get(c.id)).certificate.currentVersion).toBe(1);
+  });
+
+  it('removing the odd pallet is still possible and the remaining records drive the new version', async () => {
+    const [c] = await repo.issue({ farmer: FARMER, recordIds: records, actor: ACTOR });
+    await recordsCol().doc(records[1]).update({ destination: 'אחר' });
+    const r = await repo.removePallet({ id: c.id, recordId: records[1], actor: ACTOR });
+    expect(r.snapshot.destination).toBe('יעד');
+    expect((await repo.reprint({ id: c.id, actor: ACTOR })).created).toBe(false);
+  });
+});
+
+describe('issue: stale nextNumber', () => {
+  it('nextNumber pointing at an already-issued number → 409 NUMBER_TAKEN, nothing stamped', async () => {
+    await repo.issue({ farmer: FARMER, recordIds: [records[0]], actor: ACTOR }); // takes 51466
+    await repo.setProfile(FARMER, { ...profile, nextNumber: 51466 });
+    await expect(repo.issue({ farmer: FARMER, recordIds: [records[1]], actor: ACTOR }))
+      .rejects.toMatchObject({ status: 409, code: 'NUMBER_TAKEN', details: { number: 51466 } });
+    expect((await recordsCol().doc(records[1]).get()).data()).toMatchObject({ cardId: '', sent: false });
+  });
+});
+
 describe('recordIds drift', () => {
   it('reprint after a record doc is deleted creates a new version and reconciles recordIds', async () => {
     const [c] = await repo.issue({ farmer: FARMER, recordIds: records, actor: ACTOR });

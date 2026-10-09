@@ -45,6 +45,12 @@ describe('reads', () => {
     expect(recs[0].palletNumber).toBe('5');
   });
 
+  it('getRecord returns one record with its id, or null when missing', async () => {
+    const { id } = await repo.appendRecord(FARMER, { palletNumber: '1', weight: 5 });
+    expect(await repo.getRecord(FARMER, id)).toEqual({ id, palletNumber: '1', weight: 5 });
+    expect(await repo.getRecord(FARMER, 'no-such-id')).toBeNull();
+  });
+
   it('getRecordsByPallet filters by palletNumber (string-compared)', async () => {
     const col = db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('records');
     await col.add({ palletNumber: 5 });

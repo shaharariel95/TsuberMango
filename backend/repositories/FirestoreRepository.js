@@ -23,6 +23,11 @@ class FirestoreRepository extends RecordRepository {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 
+  async getRecord(farmer, id) {
+    const snap = await this.recordsCol(farmer).doc(id).get();
+    return snap.exists ? { id: snap.id, ...snap.data() } : null;
+  }
+
   async getRecordsByPallet(farmer, palletNumber) {
     const all = await this.getRecords(farmer);
     return all.filter(r => String(r.palletNumber) === String(palletNumber));
