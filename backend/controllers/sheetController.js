@@ -361,21 +361,26 @@ class SheetController {
         else if (r && r.cardId !== '' && r.cardId != null) legacy.push(r);
         else plain.push(id);
       }
+      // Each step records what it changed; the single realtime event (see certificateService) goes out
+      // in `finally`, so a later step throwing doesn't hide earlier, already-committed changes.
       const touched = [];
-      for (const r of certified) {
-        const out = await certificateService.removePallet({ id: `${farmer}__${r.cardId}`, recordId: r.id, actor }, { emit: false });
-        if (out.record) touched.push(out.record);
+      try {
+        for (const r of certified) {
+          const out = await certificateService.removePallet({ id: `${farmer}__${r.cardId}`, recordId: r.id, actor }, { emit: false });
+          if (out.record) touched.push(out.record);
+        }
+        if (plain.length) {
+          await repo.updateSentStatus(farmer, plain, false);
+          plain.forEach(id => { if (byId.has(id)) touched.push({ ...byId.get(id), sent: false }); });
+        }
+        if (legacy.length) {
+          const editedAt = new Date().toISOString();
+          await repo.clearCardIds(farmer, legacy.map(r => r.id), actor, editedAt);
+          legacy.forEach(r => touched.push({ ...r, sent: false, cardId: '', editedBy: actor, editedAt }));
+        }
+      } finally {
+        if (touched.length) firestoreEventService.emitBulkUpdate(farmer, touched, actor);
       }
-      if (plain.length) await repo.updateSentStatus(farmer, plain, false);
-      if (legacy.length) {
-        const editedAt = new Date().toISOString();
-        await repo.updateRecords(farmer, legacy.map(r => r.id), legacy.map(({ id, ...rest }) =>
-          ({ ...rest, sent: false, cardId: '', editedBy: actor, editedAt })));
-      }
-      plain.forEach(id => { if (byId.has(id)) touched.push({ ...byId.get(id), sent: false }); });
-      legacy.forEach(r => touched.push({ ...r, sent: false, cardId: '' }));
-      // One realtime event per request (see certificateService).
-      if (touched.length) firestoreEventService.emitBulkUpdate(farmer, touched, actor);
       logger.info(`[resetSentStatus] ${farmer}: ${certified.length} removed from certificates, ${legacy.length} legacy cardId cleared, ${plain.length} reset`);
 
       res.json({

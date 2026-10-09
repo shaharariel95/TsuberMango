@@ -132,6 +132,15 @@ describe('bulk status + audit', () => {
     await expect(repo.updateShipmentDate(FARMER, ['nope'], '2026-10-12', 'a@b.c', 'x')).rejects.toThrow(/not found/);
   });
 
+  it('clearCardIds resets sent + cardId and stamps the editor, leaving other fields alone', async () => {
+    const a = await repo.appendRecord(FARMER, rec({ sent: true, cardId: 999, weight: 12 }));
+    // A concurrent edit between the caller's read and this write must survive (no read-then-overwrite).
+    await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('records').doc(a.id).update({ weight: 50 });
+    await repo.clearCardIds(FARMER, [a.id], 'a@b.c', '2026-10-09T00:00:00Z');
+    const back = (await repo.getRecords(FARMER)).find(r => r.id === a.id);
+    expect(back).toMatchObject({ sent: false, cardId: '', weight: 50, editedBy: 'a@b.c', editedAt: '2026-10-09T00:00:00Z' });
+  });
+
   it('appendAuditLog writes an audit doc', async () => {
     await repo.appendAuditLog(FARMER, { recordId: 'r1', palletNumber: '1', action: 'קליטה', editedBy: 'a@b.c', editedAt: '2026-07-13T00:00:00Z' });
     const snap = await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('audit').get();

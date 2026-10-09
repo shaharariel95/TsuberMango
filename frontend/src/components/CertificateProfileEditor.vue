@@ -28,7 +28,8 @@
 <script>
 import { reactive, ref, onMounted } from 'vue';
 import { getCertificateProfile, saveCertificateProfile } from '../api/certificates';
-import { printCertificates, previewSnapshot } from '../data/certificatePdf';
+import { printWithRetap, preloadPdf, previewSnapshot } from '../data/certificatePdf';
+import { requestConfirm } from '../composables/useDialogs';
 
 export default {
   name: 'CertificateProfileEditor',
@@ -43,6 +44,7 @@ export default {
     const messageError = ref(false);
 
     onMounted(async () => {
+      preloadPdf(); // so a preview tap stays within the share sheet's activation window
       try {
         const { profile } = await getCertificateProfile(props.farmer);
         if (profile) Object.assign(form, { headerLines: [...profile.headerLines], driverName: profile.driverName || '', nextNumber: profile.nextNumber });
@@ -84,7 +86,7 @@ export default {
       const nextNumber = validNextNumber();
       if (nextNumber === null) return;
       try {
-        await printCertificates([previewSnapshot({ ...form, nextNumber })], `תצוגה-מקדימה-${props.farmer}.pdf`);
+        await printWithRetap([previewSnapshot({ ...form, nextNumber })], `תצוגה-מקדימה-${props.farmer}.pdf`, requestConfirm);
       } catch (e) {
         message.value = e.message; messageError.value = true;
       }

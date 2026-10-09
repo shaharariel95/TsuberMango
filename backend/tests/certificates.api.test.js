@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
+import { createRequire } from 'node:module';
 import admin from 'firebase-admin';
 import { clearCollection, tokenFor, waitFor, makeApi } from './helpers/apiHarness.js';
 
@@ -262,6 +263,24 @@ describe('record paths stay consistent with certificates', () => {
     expect(by[plain]).toMatchObject({ sent: false });
     expect(by[legacy]).toMatchObject({ cardId: '', sent: false });
     expect((await farmerDoc.collection('records').doc(legacy).get()).data()).toMatchObject({ cardId: '', sent: false });
+  });
+  it('resetPallets still emits the changes already committed when a later step throws', async () => {
+    const cert = await addRecord(4);
+    await api('post', '/api/certificates').send({ farmer: FARMER, recordIds: [cert] });
+    const legacy = await addRecord(5, { sent: true, cardId: 998 });
+    const repo = createRequire(import.meta.url)('../repositories');
+    const spy = vi.spyOn(repo, 'clearCardIds').mockRejectedValueOnce(new Error('boom'));
+    try {
+      const res = await api('put', `/api/farmers/${enc(FARMER)}/records/resetPallets`).send({ palletIds: [cert, legacy] });
+      expect(res.status).toBe(500);
+    } finally { spy.mockRestore(); }
+    const evt = await waitFor(async () => {
+      const snap = await center.collection('farmer_events').doc(FARMER).get();
+      const d = snap.data();
+      return d?.type === 'bulk_update' && d.pallets.some(p => p.id === cert && p.cardId === '') ? d : null;
+    });
+    expect(evt.pallets.map(p => p.id)).toEqual([cert]);
+    expect(evt.pallets[0]).toMatchObject({ cardId: '', sent: false });
   });
   it('updatemany is gone', async () => {
     expect((await api('put', `/api/farmers/${enc(FARMER)}/records/updatemany`).send([])).status).not.toBe(200);

@@ -13,10 +13,6 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 8. When done **and verified** (tests/app actually run), append an entry to `done.md` and remove the task from this board.
 
 ## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season, season ≈ early Dec 2026
-0. **Task-20 leftovers (small, do first):**
-   - (a) The Settings "תצוגה מקדימה" preview should use `printWithRetap` + `preloadPdf` (today a stale tap on the tablet shows "SHARE_NEEDS_TAP").
-   - (b) In `resetSentStatus`, emit the collected realtime event even when a later step throws.
-   - (c) Make the legacy reset a transactional or partial update instead of read-then-overwrite.
 1. **Task 6 — Farmer registry in Firestore** (builds on `farmers/{name}.certificateProfile`; deletes `googleSheetsService.js` + create/delete-sheet/refresh-cache → the backend is fully off Google Sheets). Fold in: realtime echo suppression by per-tab client id (see blockers).
 2. **Task 36 — Naming cleanup** (unblocked once 6 + 20 land).
 3. **Pre-season ops:** verify the nightly backup actually runs (task 12 scope check), rewrite `NEW_SEASON.md` for the Firestore era, clear test farmers/data from production (**including `centers/tsuberi/certificates/**`, and BEFORE seeding** — never delete `farmers/{name}` docs afterwards, they hold `certificateProfile`), run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles, then check all 7 farmers in Settings (names must match config exactly). Printer check = Settings → פרטי תעודה → תצוגה מקדימה, NOT a real issue (it consumes a real number).

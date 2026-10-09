@@ -73,6 +73,12 @@ class FirestoreRepository extends RecordRepository {
     return ids.map(id => ({ id, mark: value }));
   }
 
+  async clearCardIds(farmer, ids, editedBy, editedAt) {
+    const batch = this.db.batch();
+    ids.forEach(id => batch.update(this.recordsCol(farmer).doc(id), { sent: false, cardId: '', editedBy, editedAt }));
+    await batch.commit();
+  }
+
   async updateShipmentDate(farmer, ids, shipmentDate, editedBy, editedAt) {
     const refs = ids.map(id => this.recordsCol(farmer).doc(id));
     const snaps = await this.db.getAll(...refs);

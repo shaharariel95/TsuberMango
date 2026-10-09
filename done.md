@@ -20,7 +20,7 @@
   4. Enter the Avner / Idan / Kopler profiles in Settings → פרטי תעודה, then check all 7 farmers in Settings (the farmer names must match the config exactly).
   5. Printer check: use Settings → פרטי תעודה → תצוגה מקדימה on the packhouse printer and compare it with the 51219 sample. Do NOT issue a real certificate for this — it consumes a real number.
   6. Remove the `SHIPPING_LABELS_ID_*` env vars from the Cloud Run service.
-- Known follow-up F1 (tracked by the controller): the e2e `signIn` helper can occasionally fail intermittently on the login page.
+- Follow-ups (2026-10-09): the Settings preview uses `printWithRetap` + `preloadPdf` (a stale tablet tap now asks for a fresh one instead of showing SHARE_NEEDS_TAP); `resetSentStatus` emits its realtime event in `finally`, so changes committed before a failing step still reach other clients; the legacy-cardId reset is a partial update (`repo.clearCardIds`), not read-then-overwrite. The intermittent e2e `signIn` failure was fixed in `ce70f30`.
 
 ### ✅ Task 5 — CR#3 Edit destination & weight after a certificate was issued
 - Clicking "ערוך" on a row that is `sent === true` or has a non-empty certificate number now opens a confirmation first ("המשטח כבר יצא — הונפקה לו תעודה — לשנות בכל זאת?"); cancel leaves the row read-only. Rows that have not left are unaffected.
