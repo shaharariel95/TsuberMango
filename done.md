@@ -5,6 +5,14 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 6 — Farmer registry off Google Sheets (lean)
+- Farmers live in `config/global.farmers` as `{name, allowGidon, archived?}`. New transactional `POST` / `DELETE` / `PATCH /api/admin/farmers` endpoints (`services/farmerRegistry.js`) add, hide (archive) and toggle `allowGidon`. Hiding keeps all of the farmer's data and removes them from every menu; restoring is re-adding the same name. The config save (`POST /api/admin/config`) no longer owns the farmers list.
+- Google Sheets is removed from the backend: `googleSheetsService.js`, its guard, the `create-sheet` / `delete-sheet` / `refresh-cache` admin endpoints and the startup cache warm. `googleapis` stays only for `scripts/seedCertificateProfiles.js` until seeding is done.
+- Realtime echo suppression is now per tab: the frontend sends `X-Client-Id`, the backend stamps events with `updatedByClient`, so the same account on two devices sees live updates (email comparison remains as a fallback for events without it).
+- Tests: backend 141, frontend Vitest 28, Playwright 26 (13 tests x desktop + tablet, new `farmers.spec.js` and a same-account realtime case).
+- **Deploy notes:** backend and frontend can go in either order. Remove `SPREADSHEET_ID` from the Cloud Run service. The known-farmers cache (`sheetController`, 5-min TTL) is per Cloud Run instance, so with more than one instance a just-added farmer can be rejected by another instance for up to 5 minutes.
+- Spec: `docs/superpowers/specs/2026-10-09-farmer-registry-design.md`; plan: `docs/superpowers/plans/2026-10-09-farmer-registry.md`.
+
 ### ✅ Task 20 (+4) — Shipping certificates off Google Sheets
 - Certificates now live in Firestore: `centers/{c}/certificates/{farmer}__{number}` with immutable `versions/{n}`, and `farmers/{name}.certificateProfile {headerLines[5], driverName, nextNumber}`. Issuing is one atomic transaction (number allocation, certificate + v1 snapshot, `cardId`/`sent` stamped on the pallets), which fixes the old `D7` numbering race and the orphan-certificate problem.
 - Task 4 absorbed: selections over 13 rows auto-split into ≤13-row certificates, grouped by pallet number (a pallet never straddles two certificates); the single-destination guard is kept. Preview and issue share one `planIssue`, so they cannot disagree.

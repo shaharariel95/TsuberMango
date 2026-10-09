@@ -46,7 +46,7 @@ These correct assumptions that would otherwise be wrong. Everything else is disc
 - **Records live in Firestore, not Sheets** — at `centers/{centerId}/farmers/{farmer}/records/{autoId}`, always through the `RecordRepository`. Sheets is only a cold archive of past seasons; the backend has no Sheets code.
 - **Every Firestore path is tenant-namespaced** under `centers/{centerId}/`. There is no top-level app data except `backups`.
 - **There is no records cache.** Reads go live to Firestore. The old per-farmer cache, request-coalescing, and append-lock are gone.
-- **Auth is Bearer ID tokens — no session, no cookie, no Passport.** An Axios interceptor attaches the token to every request; raw `fetch()` calls must use `getToken()` from `src/utils/auth.js`.
+- **Auth is Bearer ID tokens — no session, no cookie, no Passport.** An Axios interceptor attaches the token to every request; raw `fetch()` calls must use `authHeaders()` from `src/utils/auth.js` (token + `X-Client-Id`).
 - **Role is never in the custom claim.** The only claim is `{centers: [...]}`, for tenant gating. Role is read live from Firestore on every check, so revoking admin takes effect immediately.
 - **Every backend write emits a fire-and-forget Firestore event** to `centers/{centerId}/farmer_events/{farmer}` after the repository write succeeds. Skipping this silently breaks live updates on other clients.
 - **All Firestore writes are Admin-SDK-only.** Client SDK reads are limited to `config/**` and `farmer_events/{farmer}`, gated by the `centers` claim in `frontend/firestore.rules`. Everything else is default-deny.

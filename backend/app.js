@@ -8,7 +8,7 @@ const logger = require("./utils/logger");
 const { verifyFirebaseToken, ensureCenterAccess, ensureAdmin, syncUserClaims } = require('./middleware/auth');
 
 // Express app definition — no listen() and no startup side effects, so tests can
-// import it. The process entry point (listen, user seeding, cache warm) is server.js.
+// import it. The process entry point (listen, user seeding) is server.js.
 
 // 🔒 Initialize Firebase Admin. Skipped when a caller (e.g. the API tests) has
 // already initialized it against the emulators.

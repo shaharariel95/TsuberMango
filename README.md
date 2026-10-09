@@ -1,12 +1,12 @@
 # TsuberMango 🥭
 
-A specialized agricultural management platform for mango shipping and pallet sorting. High-performance Vue.js frontend with an Express backend using **Firebase Firestore** as the primary database (multi-tenant, namespaced under `centers/{centerId}`), with Google Sheets retained only for shipping-label spreadsheets.
+A specialized agricultural management platform for mango shipping and pallet sorting. High-performance Vue.js frontend with an Express backend using **Firebase Firestore** as the primary database (multi-tenant, namespaced under `centers/{centerId}`), with Google Sheets used only as a cold archive of past seasons (the backend has no Sheets code).
 
 ## 🚀 Architecture Overview
 - **Frontend**: Vue 3 (Vite, TailwindCSS)
 - **Backend**: Node.js (Express, Passport.js Google OAuth)
 - **Primary Database**: Firebase Firestore — pallet records, audit, config, users, sessions, real-time events (all under `centers/{centerId}/…`), accessed via a storage-agnostic `RecordRepository`
-- **Legacy Store**: Google Sheets — now only shipping-label spreadsheets + farmer-sheet provisioning
+- **Legacy Store**: Google Sheets — cold archive of past seasons only (no live code path)
 - **Deployment**: Firebase Hosting (Frontend) + Google Cloud Run (Backend)
 
 ---
@@ -15,7 +15,7 @@ A specialized agricultural management platform for mango shipping and pallet sor
 
 ### Backend
 1. `cd backend`
-2. Create `.env` from template (needs `GOOGLE_CLIENT_ID`, etc.)
+2. Create `.env` from template
 3. Add `SheetsCred.env.json` (Google Service Account key)
 4. `npm install`
 5. `npm run dev`
@@ -60,7 +60,7 @@ The system is now fully dynamic. Admins can manage settings directly in the app:
 
 ### Data storage
 - Pallet records live in Firestore at `centers/{centerId}/farmers/{farmer}/records`, with real-time updates pushed to all clients via `centers/{centerId}/farmer_events`.
-- Shipping labels are still generated as per-farmer Google Sheets.
+- Shipping certificates are generated in the browser from Firestore data; Google Sheets is only a cold archive of past seasons.
 - A one-time namespace seed (`backend/scripts/seedCenterNamespace.js`) copies existing `config`/`users` under `centers/{centerId}/`; `addTestFarmers.js` seeds test farmers.
 
 ---

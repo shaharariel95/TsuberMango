@@ -505,7 +505,6 @@ export default {
       }
     };
 
-
     return {
       profileFarmer, exporting, exportSeason,
       localConfig, newFarmerName, isWorking, saveConfig, addFarmer,

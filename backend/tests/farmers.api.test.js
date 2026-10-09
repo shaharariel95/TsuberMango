@@ -53,7 +53,7 @@ describe('POST /api/admin/farmers', () => {
     expect(res.body).toEqual({ name: KEPT, restored: true });
     expect(await farmers()).toEqual([{ name: KEPT, allowGidon: true }]);
   });
-  it.each([[''], ['   '], ['a/b'], ['.'], ['..'], ['__x__'], ['א'.repeat(51)], [42]])('400s an invalid name %j', async (name) => {
+  it.each([[''], ['   '], ['a/b'], ['.'], ['..'], ['__x__'], ['__abc'], ['א'.repeat(51)], [42]])('400s an invalid name %j', async (name) => {
     const res = await api('post', '/api/admin/farmers').send({ name });
     expect(res.status).toBe(400);
     expect(await farmers()).toHaveLength(1);

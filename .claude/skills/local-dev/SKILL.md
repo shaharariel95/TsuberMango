@@ -8,9 +8,9 @@ description: Use when running or testing TsuberMango locally - the backend test 
 ## Verify a change — run both before calling anything done
 
 ```bash
-cd backend && npm test        # ~10s: 107 Vitest tests on the auth + Firestore emulators
-cd frontend && npm test       # 18 Vitest unit tests (certificate PDF builder, sheet names)
-cd frontend && npm run e2e    # 18 Playwright runs (9 specs x 2 projects), real UI on desktop + tablet viewports
+cd backend && npm test        # ~10s: 141 Vitest tests on the auth + Firestore emulators
+cd frontend && npm test       # 28 Vitest unit tests (certificate PDF builder, sheet names, echo suppression)
+cd frontend && npm run e2e    # 26 Playwright runs (13 tests x 2 projects), real UI on desktop + tablet viewports
 ```
 
 | Layer | File(s) | Covers |
@@ -30,8 +30,7 @@ extend `frontend/e2e/`. Table cells carry `data-col="<column key>"` for stable s
 - Uses the locally installed Chrome (`channel: 'chrome'`), no browser download.
 - Starts the emulator stack itself, or reuses one already serving `:5173`.
 - Signs in through the auth-emulator popup as `e2e-admin@test.local` (seeded).
-- Realtime tests need **two different users**. Clients ignore events whose `updatedBy` is
-  their own email (echo suppression), so the second client is `e2e-admin-2@test.local`.
+- Realtime echo suppression is per tab (`updatedByClient` from the `X-Client-Id` header), so `realtime.spec.js` covers the same-account two-tab case. The second user, `e2e-admin-2@test.local`, is only for the cross-user case.
 - Two projects: `desktop` (1600×900) and `tablet` (1280×800, touch; the packhouse Samsung Galaxy Tab). At ≤1366px the app uses the drawer layout, so navigate with `navTo()` from `e2e/helpers.js`, never by clicking sidebar links directly.
 - `webServer` waits on the backend (`:3000/api/auth/me` → 401), not Vite, so the first sign-in never races a booting backend.
 

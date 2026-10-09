@@ -6,7 +6,7 @@ import { isOwnEcho } from '../utils/echo'
 import { clientId } from '../utils/clientId'
 
 export function useFarmerEvents(farmer, pallets, options = {}) {
-  // options.currentUserEmail — Ref<string>, used for fallback echo suppression, only for events without updatedByClient
+  // options.currentUserEmail — Ref<string>; echo-suppression fallback for events without updatedByClient
   // options.filter          — (pallet) => boolean, rows this view should show
   const highlightedIds = ref(new Set())
   let unsubscribe = null

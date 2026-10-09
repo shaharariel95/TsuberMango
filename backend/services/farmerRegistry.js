@@ -22,7 +22,7 @@ function validateFarmerName(raw) {
   const name = typeof raw === 'string' ? raw.trim() : '';
   if (!name) return { error: 'נדרש שם חקלאי' };
   if (name.length > 50) return { error: 'שם החקלאי ארוך מדי (עד 50 תווים)' };
-  if (name.includes('/') || name === '.' || name === '..' || /^__.*__$/.test(name)) {
+  if (name.includes('/') || name === '.' || name === '..' || /^__/.test(name)) {
     return { error: 'שם החקלאי מכיל תווים לא חוקיים' };
   }
   return { name };
