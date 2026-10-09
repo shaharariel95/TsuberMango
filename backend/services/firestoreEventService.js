@@ -1,14 +1,17 @@
 const admin = require('firebase-admin')
 const logger = require('../utils/logger')
 const { CENTER_ID } = require('../config/center')
+const { currentClientId } = require('../utils/requestContext')
 
 const db = () => admin.firestore()
 const eventDoc = (farmer) =>
   db().collection('centers').doc(CENTER_ID).collection('farmer_events').doc(farmer)
 
 function emit(farmer, payload) {
+  const clientId = currentClientId()
   eventDoc(farmer).set({
     ...payload,
+    ...(clientId ? { updatedByClient: clientId } : {}),
     farmer,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }).catch(err =>

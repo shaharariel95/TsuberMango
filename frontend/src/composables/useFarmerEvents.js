@@ -2,9 +2,11 @@ import { ref, watch, onUnmounted, isRef } from 'vue'
 import { db } from '../main'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { centerId } from './useCenter'
+import { isOwnEcho } from '../utils/echo'
+import { clientId } from '../utils/clientId'
 
 export function useFarmerEvents(farmer, pallets, options = {}) {
-  // options.currentUserEmail — Ref<string>, used for echo suppression
+  // options.currentUserEmail — Ref<string>, used for fallback echo suppression, only for events without updatedByClient
   // options.filter          — (pallet) => boolean, rows this view should show
   const highlightedIds = ref(new Set())
   let unsubscribe = null
@@ -25,8 +27,7 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
   }
 
   function applyEvent(event) {
-    if (options.currentUserEmail?.value &&
-        event.updatedBy === options.currentUserEmail.value) return
+    if (isOwnEcho(event, { clientId, email: options.currentUserEmail?.value })) return
 
     const list = pallets.value
     const flashed = []

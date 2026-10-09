@@ -3,6 +3,7 @@ import "./index.css";
 import App from "./App.vue";
 import router from "./router";
 import axios from "axios";
+import { clientId } from "./utils/clientId";
 import { initializeApp } from "firebase/app";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
@@ -31,6 +32,7 @@ if (import.meta.env.VITE_USE_EMULATORS === "true") {
 axios.interceptors.request.use(async (config) => {
   const user = auth.currentUser;
   if (user) config.headers.Authorization = `Bearer ${await user.getIdToken()}`;
+  config.headers['X-Client-Id'] = clientId;
   return config;
 });
 

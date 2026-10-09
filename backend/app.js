@@ -44,6 +44,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(require('./utils/requestContext').requestContext);
 app.set('trust proxy', 1);
 
 // Current user — role read live from Firestore; keeps claims in sync.

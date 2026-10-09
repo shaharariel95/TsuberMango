@@ -1,10 +1,10 @@
-import { getToken } from '../utils/auth';
+import { authHeaders } from '../utils/auth';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 async function call(method, path, body) {
   const res = await fetch(`${baseUrl}/api${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await getToken()}` },
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));

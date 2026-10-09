@@ -265,7 +265,7 @@ import createStickerPDF from '../data/printData.js';
 import ConfirmModal from './shared/ConfirmModal.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
 import { useDialogs } from '../composables/useDialogs';
-import { getToken } from '../utils/auth';
+import { authHeaders } from '../utils/auth';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
@@ -344,7 +344,7 @@ export default {
             try {
                 const encodedFarmer = encodeURIComponent(farmer)
                 const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`
-                const res = await fetch(URL, { headers: { Authorization: `Bearer ${await getToken()}` } })
+                const res = await fetch(URL, { headers: { ...(await authHeaders()) } })
                 const data = await res.json()
                 message.value = data.data
             } catch (err) {
@@ -387,7 +387,7 @@ export default {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${await getToken()}`,
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify(formattedData),
                 })
@@ -439,7 +439,7 @@ export default {
                 const encodedFarmer = encodeURIComponent(formData.farmer)
                 const res = await fetch(
                     `${baseUrl}/api/farmers/${encodedFarmer}/records/pallet/${formData.palletNumber}`,
-                    { headers: { Authorization: `Bearer ${await getToken()}` } }
+                    { headers: { ...(await authHeaders()) } }
                 )
                 if (res.ok) {
                     duplicateWarning.value = true

@@ -29,10 +29,14 @@ Run is only woken by actual HTTP requests.
 
 - `farmer` — `Ref<string>` — reactive farmer name; composable re-subscribes automatically on change
 - `pallets` — `Ref<Array>` — the page's data array; mutated in-place (new rows appended, existing rows patched, removed rows spliced)
-- `options.currentUserEmail` — `Ref<string>` — echo suppression: events where `updatedBy === currentUserEmail` are skipped
+- `options.currentUserEmail` — `Ref<string>` — fallback echo suppression, used only for events that carry no `updatedByClient` (older backends / scripts)
 - `options.filter` — `(pallet) => boolean` — which rows belong in this view
 
 Returns `{ highlightedIds }` — a `ref(new Set())` of pallet IDs currently flashing.
+
+### Per-tab client id (echo suppression)
+
+Each browser tab generates a `clientId` (`src/utils/clientId.js`, memory only) and sends it as the `X-Client-Id` header on every request (axios interceptor; raw `fetch()` calls use `authHeaders()` from `src/utils/auth.js`). The backend `requestContext` middleware (AsyncLocalStorage) validates it (`[A-Za-z0-9-]{1,64}`, malformed is ignored) and `firestoreEventService.emit` stamps it on the event as `updatedByClient`. `applyEvent` skips an event via `isOwnEcho` (`src/utils/echo.js`) only when `updatedByClient` equals this tab's id, so the same account on a second device still sees live updates. Events without `updatedByClient` fall back to comparing `updatedBy` with the user email.
 
 ### Key implementation details
 

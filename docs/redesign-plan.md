@@ -13,7 +13,7 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 8. When done **and verified** (tests/app actually run), append an entry to `done.md` and remove the task from this board.
 
 ## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season, season ≈ early Dec 2026
-1. **Task 6 — Farmer registry in Firestore** (builds on `farmers/{name}.certificateProfile`; deletes `googleSheetsService.js` + create/delete-sheet/refresh-cache → the backend is fully off Google Sheets). Fold in: realtime echo suppression by per-tab client id (see blockers).
+1. **Task 6 — Farmer registry in Firestore** (builds on `farmers/{name}.certificateProfile`; deletes `googleSheetsService.js` + create/delete-sheet/refresh-cache → the backend is fully off Google Sheets).
 2. **Task 36 — Naming cleanup** (unblocked once 6 + 20 land).
 3. **Pre-season ops:** verify the nightly backup actually runs (task 12 scope check), rewrite `NEW_SEASON.md` for the Firestore era, clear test farmers/data from production (**including `centers/tsuberi/certificates/**`, and BEFORE seeding** — never delete `farmers/{name}` docs afterwards, they hold `certificateProfile`), run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles, then check all 7 farmers in Settings (names must match config exactly); remove `SPREADSHEET_ID` from Cloud Run; after seeding, delete `scripts/seedCertificateProfiles.js` and the `googleapis` dependency. Printer check = Settings → פרטי תעודה → תצוגה מקדימה, NOT a real issue (it consumes a real number).
 4. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
@@ -44,7 +44,6 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 - **Tasks 20 and 4: shipped** (certificates in Firestore, auto-split into ≤13-row certificates by pallet group) — see `done.md`. Not blockers any more.
 - **Season start:** ~2 months out (≈ early Dec 2026, as of 2026-10-08). Everything needed for intake → certificate must be done and farmer-verified before then.
 - **Device:** the packhouse uses one Samsung Galaxy Tab (model TBD) in landscape; may grow to more devices. Playwright runs a `tablet` project at 1280×800 alongside `desktop`.
-- **Realtime echo suppression is keyed on email** (`frontend/src/composables/useFarmerEvents.js:28`): the same account on two devices won't see live updates. Fix idea: per-tab client id. Low priority (one tablet today).
 
 ## Task cards
 

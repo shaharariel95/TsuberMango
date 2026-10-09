@@ -231,7 +231,7 @@ import createStickerPDF from '../data/printData.js';
 import SpinnerButton from './shared/SpinnerButton.vue';
 import ErrorToast from './shared/ErrorToast.vue';
 import { requestAlert, requestConfirm } from '../composables/useDialogs';
-import { getToken } from '../utils/auth';
+import { authHeaders } from '../utils/auth';
 import { previewCertificates, issueCertificates } from '../api/certificates';
 import { printWithRetap, preloadPdf } from '../data/certificatePdf';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
@@ -600,7 +600,7 @@ export default {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${await getToken()}`,
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify(selectedPalletsData),
                 });
@@ -636,7 +636,7 @@ export default {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${await getToken()}`,
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify(this.editingPallet),
                 });
@@ -758,7 +758,7 @@ export default {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${await getToken()}`,
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify({ palletIds: ids, shipmentDate: date }),
                 });
@@ -785,7 +785,7 @@ export default {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${await getToken()}`,
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify({ palletIds: selectedPalletIds }), // Send only IDs
                 });
@@ -836,7 +836,7 @@ export default {
                 const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`;
                 const response = await fetch(URL, {
                     method: 'GET',
-                    headers: { Authorization: `Bearer ${await getToken()}` },
+                    headers: { ...(await authHeaders()) },
                 });
 
                 if (!response.ok) {

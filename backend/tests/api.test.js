@@ -323,3 +323,24 @@ describe('Google Sheets is gone', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('realtime events carry the sending tab id', () => {
+  it('stamps updatedByClient from a valid X-Client-Id header', async () => {
+    const res = await api('post', '/api/records').set('X-Client-Id', 'tab-123e4567').send(pallet({ palletNumber: 9101 }));
+    expect(res.status).toBe(201);
+    const evt = await waitFor(async () => {
+      const d = (await center.collection('farmer_events').doc(FARMER).get()).data();
+      return d?.pallet?.palletNumber == 9101 ? d : null;
+    });
+    expect(evt.updatedByClient).toBe('tab-123e4567');
+  });
+  it('ignores a malformed header instead of failing the request', async () => {
+    const res = await api('post', '/api/records').set('X-Client-Id', 'x'.repeat(65)).send(pallet({ palletNumber: 9102 }));
+    expect(res.status).toBe(201);
+    const evt = await waitFor(async () => {
+      const d = (await center.collection('farmer_events').doc(FARMER).get()).data();
+      return d?.pallet?.palletNumber == 9102 ? d : null;
+    });
+    expect(evt.updatedByClient).toBeUndefined();
+  });
+});
