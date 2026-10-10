@@ -91,3 +91,7 @@ gcloud logging read 'resource.type="cloud_scheduler_job" AND resource.labels.job
 gcloud scheduler jobs pause tsuberi-daily-backup --location=europe-west1
 gcloud scheduler jobs resume tsuberi-daily-backup --location=europe-west1
 ```
+
+## What a backup contains, and restoring it
+
+Each backup is a complete v2 JSON: config, users, every `farmers/{name}` doc (including `certificateProfile`, also for farmers missing from the farmers list), all records (including soft-deleted), edit history (audit), and all certificates with their versions. It is all-or-nothing: any failed read fails the whole backup, so an entry in the "גיבויים" list is complete. Restore with `node scripts/restoreBackup.js` (dry run by default, never overwrites existing data, accepts old v1 files); see "Restoring from a backup" in `NEW_SEASON.md`. Under the Firestore emulator, a backup run refuses to upload to the real GCS bucket.

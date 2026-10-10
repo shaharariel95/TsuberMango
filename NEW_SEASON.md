@@ -12,7 +12,7 @@ Google Sheets is only a cold archive of past seasons. There is no per-season spr
 
 ## 2. End of season
 1. Settings -> **ייצוא נתוני עונה** - downloads the Excel file used for the after-season calculations.
-2. Settings -> **גיבויים** - run a backup (JSON of all records + certificates, stored in the GCS bucket). Confirm it appears in the list.
+2. Settings -> **גיבויים** - run a backup (stored in the GCS bucket). Confirm it appears in the list. The backup is complete: config, users, every farmer's certificate details, every farmer (including ones not in the farmers list), deleted pallets, edit history and all certificates. A failed read fails the whole backup, so a backup that appears in the list is complete. A nightly backup also runs on its own (Cloud Scheduler job `tsuberi-daily-backup`).
 
 ## 3. Before the next season
 1. Take a fresh backup (Settings -> **גיבויים**). The reset refuses to run without a `backups` entry from the last 24 h.
@@ -21,11 +21,7 @@ Google Sheets is only a cold archive of past seasons. There is no per-season spr
    cd backend
    node scripts/clearSeason.js
    ```
-3. Compare the backup's row count (Settings -> **גיבויים**, column "שורות") with the dry run's total record count. They must be equal. **If the backup has fewer rows, do NOT execute.** Two possible causes:
-   - (a) A farmer with records is missing from the farmers list. The backup covers only the farmers in `config/global.farmers`, while the reset deletes records of every `farmers/{name}` doc, so a second backup would repeat the gap. Find the farmer in the dry run's per-farmer counts, add or restore that exact name in Settings (**ניהול חקלאים** / **חקלאים מוסתרים**), take a new backup and re-run the dry run until the counts match.
-   - (b) A farmer's fetch failed during the backup (the service skips that farmer instead of failing the whole backup). Take another backup.
-
-   Execute with a mismatch only when the difference is known test data.
+3. Compare the backup's row count (Settings -> **גיבויים**, column "שורות") with the dry run's total record count. They must be equal. If they differ, a pallet was added or changed after the backup: take a fresh backup and re-run the dry run. Do NOT execute until they match (unless the difference is known test data).
 4. Execute:
    ```bash
    node scripts/clearSeason.js --execute --center tsuberi
@@ -37,6 +33,35 @@ Google Sheets is only a cold archive of past seasons. There is no per-season spr
    - **ניהול חקלאים**: hide farmers who left (their data stays; restore them from **חקלאים מוסתרים**), add new farmers.
    - For each farmer check **פרטי תעודה**: header lines, driver, next number.
    - Review the kinds / sizes / destinations lists and the users list.
+
+## Restoring from a backup
+Use when data was lost or corrupted. The tool never overwrites: if a farmer already has records/audit, or a certificate id already exists, it reports a blocker and `--execute` writes nothing. Ids are preserved. It accepts old (records only) and new (complete) backup files.
+
+1. Dry run (prints what would be restored and any blockers):
+   ```bash
+   cd backend
+   node scripts/restoreBackup.js --gcs latest          # or --gcs 2026-12-14, or --file <path>
+   ```
+2. If the target still holds (damaged) data, clear it first with `node scripts/clearSeason.js` (it needs a recent backup; see section 3), or restore a single farmer whose data is empty.
+3. Execute:
+   ```bash
+   node scripts/restoreBackup.js --gcs latest --execute --center tsuberi
+   ```
+   `--center` must match the resolved `CENTER_ID`, otherwise it stays a dry run.
+4. One farmer only: add `--farmer <name>` (records, history, farmer details and that farmer's certificates).
+5. `--with-config` also restores settings (config) and users. Use it only when those were lost too; full restore of a complete backup only.
+6. After a restore, clients should reload (no live events are sent).
+
+### Restore drill (rehearse before the April dry run, touches no production data)
+Download a backup and restore it into a throwaway center inside the Firestore emulator (the data vanishes when the emulator stops):
+```powershell
+gcloud storage cp gs://tsuberi-mangos-backups/backups/<date>.json .
+cd backend
+$env:CENTER_ID='drill'
+npx firebase emulators:exec --only firestore --project demo-tsuber "node scripts/restoreBackup.js --file ../<date>.json --execute --center drill"
+Remove-Item Env:CENTER_ID
+```
+The output should show `"executed": true` and the counts you expect, and the log line `target: EMULATOR 127.0.0.1:8080`. If it says `REAL Firestore`, stop.
 
 ## 4. First-time setup only (2026 season)
 1. Clear the pre-season test data. There is no real backup to guard, so skip the check:

@@ -12,8 +12,8 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 7. Touch only the files listed under the task unless you find a real dependency — call it out.
 8. When done **and verified** (tests/app actually run), append an entry to `done.md` and remove the task from this board.
 
-## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season, season ≈ early Dec 2026
-1. **Pre-season ops:** verify the nightly backup actually runs (task 12 scope check), follow `NEW_SEASON.md`, clear pre-season test data with `scripts/clearSeason.js` (see `NEW_SEASON.md` §4) (**including `centers/tsuberi/certificates/**`, and BEFORE seeding** — never delete `farmers/{name}` docs afterwards, they hold `certificateProfile`), run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles, then check all 7 farmers in Settings (names must match config exactly); remove `SPREADSHEET_ID` from Cloud Run; after seeding, delete `scripts/seedCertificateProfiles.js` and the `googleapis` dependency. Printer check = Settings → פרטי תעודה → תצוגה מקדימה, NOT a real issue (it consumes a real number).
+## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season; season May–July 2027, farmer dry run April 2027
+1. **Pre-season ops:** run a restore drill (`NEW_SEASON.md`) before the April dry run (nightly backup is verified: job `tsuberi-daily-backup`), follow `NEW_SEASON.md`, clear pre-season test data with `scripts/clearSeason.js` (see `NEW_SEASON.md` §4) (**including `centers/tsuberi/certificates/**`, and BEFORE seeding** — never delete `farmers/{name}` docs afterwards, they hold `certificateProfile`), run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles, then check all 7 farmers in Settings (names must match config exactly); remove `SPREADSHEET_ID` from Cloud Run; after seeding, delete `scripts/seedCertificateProfiles.js` and the `googleapis` dependency. Printer check = Settings → פרטי תעודה → תצוגה מקדימה, NOT a real issue (it consumes a real number).
 2. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
 3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
 
@@ -28,7 +28,6 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 | 9 | PalletTable refactor | P2 | 2–3d | after 1/3 land (36 shipped) |
 | 10 | Pagination / virtual scrolling | P2 | 2–3d | 9 |
 | 11 | Season management & archival | P2 | 5–7d | 6 (shipped; builds on `config/global.farmers` entries, not per-farmer registry docs) |
-| 12 | Automatic daily backup (Cloud Scheduler) | P2 | 2–3d | — |
 | 13 | Mobile responsiveness audit | P2 | 2–3d | 9 |
 | 24 | Farmer-scoped roles & access | P2 | 4–5d | 6 (shipped; builds on `config/global.farmers` entries, not per-farmer registry docs) |
 | 25–33 | Feature ideas (below) | P2 | 0.5–2d each | — |
@@ -38,7 +37,7 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 
 ## Open decisions / blockers
 - **Tasks 20 and 4: shipped** (certificates in Firestore, auto-split into ≤13-row certificates by pallet group) — see `done.md`. Not blockers any more.
-- **Season start:** ~2 months out (≈ early Dec 2026, as of 2026-10-08). Everything needed for intake → certificate must be done and farmer-verified before then.
+- **Season start:** season May–July 2027; farmer dry run April 2027 — everything ready before it. Everything needed for intake → certificate must be done and farmer-verified before the dry run.
 - **Device:** the packhouse uses one Samsung Galaxy Tab (model TBD) in landscape; may grow to more devices. Playwright runs a `tablet` project at 1280×800 alongside `desktop`.
 
 ## Task cards
@@ -55,7 +54,7 @@ Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInp
 - **9 PalletTable refactor** (~860 lines): extract `usePalletTableState` + `PalletTableToolbar.vue` + `PalletTableRow.vue`; start only after CRs 1/3/4 (36 shipped) to avoid churn.
 - **10 Pagination / virtual scroll:** server-side pagination or `useVirtualList`; counter "מציג 50 מתוך 347".
 - **11 Season management:** Firestore `seasons`, close-season archive, season selector; replaces the manual `NEW_SEASON.md` ritual.
-- **12 Daily backup:** Cloud Scheduler nightly export, now sourced from Firestore records; endpoints scaffolded (`/api/internal/backup`, see `backend/CLOUD_SCHEDULER.md`); admin "גיבויים" list.
+- **12 Daily backup: shipped and verified** (Cloud Scheduler job `tsuberi-daily-backup`, nightly since May; complete v2 payload; restore tool `scripts/restoreBackup.js`, see `backend/CLOUD_SCHEDULER.md` and `NEW_SEASON.md`).
 - **13 Mobile audit:** 390px / 768px, collapse low-priority columns, ≥44px tap targets; add a Playwright project at the packhouse tablet's resolution (≤1366px uses the drawer layout, so tests must open the ☰ menu first).
 - **24 Farmer-scoped roles:** `farmer` role linked to a farmer; `ensureOwnFarmerOrAdmin`; builds on the shipped task-6 `config/global.farmers` entries (an `ownerEmails` link would be added there).
 - **26 Weight sanity checks** (per-box range / missing on send, via modal). **27 QR on pallet sticker** (pallet id; covers L3). **28 Pallet timeline view** from the audit trail (H3 base). **29 Global pallet/certificate search.** **30 Batch sticker printing + preview** (covers M2). **31 Stale-pallet nudges on Dashboard.** **32 Undo last bulk action** (30s toast). **33 Driver manifest PDF** per destination/truck.

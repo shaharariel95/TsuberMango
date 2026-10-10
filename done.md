@@ -5,6 +5,12 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Backups you can restore
+- Nightly backup job (`tsuberi-daily-backup`) verified running since May.
+- Backup payload v2 is complete and all-or-nothing: config, users, every farmer doc and certificate profile (also farmers missing from the list), deleted pallets, audit, certificates with versions. Backups refuse the real GCS bucket under emulators.
+- `scripts/restoreBackup.js` + `services/backupRestore.js`: dry run by default, `--execute` needs `--center`, never overwrites (blockers abort with nothing written), ids preserved, no realtime events; scopes full / `--farmer` / `--with-config`; accepts v1 and v2 files.
+- Restore drill documented in `NEW_SEASON.md` (emulator, throwaway center `drill`), to run before the April 2027 dry run.
+
 ### ✅ Task 25 — Soft-delete + restore
 - Any center user can delete a pallet from the table (row edit mode → מחק → confirm), only if it is unsent and has no certificate (`cardId`); the server enforces it (409). Admins restore from Settings → משטחים שנמחקו.
 - Delete sets `deleted: true` + `deletedBy`/`deletedAt` on the record; every read and bulk path ignores deleted pallets, and backups include them. `PUT` on a deleted pallet returns 404.
