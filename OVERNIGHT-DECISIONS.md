@@ -36,3 +36,19 @@ Short log of calls I made while you slept. Each line says what I chose, why, and
 - **Push, deploy or merge.** Everything since the push at the start (`848c84c`) is local. Push when you're ready, then deploy using the `deploy` skill, then work through `NEW_SEASON.md` §4 (first-time setup).
 - **Stopped before tasks 26/31** (weight sanity checks, stale-pallet nudges). They need real thresholds from you, such as the normal kg-per-box range; guessing them would be worse than waiting.
 - **Task 34** (Vite/Tailwind major upgrades) and **task 9** (PalletTable refactor) are risky changes that need a careful visual check of every page, so I left them for a session with you.
+
+## 2026-10-10: complete backups + restore tool
+- **Checked production (read-only):** the nightly Cloud Scheduler backup has run every night since May. There is no native Firestore backup. Old files held only pallets, for listed farmers.
+- **Backups are now complete:** settings, users, farmer certificate details, every farmer (including ones not in the list), deleted pallets, history and certificates. They are all-or-nothing, so a backup in the list is never partial.
+- **New file names:** `backups/YYYY-MM-DD-HHmmss.json` (UTC), and the upload can never overwrite an existing file. *Why:* the old one-file-per-day name meant the nightly run could overwrite a daytime backup taken just before a season reset.
+- **`restoreBackup.js`:**
+  - Dry run by default.
+  - Never overwrites pallets, history or certificates. Farmer details are merged, and `nextNumber` never goes down.
+  - Can restore one farmer (`--farmer`) or include settings and users (`--with-config`).
+  - Reads old files whose IDs are numbers.
+  - Refuses a real-Firestore write to any center other than production.
+- **`clearSeason.js --farmer`:** clears just one farmer, so you can recover one farmer without touching the others. A flag missing its value is now an error, never a silent whole-season clear.
+- **Incident:** a test once uploaded an empty backup to the playground bucket. You said that's fine. Uploads are now refused under the emulator.
+- **Drill done:** last season's real July backup (618 pallets) restored into the emulator.
+- **Ruling:** I broke the one-fix-wave rule once, to fix the `--farmer` data-loss bug. *Cost:* one small extra task.
+- **Verified:** backend 179 tests.
