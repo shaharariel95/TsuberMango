@@ -76,6 +76,7 @@ import { requestAlert, requestConfirm } from '../composables/useDialogs';
 import { deleteRecord, updateRecord, markForShipment, setShipmentDate, resetSent } from '../api/records';
 import { previewCertificates, issueCertificates } from '../api/certificates';
 import { printWithRetap, preloadPdf } from '../data/certificatePdf';
+import { weightRange, abnormalKgPerBox, abnormalWeightMessage, missingWeightDetails } from '../utils/weightCheck';
 import {
     filterPallets, sortAndGroup, countUniquePallets, mixColorMap, filterOptions, hasCertificate, canDelete,
 } from '../utils/palletRows';
@@ -231,6 +232,16 @@ export default {
                 const v = record[key];
                 if (v !== undefined && v !== '' && v !== null) record[key] = Number(v);
             }
+            // Task 26: ask before saving a weight that looks like a typo (only when weight/boxes changed).
+            const weightChanged = String(record.weight ?? '') !== String(originalPallet.weight ?? '')
+                || String(record.boxes ?? '') !== String(originalPallet.boxes ?? '');
+            const range = weightRange(this.config);
+            const kg = weightChanged ? abnormalKgPerBox(record, range) : null;
+            if (kg !== null) {
+                const ok = await requestConfirm({ title: 'משקל חריג', message: abnormalWeightMessage(kg, range),
+                    confirmText: 'שמור בכל זאת', variant: 'amber' });
+                if (!ok) return; // stay in edit mode to fix it
+            }
 
             this.isLoading = true;
             try {
@@ -283,7 +294,8 @@ export default {
             const message = toSend
                 ? `האם להעביר ${rows.length} משטחים למשלוח?`
                 : `האם להוריד ${rows.length} משטחים מהמשלוח?`;
-            const details = destinations.length ? `יעדים: ${destinations.join(', ')}` : '';
+            const details = [destinations.length ? `יעדים: ${destinations.join(', ')}` : '',
+                toSend ? missingWeightDetails(rows) : ''].filter(Boolean).join(' · ');
             const ok = await requestConfirm({ message, details, variant: toSend ? 'emerald' : 'amber' });
             if (!ok) return;
             this.isCreatingLabel = true;
@@ -310,7 +322,8 @@ export default {
                 const ok = await requestConfirm({
                     title: 'הפקת תעודת משלוח',
                     message: summary,
-                    details: `יעד: ${pv.destination} · תאריך: ${pv.shipmentDate}`,
+                    details: [`יעד: ${pv.destination} · תאריך: ${pv.shipmentDate}`,
+                        missingWeightDetails(this.pallets.filter(p => ids.includes(p.id)))].filter(Boolean).join(' · '),
                     confirmText: 'אשר',
                 });
                 if (!ok) return;

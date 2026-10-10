@@ -21,6 +21,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `src/utils/clientId.js` — per-tab random client id, sent as `X-Client-Id` on every request.
 - `src/utils/palletRows.js` — pure PalletTable row logic: filtering (mixed-pallet context rows), sort + group-leader annotation, mixed-pallet colours, filter options, `hasCertificate` / `canDelete`. Unit-tested in `tests/palletRows.test.js`.
 - `src/components/PalletTable.vue` — owns the pallets (`v-model:pallets`), selection, editing and the record API calls (`src/api/records.js`); renders `PalletTableToolbar.vue` (title, count, bulk actions — events only) and one `PalletTableRow.vue` per row (display or inline edit with its own draft; emits `save`/`cancel`/`delete`).
+- `src/utils/weightCheck.js` — task 26: kg-per-box range (`config.weightCheck`, default 4–9), `abnormalKgPerBox`, missing-weight details. Used by intake (`PalletInput`), the table editor and both shipment confirms (mark for shipment, issue certificate).
 - `src/utils/echo.js` — `isOwnEcho` — realtime echo suppression by `updatedByClient` (email fallback for events without it).
 - `src/App.vue` — App shell: sidebar/layout, `onAuthStateChanged` listener that resolves the user + starts the live `centers/{centerId}/config/global` `onSnapshot` subscription (once `centerId` is known from `/api/auth/me`), logout (revokes the refresh token server-side via `POST /api/auth/logout`, then signs out locally regardless), and the `provide()`s consumed by every page.
 - `src/components/` — All page-level components (see [api-reference.md](api-reference.md)). `Dashboard.vue` is the admin landing page (cross-farmer season totals, recent pallets, today's-activity feed).
@@ -149,7 +150,7 @@ Auth ID tokens replaced it, so nothing app-specific lives top-level except `back
 
 ```
 centers/{centerId}/
-  config (config/global doc)   kinds, sizes, destinations, farmers[], farmerConfigs
+  config (config/global doc)   kinds, sizes, destinations, farmers[], farmerConfigs, weightCheck
   users/{email}                { role: 'admin' | 'user' }
   farmers/{farmer}/
     records/{autoId}            pallet record fields (see Data Model above)
@@ -163,7 +164,7 @@ backups/{autoId}                backup metadata: timestamp, filename, centerId, 
 
 | Path | Purpose | Written by |
 |---|---|---|
-| `centers/{c}/config/global` | Dynamic lists: kinds, sizes, destinations, farmers + farmerConfigs | Admin SDK via `POST /api/admin/config` (lists) and `/api/admin/farmers` (farmers: `{name, allowGidon, archived?}`) |
+| `centers/{c}/config/global` | Dynamic lists: kinds, sizes, destinations, farmers + farmerConfigs; `weightCheck {minKgPerBox, maxKgPerBox}` (task 26, default 4–9) | Admin SDK via `POST /api/admin/config` (lists) and `/api/admin/farmers` (farmers: `{name, allowGidon, archived?}`) |
 | `centers/{c}/users/{email}` | Role map. Seeded from `users.json` on startup only if empty; live authorization source thereafter | Admin SDK (seed + user management endpoints) |
 | `centers/{c}/farmers/{f}/records/{id}` | Pallet records — the primary data store | Admin SDK via `FirestoreRepository` |
 | `centers/{c}/farmers/{f}/audit/{id}` | Per-record audit trail | `FirestoreRepository.appendAuditLog` (fire-and-forget) |
@@ -191,7 +192,7 @@ byte-identical to the repo file). Deploying rules is covered by the `deploy` ski
 subscription starts only after `centerId` is known — from `/api/auth/me`). `App.vue` provides
 reactive values to all children:
 
-- `provide('config', config)` — kinds, sizes, destinations, farmerConfigs
+- `provide('config', config)` — kinds, sizes, destinations, farmerConfigs, weightCheck
 - `provide('selectedFarmer', selectedFarmer)` — currently selected farmer
 - `provide('centerId', centerId)` — the tenant id (from `useCenter`)
 - `provide('currentUserEmail', computed(() => user.value?.email || ''))` — used by `useFarmerEvents` for echo suppression

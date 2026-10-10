@@ -135,6 +135,23 @@
       </div>
     </section>
 
+    <!-- 3b. Data checks (task 26) -->
+    <section class="card space-y-4" data-testid="checks-settings">
+      <h2 class="text-xl font-bold text-slate-700 pb-2 border-b border-slate-100 flex items-center gap-2">
+        <span class="text-lg">⚖️</span> בדיקות משקל
+      </h2>
+      <p class="text-sm text-slate-500">משקל לארגז מחוץ לטווח מבקש אישור לפני שמירה (טעות הקלדה נפוצה). משטחים ללא משקל מוצגים באישור המשלוח.</p>
+      <div class="flex flex-wrap items-end gap-4">
+        <label class="text-sm text-slate-600">מינימום ק״ג לארגז
+          <input type="number" min="0" step="0.1" v-model.number="localConfig.weightCheck.minKgPerBox" class="input-field w-28! mt-1" />
+        </label>
+        <label class="text-sm text-slate-600">מקסימום ק״ג לארגז
+          <input type="number" min="0" step="0.1" v-model.number="localConfig.weightCheck.maxKgPerBox" class="input-field w-28! mt-1" />
+        </label>
+        <SpinnerButton @click="saveChecks" :loading="isWorking" class="btn-primary min-h-[44px]">שמור</SpinnerButton>
+      </div>
+    </section>
+
     <!-- 4. Backups -->
     <section class="card space-y-4">
       <h2 class="text-xl font-bold text-slate-700 flex items-center gap-2 pb-2 border-b border-slate-100">
@@ -267,6 +284,7 @@ import CertificateProfileEditor from './CertificateProfileEditor.vue';
 import DeletedPallets from './DeletedPallets.vue';
 import { exportSeasonRecords } from '../api/certificates';
 import { safeSheetName } from '../utils/sheetName';
+import { DEFAULT_WEIGHT_RANGE } from '../utils/weightCheck';
 
 
 
@@ -277,7 +295,8 @@ export default {
       farmers: [],
       kinds: [],
       sizes: [],
-      destinations: []
+      destinations: [],
+      weightCheck: { ...DEFAULT_WEIGHT_RANGE },
     });
     const newFarmerName = ref('');
     const isWorking = ref(false);
@@ -427,6 +446,25 @@ export default {
       }
     };
 
+    // Saves only the checks, so it never overwrites list edits made in another tab.
+    const saveChecks = async () => {
+      const { minKgPerBox, maxKgPerBox } = localConfig.weightCheck;
+      if (!(minKgPerBox > 0) || !(maxKgPerBox > minKgPerBox)) {
+        showStatus('טווח משקל לא תקין: המינימום חייב להיות גדול מ-0 וקטן מהמקסימום', 'error');
+        return;
+      }
+      try {
+        isWorking.value = true;
+        await axios.post(`${baseUrl}/api/admin/config`, { weightCheck: { minKgPerBox, maxKgPerBox } });
+        showStatus('בדיקות המשקל נשמרו', 'success');
+      } catch (err) {
+        showStatus('שגיאה בשמירת הגדרות בשרת', 'error');
+        console.error(err);
+      } finally {
+        isWorking.value = false;
+      }
+    };
+
     const activeFarmers = computed(() => localConfig.farmers.filter(f => !f.archived));
     const archivedFarmers = computed(() => localConfig.farmers.filter(f => f.archived));
     const farmerUrl = (name) => `${baseUrl}/api/admin/farmers/${encodeURIComponent(name)}`;
@@ -509,7 +547,7 @@ export default {
 
     return {
       profileFarmer, exporting, exportSeason,
-      localConfig, newFarmerName, isWorking, saveConfig, addFarmer,
+      localConfig, newFarmerName, isWorking, saveConfig, saveChecks, addFarmer,
       confirmDeleteFarmer, farmerToDelete, deleteFarmer,
       activeFarmers, archivedFarmers, restoreFarmer, setGidon,
       status,

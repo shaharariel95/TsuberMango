@@ -240,7 +240,8 @@ export default {
       kinds: [],
       sizes: [],
       destinations: [],
-      farmerConfigs: {}
+      farmerConfigs: {},
+      weightCheck: null, // task 26 — kg-per-box range, see utils/weightCheck.js
     });
     provide('config', config);
     provide('selectedFarmer', selectedFarmer);
@@ -366,6 +367,7 @@ export default {
               config.destinations = cfg.destinations || [];
               config.farmers = farmers.value;
               config.farmerConfigs = fConfigs;
+              config.weightCheck = cfg.weightCheck || null;
               // Also covers the selected farmer being hidden from another tab.
               if (!farmers.value.includes(selectedFarmer.value)) {
                 selectedFarmer.value = farmers.value[0] || '';

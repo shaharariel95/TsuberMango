@@ -5,6 +5,13 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 26 — Weight sanity checks
+- Saving a weight whose kg-per-box is outside the range asks first ("המשקל נראה חריג… לשמור בכל זאת?") — at intake and in the table editor (only when weight or boxes changed); cancel keeps the row in edit mode.
+- Range in Settings → בדיקות משקל (`config/global.weightCheck`), default 4–9 kg/box from the 2026 season data: median 5.6, נספק boxes ~8; 4–9 would have flagged 8 of 616 pallets, 7 of them clear typos (1 kg weights, 666 kg on 3 boxes).
+- Mark-for-shipment and issue-certificate confirms list selected pallets with no weight.
+- Tests: `weightCheck.test.js` (7), e2e `weight-check.spec.js`; e2e intake default is now 80 boxes so existing specs' weights stay in range.
+- Task 9 review follow-up (accepted): a row's unsaved edits are lost if a filter hides that row mid-edit (the draft lives in the row).
+
 ### ✅ Task 9 — PalletTable refactor
 - `PalletTable.vue` 933 → 394 lines: pure row logic in `utils/palletRows.js` (11 unit tests: filters, mixed-pallet context rows, sort, grouping/collapse, colours), toolbar in `PalletTableToolbar.vue`, rows in `PalletTableRow.vue` (edit mode keeps its own draft). Raw `fetch` calls moved to `api/records.js` (`updateRecord`, `markForShipment`, `setShipmentDate`, `resetSent`).
 - Same props/events for the four pages; scoped CSS replaced by Tailwind (row flash is now `animate-pallet-flash` in `@theme`). Dead code removed (`fetchLastPallet`, debug log). Columns now follow a farmer switch (was computed once).

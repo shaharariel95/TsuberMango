@@ -41,7 +41,8 @@ export function rowByPallet(page, palletNumber) {
   });
 }
 
-export async function intakePallet(page, palletNumber, { boxes = 40, size = 'L' } = {}) {
+// 80 boxes keeps the weights the specs type (455–613 kg) inside the 4–9 kg/box check (task 26).
+export async function intakePallet(page, palletNumber, { boxes = 80, size = 'L' } = {}) {
   await navTo(page, 'קליטה');
   await expect(page.getByRole('heading', { name: 'קליטה' })).toBeVisible();
   const form = page.locator('form');

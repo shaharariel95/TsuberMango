@@ -266,6 +266,7 @@ import ConfirmModal from './shared/ConfirmModal.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
 import { useDialogs } from '../composables/useDialogs';
 import { authHeaders } from '../utils/auth';
+import { weightRange, abnormalKgPerBox, abnormalWeightMessage } from '../utils/weightCheck';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
@@ -278,7 +279,7 @@ export default {
     },
 
     setup(props) {
-        const { requestAlert } = useDialogs()
+        const { requestAlert, requestConfirm } = useDialogs()
         const isSubmitting = ref(false)
         const submitStatus = ref('')
         const statusMessage = ref('')
@@ -434,6 +435,14 @@ export default {
                     variant: 'error',
                 })
                 return
+            }
+            // Task 26: a weight entered at intake that looks like a typo needs a second look.
+            const range = weightRange(config)
+            const kg = abnormalKgPerBox(formData, range)
+            if (kg !== null) {
+                const ok = await requestConfirm({ title: 'משקל חריג', message: abnormalWeightMessage(kg, range),
+                    confirmText: 'שמור בכל זאת', variant: 'amber' })
+                if (!ok) return
             }
             try {
                 const encodedFarmer = encodeURIComponent(formData.farmer)
