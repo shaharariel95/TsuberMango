@@ -5,6 +5,10 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Keyless Cloud Run (code + docs; cutover pending)
+- Service-account key no longer ships: `*.env.json` added to `.gcloudignore`/`.dockerignore`; `utils/firebaseCredentials.js` uses the key file locally and Application Default Credentials (Cloud Run identity) otherwise; app, backup service and scripts use it.
+- Cutover (grant roles, deploy, verify, rotate key) is a manual checklist in the deploy skill -> Credentials; not yet executed.
+
 ### ✅ Backups you can restore
 - Nightly backup job (`tsuberi-daily-backup`) verified running since May.
 - Backup payload v2 is complete and all-or-nothing: config, users, every farmer doc and certificate profile (also farmers missing from the list), deleted pallets, audit, certificates with versions. Backups refuse the real GCS bucket under emulators.

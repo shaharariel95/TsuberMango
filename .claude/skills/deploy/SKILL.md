@@ -15,8 +15,37 @@ This trips people up. Check which one you are targeting before every command.
 | Firestore + Firebase Auth + rules | Firebase project **`tsuberi-mangos-7e449`** |
 | Backend (Cloud Run) | GCP project **`tsuberi-mangos`**, service **`backend-service`**, region `europe-west1` → `api.tsuberi.com` |
 
-The backend bridges the two via the `services/SheetsCred.env.json` service account plus
-`FIREBASE_PROJECT_ID`.
+The backend bridges the two via its credentials (see **Credentials**) plus `FIREBASE_PROJECT_ID`.
+
+## Credentials
+
+Production uses the **Cloud Run service identity** (`380552578196-compute@developer.gserviceaccount.com`,
+Application Default Credentials) with `projectId: FIREBASE_PROJECT_ID`. The key file
+`backend/services/SheetsCred.env.json` is for local dev and scripts only; it is listed in
+`backend/.gcloudignore` / `.dockerignore` (`*.env.json`) and must never ship in the image. Code
+(`utils/firebaseCredentials.js`) uses the key file when present, ADC otherwise. After a deploy the
+Cloud Run log line "Firebase Admin initialized ... using Application Default Credentials" confirms the mode.
+Check what would upload (read-only) from `backend/`: `gcloud meta list-files-for-upload` must not list `*.env.json`.
+
+### One-time keyless cutover checklist (in this order)
+
+1. **Grant roles** to the Cloud Run identity on the Firebase project:
+   ```
+   gcloud projects add-iam-policy-binding tsuberi-mangos-7e449 --member=serviceAccount:380552578196-compute@developer.gserviceaccount.com --role=roles/datastore.user
+   gcloud projects add-iam-policy-binding tsuberi-mangos-7e449 --member=serviceAccount:380552578196-compute@developer.gserviceaccount.com --role=roles/firebaseauth.admin
+   ```
+   (Its storage access to `tsuberi-mangos-backups` is already in place.)
+2. **Deploy the backend** (Commands below).
+3. **Verify**: sign in, intake one test pallet, Settings -> גיבויים -> run a backup, and check the Cloud Run log says Application Default Credentials.
+4. **Only then rotate the key**: the old key sits in every previous image. List keys, create a new one for local use, delete the old key id:
+   ```
+   gcloud iam service-accounts keys list --iam-account firebase-adminsdk-fbsvc@tsuberi-mangos-7e449.iam.gserviceaccount.com --project tsuberi-mangos-7e449
+   gcloud iam service-accounts keys create backend/services/SheetsCred.env.json --iam-account firebase-adminsdk-fbsvc@tsuberi-mangos-7e449.iam.gserviceaccount.com --project tsuberi-mangos-7e449
+   gcloud iam service-accounts keys delete <OLD_KEY_ID> --iam-account firebase-adminsdk-fbsvc@tsuberi-mangos-7e449.iam.gserviceaccount.com --project tsuberi-mangos-7e449
+   ```
+5. Optionally delete old image versions in Artifact Registry.
+
+**Rollback** (before step 4): `gcloud run services update-traffic backend-service --to-revisions <prev>=100 --region europe-west1 --project tsuberi-mangos`. The previous revision still contains the old key until rotation, which is why rotation is last.
 
 `firebase-tools` is installed **only in `backend/node_modules`** (pinned to 14.18.0 for JDK-11
 compatibility), so it is always invoked as `..\backend\node_modules\.bin\firebase.cmd` with

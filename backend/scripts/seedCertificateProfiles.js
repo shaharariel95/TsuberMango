@@ -4,6 +4,7 @@
 // profile or whose sheet is not readable. Run: node scripts/seedCertificateProfiles.js [--dry-run]
 require('dotenv').config();
 const path = require('path');
+const { adminInitOptions } = require('../utils/firebaseCredentials');
 const admin = require('firebase-admin');
 const { google } = require('googleapis');
 const logger = require('../utils/logger');
@@ -17,7 +18,7 @@ const LEGACY = {
 const dryRun = process.argv.includes('--dry-run');
 const keyFile = path.join(__dirname, '..', 'services', 'SheetsCred.env.json');
 
-if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(require(keyFile)), projectId: process.env.FIREBASE_PROJECT_ID });
+if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin, keyFile }));
 
 (async () => {
   const db = admin.firestore();

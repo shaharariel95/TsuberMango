@@ -138,7 +138,7 @@ visual ordering).
 ## Firestore
 
 - **Firebase Hosting**: Serves the built frontend (`dist/`) with SPA rewrite (`/* → /index.html`).
-- **Firebase Admin SDK** (backend): Initialized in `app.js` with `SheetsCred.env.json` service account. `const db = admin.firestore()` is available throughout the server.
+- **Firebase Admin SDK** (backend): Initialized in `app.js` via `utils/firebaseCredentials.js`: the local key `services/SheetsCred.env.json` when present (dev, scripts), otherwise Application Default Credentials with `FIREBASE_PROJECT_ID` (production: the Cloud Run service identity; the key is excluded from the image by `.gcloudignore`/`.dockerignore`). `backupService.js` picks its GCS credentials the same way. `const db = admin.firestore()` is available throughout the server.
 
 ### Tree
 

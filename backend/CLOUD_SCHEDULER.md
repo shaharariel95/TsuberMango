@@ -8,7 +8,7 @@ That endpoint verifies the OIDC token issued by Cloud Scheduler and calls `backu
 ## Prerequisites
 
 1. Backend deployed to Cloud Run at `https://api.tsuberi.com`.
-2. Cloud Run service account has `roles/storage.objectAdmin` on the GCS bucket.
+2. Cloud Run service identity (ADC; no key file ships in the image) has `roles/storage.objectAdmin` on the GCS bucket.
 3. `GCS_BACKUP_BUCKET` env var set on Cloud Run (`tsuberi-mangos-backups`).
 4. `CLOUD_RUN_SERVICE_URL=https://api.tsuberi.com` env var set on Cloud Run.
 5. Authenticated with `gcloud` and `cloudscheduler.jobs.create` permission.

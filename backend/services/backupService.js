@@ -1,17 +1,14 @@
 // services/backupService.js
 const { Storage } = require('@google-cloud/storage');
-const path = require('path');
+const { storageOptions } = require('../utils/firebaseCredentials');
 const admin = require('firebase-admin');
 const FirestoreRepository = require('../repositories/FirestoreRepository');
 const { CENTER_ID } = require('../config/center');
 const logger = require('../utils/logger');
 const { backupFileName } = require('./backupNames');
 
-// GCS client — reuses the same service-account key already present for Firebase.
-// The key file lives in services/ (same one app.js uses).
-const storage = new Storage({
-    keyFilename: path.join(__dirname, 'SheetsCred.env.json'),
-});
+// GCS client — local key file when present, otherwise Application Default Credentials (Cloud Run identity).
+const storage = new Storage(storageOptions());
 
 const BUCKET_NAME = process.env.GCS_BACKUP_BUCKET;
 const BACKUPS_COLLECTION = 'backups';

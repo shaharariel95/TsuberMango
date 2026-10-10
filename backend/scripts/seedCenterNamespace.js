@@ -3,16 +3,10 @@
 // touched (fresh-start). Run: node scripts/seedCenterNamespace.js
 require('dotenv').config();
 const admin = require('firebase-admin');
-const path = require('path');
+const { adminInitOptions } = require('../utils/firebaseCredentials');
 const { CENTER_ID } = require('../config/center');
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(
-      require(path.join(__dirname, '..', 'services', 'SheetsCred.env.json'))
-    ),
-  });
-}
+if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));
 const db = admin.firestore();
 
 async function run() {

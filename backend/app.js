@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const recordRoutes = require("./routes/recordRoutes");
 const admin = require("firebase-admin");
-const path = require("path");
+const { adminInitOptions } = require("./utils/firebaseCredentials");
 const logger = require("./utils/logger");
 const { verifyFirebaseToken, ensureCenterAccess, ensureAdmin, syncUserClaims } = require('./middleware/auth');
 
@@ -14,12 +14,9 @@ const { verifyFirebaseToken, ensureCenterAccess, ensureAdmin, syncUserClaims } =
 // already initialized it against the emulators.
 if (!admin.apps.length) {
   try {
-    const serviceAccount = require(path.join(__dirname, "services", "SheetsCred.env.json"));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id
-    });
-    console.log("Firebase Admin Initialized Successfully for project:", process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id);
+    const opts = adminInitOptions({ admin });
+    admin.initializeApp(opts);
+    logger.info(`Firebase Admin initialized for project ${opts.projectId} using ${opts.credential ? 'service-account key file' : 'Application Default Credentials'}`);
   } catch (error) {
     console.error("Firebase Admin Initialization Error:", error);
   }

@@ -6,7 +6,7 @@
 // Restore drill (no production writes): run under the Firestore emulator with CENTER_ID=drill — see NEW_SEASON.md.
 require('dotenv').config();
 const fs = require('fs');
-const path = require('path');
+const { adminInitOptions, keyFileIfPresent, storageOptions } = require('../utils/firebaseCredentials');
 const admin = require('firebase-admin');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
@@ -20,7 +20,7 @@ let parsed;
 try { parsed = Object.fromEntries(['--file', '--gcs', '--center', '--farmer'].map(n => [n, argValue(args, n)])); }
 catch (err) { logger.error(`[restoreBackup] ${err.message}`); process.exit(1); }
 const value = (name) => parsed[name];
-const keyFile = path.join(__dirname, '..', 'services', 'SheetsCred.env.json');
+const keyFile = keyFileIfPresent();
 
 async function readSource() {
   if (value('--file')) return JSON.parse(fs.readFileSync(value('--file'), 'utf8'));
@@ -29,7 +29,7 @@ async function readSource() {
   const bucketName = process.env.GCS_BACKUP_BUCKET;
   if (!bucketName) throw new Error('GCS_BACKUP_BUCKET is not set');
   const { Storage } = require('@google-cloud/storage');
-  const bucket = new Storage(fs.existsSync(keyFile) ? { keyFilename: keyFile } : {}).bucket(bucketName);
+  const bucket = new Storage(storageOptions({ keyFile })).bucket(bucketName);
   let name = which;
   if (which === 'latest' || /^\d{4}-\d{2}-\d{2}$/.test(which)) {
     const [files] = await bucket.getFiles({ prefix: 'backups/' }); // read-only listing
@@ -44,9 +44,8 @@ async function readSource() {
 
 (async () => {
   if (!admin.apps.length) {
-    admin.initializeApp(fs.existsSync(keyFile)
-      ? { credential: admin.credential.cert(require(keyFile)), projectId: process.env.FIREBASE_PROJECT_ID }
-      : { projectId: process.env.FIREBASE_PROJECT_ID || 'demo-tsuber' });
+    // No key file and no FIREBASE_PROJECT_ID (emulator drills): fall back to demo-tsuber.
+    admin.initializeApp(adminInitOptions({ admin, keyFile, projectId: process.env.FIREBASE_PROJECT_ID || (keyFile ? undefined : 'demo-tsuber') }));
   }
   const target = process.env.FIRESTORE_EMULATOR_HOST ? `EMULATOR ${process.env.FIRESTORE_EMULATOR_HOST}` : 'REAL Firestore';
   logger.info(`[restoreBackup] target: ${target}, center: ${CENTER_ID}`);

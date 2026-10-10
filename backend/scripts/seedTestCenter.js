@@ -3,13 +3,10 @@
 // and add the developer as an admin user of the test center.
 // Run: node scripts/seedTestCenter.js your-email@gmail.com
 const admin = require('firebase-admin');
-const path = require('path');
+const { adminInitOptions } = require('../utils/firebaseCredentials');
 const logger = require('../utils/logger');
 
-if (!admin.apps.length) {
-  const serviceAccount = require(path.join(__dirname, '..', 'services', 'SheetsCred.env.json'));
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-}
+if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));
 const db = admin.firestore();
 const CENTER = 'test';
 

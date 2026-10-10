@@ -5,7 +5,7 @@
 // One farmer only (records, audit, certificates; nothing else): add --farmer <name>.
 // Executing requires a backup from the last 24 h unless --skip-backup-check (pre-season test data).
 require('dotenv').config();
-const path = require('path');
+const { adminInitOptions } = require('../utils/firebaseCredentials');
 const admin = require('firebase-admin');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
@@ -19,10 +19,7 @@ try { centerArg = argValue(args, '--center'); farmerArg = argValue(args, '--farm
 catch (err) { logger.error(`[clearSeason] ${err.message}`); process.exit(1); }
 const execute = flag('--execute') && centerArg === CENTER_ID;
 
-if (!admin.apps.length) {
-  const keyFile = path.join(__dirname, '..', 'services', 'SheetsCred.env.json');
-  admin.initializeApp({ credential: admin.credential.cert(require(keyFile)), projectId: process.env.FIREBASE_PROJECT_ID });
-}
+if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));
 
 (async () => {
   if (flag('--execute') && !execute) {
