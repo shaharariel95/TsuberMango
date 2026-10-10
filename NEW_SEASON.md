@@ -65,20 +65,8 @@ Remove-Item $env:TEMP\drill-backup.json
 ```
 The output should show `"executed": true` and the counts you expect, and the log line `target: EMULATOR 127.0.0.1:8080`. If it says `REAL Firestore`, stop.
 
-## 4. First-time setup only (2026 season)
-1. Clear the pre-season test data. There is no real backup to guard, so skip the check:
-   ```bash
-   node scripts/clearSeason.js                                          # dry run first
-   node scripts/clearSeason.js --execute --center tsuberi --skip-backup-check
-   ```
-2. AFTER clearing (never delete `farmers/{name}` docs afterwards - they hold `certificateProfile`), seed profiles from the old label sheets:
-   ```bash
-   node scripts/seedCertificateProfiles.js --dry-run
-   node scripts/seedCertificateProfiles.js
-   ```
-3. Enter the Avner / Idan / Kopler profiles manually in Settings -> **פרטי תעודה**, then check all farmers (names must match the config exactly).
-4. Printer check: Settings -> **פרטי תעודה** -> **תצוגה מקדימה**. Never issue a real certificate to test - it consumes a real number.
-5. Once seeded, delete `backend/scripts/seedCertificateProfiles.js` and the `googleapis` dependency.
+## 4. First-time setup (2026-10-10 — DONE)
+Done once, before the first Firestore season: pre-season test data cleared with `clearSeason.js --skip-backup-check`; certificate profiles seeded from the old label sheets (Tsuberi 51466, Gamliel 90048, Shahak 507, Meltzer 3; the one-off seed script and the `googleapis` dependency were then removed); Avner / Idan / Kopler added to the farmer list. Still to finish by hand in Settings -> **פרטי תעודה**: the real profiles of Avner / Idan / Kopler, and header lines 4-5 (phone / VAT) of the seeded farmers. Printer check: **תצוגה מקדימה** - never issue a real certificate to test (it consumes a real number).
 
 ## 5. Deploying
-See the `deploy` skill (`.claude/skills/deploy/SKILL.md`) for the exact commands and ordering. Backend: Cloud Run service `backend-service` (project `tsuberi-mangos`, region `europe-west1`). Frontend: Firebase Hosting (project `tsuberi-mangos-7e449`). There are no per-season env vars any more; remove `SPREADSHEET_ID` / `SHIPPING_LABELS_ID_*` from Cloud Run if still set.
+See the `deploy` skill (`.claude/skills/deploy/SKILL.md`) for the exact commands and ordering. Backend: Cloud Run service `backend-service` (project `tsuberi-mangos`, region `europe-west1`). Frontend: Firebase Hosting (project `tsuberi-mangos-7e449`). There are no per-season env vars.

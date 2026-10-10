@@ -60,7 +60,6 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 
 ### Backend scripts
 
-- `scripts/seedCertificateProfiles.js` — One-time seed of each farmer's `certificateProfile` (header lines, driver, next number) from the old shipping-label spreadsheets. Supports `--dry-run`. Farmers whose sheets aren't shared with the service account are entered manually in Settings.
 
 - `scripts/clearSeason.js` — CLI for `seasonReset`: dry run by default; `--execute --center <CENTER_ID>` deletes; `--farmer <name>` scopes to one farmer's records, audit and certificates; `--skip-backup-check` bypasses the recent-backup guard. See `NEW_SEASON.md`.
 - `scripts/restoreBackup.js` — CLI for `backupRestore`: dry run by default; `--execute --center <CENTER_ID>` writes; source `--file <path>` or `--gcs latest|YYYY-MM-DD|backups/…json` (read-only download); `--farmer <name>`, `--with-config`. See `NEW_SEASON.md`.
@@ -206,7 +205,7 @@ Children inject with `inject('config')`, `inject('selectedFarmer')`, `inject('ce
 records cache, request-coalescing, and per-farmer append-lock were removed with the Sheets migration
 (Firestore reads are fast and its writes are atomic).
 
-The backend has no Google Sheets dependency, except the one-off `scripts/seedCertificateProfiles.js` (uses `googleapis` directly).
+The backend has no Google Sheets dependency.
 
 The controller's `assertKnownFarmer` write-validation keeps a small in-memory TTL (~5 min) cache of
 known farmer names read from `centers/{centerId}/config/global`.

@@ -13,7 +13,7 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 8. When done **and verified** (tests/app actually run), append an entry to `done.md` and remove the task from this board.
 
 ## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season; season May–July 2027, farmer dry run April 2027
-1. **Pre-season ops:** run a restore drill (`NEW_SEASON.md`) before the April dry run (nightly backup is verified: job `tsuberi-daily-backup`), follow `NEW_SEASON.md`, clear pre-season test data with `scripts/clearSeason.js` (see `NEW_SEASON.md` §4) (**including `centers/tsuberi/certificates/**`, and BEFORE seeding** — never delete `farmers/{name}` docs afterwards, they hold `certificateProfile`), run `seedCertificateProfiles.js` + enter Avner/Idan/Kopler profiles, then check all 7 farmers in Settings (names must match config exactly); remove `SPREADSHEET_ID` from Cloud Run; **keyless Cloud Run cutover (deploy skill -> Credentials)**; after seeding, delete `scripts/seedCertificateProfiles.js` and the `googleapis` dependency. Printer check = Settings → פרטי תעודה → תצוגה מקדימה, NOT a real issue (it consumes a real number).
+1. **Pre-season ops:** DONE 2026-10-10 — test data cleared, profiles seeded, keyless Cloud Run cutover, dead env vars removed, seed script + `googleapis` removed. Remaining (owner, in Settings → פרטי תעודה): real Avner/Idan/Kopler profiles and header lines 4–5 of the seeded farmers; printer check via תצוגה מקדימה (never a real issue). Run a restore drill (`NEW_SEASON.md`) before the April dry run.
 2. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
 3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
 
@@ -74,5 +74,4 @@ Two separate PRs, visual QA over every page. Files: `frontend/package.json` + lo
 | `pdfmake` 0.2→0.3 | Med | vfs/build changes threaten the lazy-load `pdfMake.vfs = pdfFonts` pattern; QA sticker PDF |
 | `vue-router` 4→5 | Med | Rewrite the `beforeEach` guard, test every redirect |
 | `firebase` 11→12 · `firebase-admin` 13→14 | Low-Med | Check Cloud Run Node version first |
-| `googleapis` 148→173 | Low-Med | Test the Sheets read/write path; also clears backend `uuid` audit findings |
 | `dotenv` 16→17 | Low | Trivial |
