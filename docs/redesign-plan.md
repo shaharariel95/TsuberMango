@@ -17,15 +17,14 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 2. **Deployed and merged to `main` (2026-10-10, PR #5).** Farmer dry run in April 2027 before the season.
 3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
 
-## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 12, 15+16, 20, 23, 25, 36 are in the reference doc / `done.md`)
+## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 12, 15+16, 20, 23, 25, 34, 36 are in the reference doc / `done.md`)
 Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-08 (`api.test.js` + Playwright e2e); CI half DROPPED. Optional leftover: frontend unit tests for `PalletInput` / `PalletTable` filter+sort.
 
 | # | Task | Priority | Effort | Depends on |
 |---|---|---|---|---|
 | 7 | Shipping-certificate table layout (only if a customer needs a different one) | P2 | 1–2d | 6 (shipped) |
 | 8 | Config-driven optional fields (generalize `gidon`) | P1 | 3–4d | 6 (shipped; builds on `config/global.farmers` entries `{name, allowGidon, archived?}`, not per-farmer registry docs) |
-| 34 | Frontend toolchain majors (Vite 8 done on branch `task-34a-vite8`; Tailwind 4 next) | P2 | 4–6d | after CRs, before 9 |
-| 9 | PalletTable refactor | P2 | 2–3d | after 1/3 land (36 shipped) |
+| 9 | PalletTable refactor | P2 | 2–3d | after 1/3 land (34, 36 shipped) |
 | 10 | Pagination / virtual scrolling | P2 | 2–3d | 9 |
 | 11 | Season management & archival | P2 | 5–7d | 6 (shipped; builds on `config/global.farmers` entries, not per-farmer registry docs) |
 | 13 | Mobile responsiveness audit | P2 | 2–3d | 9 |
@@ -51,7 +50,7 @@ Header lines per farmer were delivered by task 20. Remaining scope: only if a cu
 Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInput.vue`, `PalletTable.vue`.
 
 ## P2 backlog (one-liners)
-- **9 PalletTable refactor** (~860 lines): extract `usePalletTableState` + `PalletTableToolbar.vue` + `PalletTableRow.vue`; start only after CRs 1/3/4 (36 shipped) to avoid churn.
+- **9 PalletTable refactor** (~860 lines): extract `usePalletTableState` + `PalletTableToolbar.vue` + `PalletTableRow.vue`; start only after CRs 1/3/4 (34, 36 shipped) to avoid churn.
 - **10 Pagination / virtual scroll:** server-side pagination or `useVirtualList`; counter "מציג 50 מתוך 347".
 - **11 Season management:** Firestore `seasons`, close-season archive, season selector; replaces the manual `NEW_SEASON.md` ritual.
 - **12 Daily backup: shipped and verified** (Cloud Scheduler job `tsuberi-daily-backup`, nightly since May; complete v2 payload; restore tool `scripts/restoreBackup.js`, see `backend/CLOUD_SCHEDULER.md` and `NEW_SEASON.md`).
@@ -59,14 +58,6 @@ Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInp
 - **24 Farmer-scoped roles:** `farmer` role linked to a farmer; `ensureOwnFarmerOrAdmin`; builds on the shipped task-6 `config/global.farmers` entries (an `ownerEmails` link would be added there).
 - **26 Weight sanity checks** (per-box range / missing on send, via modal). **27 QR on pallet sticker** (pallet id; covers L3). **28 Pallet timeline view** from the audit trail (H3 base). **29 Global pallet/certificate search.** **30 Batch sticker printing + preview** (covers M2). **31 Stale-pallet nudges on Dashboard.** **32 Undo last bulk action** (30s toast). **33 Driver manifest PDF** per destination/truck.
 - **17–19 platform layer:** parked until a confirmed second customer — see the reference doc.
-
-### 34 — Frontend toolchain majors (before 9/10/13, after the CRs; not mid-season)
-Two separate PRs, visual QA over every page. Files: `frontend/package.json` + lockfile, `vite.config.js`, `tailwind.config.js` → CSS `@theme`, PostCSS config.
-
-| Upgrade | Risk | Notes |
-|---|---|---|
-| `vite` 5→8 + plugin-vue 6 (first) | Med-High | Node floors, browser targets, config changes; test `build` + `preview` |
-| `tailwindcss` 3→4 | High | CSS-first config, `@import "tailwindcss"`, `@tailwindcss/postcss`, custom `mango`/`sidebar` palette must be re-expressed |
 
 ### 35 — Remaining major bumps (one PR each, anytime)
 | Upgrade | Risk | Notes |

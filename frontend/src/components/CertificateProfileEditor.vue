@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" @click.self="$emit('close')">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4" @click.self="$emit('close')">
     <div role="dialog" aria-label="פרטי תעודה" class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 rtl space-y-3">
       <h3 class="text-lg font-bold text-slate-800">פרטי תעודה — {{ farmer }}</h3>
       <p v-if="loading" class="text-slate-400 text-sm">טוען...</p>

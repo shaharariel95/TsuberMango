@@ -19,8 +19,8 @@
           </svg>
           ייצוא לאקסל
         </SpinnerButton>
-        <label class="text-sm font-medium text-slate-500 flex-shrink-0">בחר תאריך:</label>
-        <select v-model="selectedDate" class="input-field !w-auto min-w-[160px] text-sm">
+        <label class="text-sm font-medium text-slate-500 shrink-0">בחר תאריך:</label>
+        <select v-model="selectedDate" class="input-field w-auto! min-w-[160px] text-sm">
           <option value="">הכל</option>
           <option v-for="date in shipmentDates" :key="date" :value="date">{{ date }}</option>
         </select>
@@ -63,7 +63,7 @@
 
     <!-- Error -->
     <div v-if="error" class="mt-4 bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2 max-w-xl mx-auto">
-      <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
       </svg>
       שגיאה: {{ error }}

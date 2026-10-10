@@ -11,7 +11,7 @@
 
         <!-- Table + H4 controls -->
         <div v-else class="h-full flex flex-col gap-2">
-            <div class="flex items-center gap-2 flex-shrink-0 flex-wrap rtl">
+            <div class="flex items-center gap-2 shrink-0 flex-wrap rtl">
                 <span :class="[
                     'text-sm font-semibold rounded-lg px-3 py-1.5',
                     missingWeightCount > 0 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'

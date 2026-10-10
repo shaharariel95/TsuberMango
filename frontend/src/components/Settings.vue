@@ -22,15 +22,15 @@
              class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors gap-2">
           <div class="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
             <span class="font-bold text-sm min-w-[80px] sm:min-w-[100px] text-slate-700 truncate">{{ farmer.name }}</span>
-            <label class="flex items-center cursor-pointer gap-2 flex-shrink-0">
+            <label class="flex items-center cursor-pointer gap-2 shrink-0">
               <input type="checkbox" v-model="farmer.allowGidon" @change="setGidon(farmer)"
-                     class="form-checkbox h-5 w-5 rounded text-mango-500 border-slate-300 focus:ring-mango-400">
+                     class="form-checkbox h-5 w-5 rounded-sm text-mango-500 border-slate-300 focus:ring-mango-400">
               <span class="text-xs text-slate-500">גדעון?</span>
             </label>
           </div>
-          <button class="btn-ghost text-xs border border-slate-200 px-2 py-1 flex-shrink-0" @click="profileFarmer = farmer.name">פרטי תעודה</button>
+          <button class="btn-ghost text-xs border border-slate-200 px-2 py-1 shrink-0" @click="profileFarmer = farmer.name">פרטי תעודה</button>
           <button @click="confirmDeleteFarmer(farmer.name)"
-                  class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-all text-base flex-shrink-0 min-h-[40px] min-w-[40px]"
+                  class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-all text-base shrink-0 min-h-[40px] min-w-[40px]"
                   :aria-label="`הסתר ${farmer.name}`" title="הסתר חקלאי">
             🗑️
           </button>
@@ -83,14 +83,14 @@
           <div class="flex items-center gap-3 min-w-0 flex-1">
             <span class="text-sm text-slate-700 truncate">{{ u.email }}</span>
             <span :class="[
-              'text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0',
+              'text-xs font-semibold px-2 py-0.5 rounded-full shrink-0',
               u.role === 'admin' ? 'bg-mango-100 text-mango-700' : 'bg-slate-200 text-slate-600'
             ]">{{ u.role === 'admin' ? 'מנהל' : 'משתמש' }}</span>
           </div>
           <button @click="deleteUser(u.email)"
                   :disabled="isLastAdmin(u)"
                   :title="isLastAdmin(u) ? 'לא ניתן למחוק את המנהל האחרון' : 'מחק משתמש'"
-                  class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-all flex-shrink-0 min-h-[40px] min-w-[40px] disabled:opacity-30 disabled:cursor-not-allowed">
+                  class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-all shrink-0 min-h-[40px] min-w-[40px] disabled:opacity-30 disabled:cursor-not-allowed">
             <svg class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -197,7 +197,7 @@
       leave-active-class="transition-all duration-150 ease-in"
       leave-from-class="opacity-100"
       leave-to-class="opacity-0">
-      <div v-if="farmerToDelete" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div v-if="farmerToDelete" class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-100 p-4">
         <div class="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl animate-slide-up">
           <!-- Red Header -->
           <div class="bg-red-50 -m-6 mb-5 p-5 rounded-t-2xl border-b border-red-100">
@@ -242,10 +242,10 @@
              'toast',
              status.type === 'error' ? 'bg-red-500/95 text-white' : 'bg-emerald-500/95 text-white'
            ]">
-        <svg v-if="status.type === 'error'" class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg v-if="status.type === 'error'" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
-        <svg v-else class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg v-else class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
         </svg>
         {{ status.msg }}

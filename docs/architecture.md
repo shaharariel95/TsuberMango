@@ -30,7 +30,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `src/data/printData.js` — Sticker PDF generation using pdfmake. **Lazy-loaded**: pdfmake and vfs_fonts are dynamically imported inside `createStickerPDF()` so they don't block initial page load.
 - `fonts/vfs_fonts.js` — Custom Rubik font embedded as a VFS blob for pdfmake (~750 kB). Exports the font map directly as default; assign with `pdfMake.vfs = pdfFonts` (not `pdfFonts.vfs`).
 - `vite.config.js` — Dev proxy: `/api` → `http://localhost:3000`. Credentials included.
-- `tailwind.config.js` — Custom `mango` color palette (yellow→brown) and `sidebar` dark theme.
+- `src/index.css` — Tailwind 4 CSS-first config: `@theme` holds the custom `mango` palette (yellow→brown), the `sidebar` dark theme, shadows and animations; shared classes (`btn-primary`, `card`, `input-field`, …) are `@utility` blocks. Tailwind runs through `@tailwindcss/vite` (no PostCSS config). v4 gotcha: `space-y-*` now puts margin-bottom on each child, so a child's own `mb-*` overrides it instead of collapsing — drop the child margin or use `flex flex-col gap-*`.
 
 ### Backend (`/backend`)
 

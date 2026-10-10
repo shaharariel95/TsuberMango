@@ -6,7 +6,7 @@
                 <h2 class="text-2xl sm:text-3xl font-bold text-slate-800">קליטה</h2>
                 <p class="text-slate-500 text-sm mt-0.5">רישום משטח חדש</p>
             </div>
-            <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                 <!-- <button @click="fastMode = !fastMode"
                     :class="[
                         'text-sm font-semibold rounded-lg px-3 py-1.5 border transition-all',
@@ -32,7 +32,7 @@
             leave-from-class="opacity-100 translate-y-0"
             leave-to-class="opacity-0 -translate-y-2">
             <div v-if="fastMode" class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 rtl">
-                <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 <span class="text-sm font-bold text-emerald-700">מצב מהיר פעיל</span>
@@ -45,7 +45,7 @@
         <form @submit.prevent="submitForm" novalidate class="space-y-5 rtl">
             <!-- Required Fields Section -->
             <div class="card space-y-5">
-                <div class="flex items-center gap-2 mb-1">
+                <div class="flex items-center gap-2">
                     <div class="w-1 h-5 bg-mango-500 rounded-full"></div>
                     <span class="text-sm font-semibold text-slate-500 uppercase tracking-wide">שדות חובה</span>
                 </div>
@@ -65,7 +65,7 @@
                         <input type="number" v-model="formData.palletNumber" required min="1" class="input-field" ref="palletNumberInput" />
                         <div class="mt-1 text-xs text-slate-400">
                             <span v-if="isLoading" class="flex items-center gap-1">
-                                <span class="loading-spinner !w-3 !h-3"></span> טוען...
+                                <span class="loading-spinner w-3! h-3!"></span> טוען...
                             </span>
                             <span v-else>משטח אחרון: <strong class="text-mango-600">{{ message }}</strong></span>
                         </div>
@@ -128,7 +128,7 @@
 
             <!-- Optional Fields Section -->
             <div class="card space-y-4">
-                <div class="flex items-center gap-2 mb-1">
+                <div class="flex items-center gap-2">
                     <div class="w-1 h-5 bg-slate-300 rounded-full"></div>
                     <span class="text-sm font-semibold text-slate-400 uppercase tracking-wide">שדות נוספים</span>
                 </div>

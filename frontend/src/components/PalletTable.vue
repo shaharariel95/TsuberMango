@@ -5,11 +5,11 @@
             <div class="flex items-center gap-2 flex-wrap min-w-0">
                 <div class="toolbar-identity flex items-center gap-2">
                     <h2 v-if="title" class="text-lg font-bold text-slate-800 truncate">{{ title }}</h2>
-                    <span class="text-sm font-semibold bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-2.5 py-1 flex-shrink-0">{{ farmer }}</span>
+                    <span class="text-sm font-semibold bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-2.5 py-1 shrink-0">{{ farmer }}</span>
                 </div>
-                <span class="text-sm font-bold bg-slate-100 text-slate-600 rounded-lg px-2.5 py-1 flex-shrink-0">{{ AmountOfPallets }} משטחים</span>
+                <span class="text-sm font-bold bg-slate-100 text-slate-600 rounded-lg px-2.5 py-1 shrink-0">{{ AmountOfPallets }} משטחים</span>
             </div>
-            <div class="flex flex-wrap gap-1.5 items-center flex-shrink-0">
+            <div class="flex flex-wrap gap-1.5 items-center shrink-0">
                 <template v-if="!destinationOnly && !columnsFilter.length">
                     <button @click="returnSentPallets" :disabled="selectedPallets.length === 0"
                         class="btn-primary text-sm min-h-[36px] px-3" v-if="!isEditable">
@@ -26,7 +26,7 @@
                     </SpinnerButton>
                     <SpinnerButton v-if="isEditable" @click="confirmBulkAction(true)"
                         :loading="isCreatingLabel" :disabled="selectedPallets.length === 0"
-                        class="btn-primary text-sm bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 min-h-[36px] px-3">
+                        class="btn-primary text-sm bg-linear-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 min-h-[36px] px-3">
                         העבר למשלוח
                     </SpinnerButton>
                     <SpinnerButton v-if="isEditable" @click="confirmBulkAction(false)"
@@ -64,7 +64,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input v-model="searchText" type="text" placeholder="חיפוש בטבלה..."
-                class="w-full border border-slate-200 rounded-lg text-sm pr-9 pl-3 py-1.5 min-h-[36px] focus:ring-1 focus:ring-mango-400 focus:border-mango-400 outline-none bg-white" />
+                class="w-full border border-slate-200 rounded-lg text-sm pr-9 pl-3 py-1.5 min-h-[36px] focus:ring-1 focus:ring-mango-400 focus:border-mango-400 outline-hidden bg-white" />
         </div>
 
         <!-- Table -->
@@ -73,12 +73,12 @@
                 <thead>
                     <tr>
                         <th v-for="col in columns" :key="col.key"
-                            class="px-3 py-3 text-sm font-semibold text-slate-600 bg-slate-50 border-b-2 border-slate-200 text-center sticky top-0 z-[2]"
+                            class="px-3 py-3 text-sm font-semibold text-slate-600 bg-slate-50 border-b-2 border-slate-200 text-center sticky top-0 z-2"
                             :style="col.minWidth ? `min-width: ${col.minWidth}` : ''">
                             <div class="flex items-center flex-col gap-1.5">
                                 {{ (col.key === 'selected' && !isEditable) ? 'הורדת סטטוס נשלח' : col.label }}
                                 <select v-if="col.filter" v-model="filterBy[col.key]"
-                                    class="border border-slate-200 rounded-md bg-white text-xs sm:text-sm text-center px-2 py-1.5 min-h-[36px] max-w-[140px] focus:ring-1 focus:ring-mango-400 focus:border-mango-400 outline-none">
+                                    class="border border-slate-200 rounded-md bg-white text-xs sm:text-sm text-center px-2 py-1.5 min-h-[36px] max-w-[140px] focus:ring-1 focus:ring-mango-400 focus:border-mango-400 outline-hidden">
                                     <option value="">הכל</option>
                                     <option v-for="option in getFilterOptions(col.key)" :key="option" :value="option"
                                         class="text-ellipsis overflow-hidden max-w-[150px]">
@@ -91,10 +91,10 @@
                                 </span>
                                 <input v-if="col.key === 'selected'" type="checkbox" @change="toggleSelectAll"
                                     :checked="selectedPallets.length === selectablePallets.length && selectablePallets.length > 0"
-                                    class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
+                                    class="w-5 h-5 rounded-sm border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                             </div>
                         </th>
-                        <th class="px-3 py-3 text-sm font-semibold text-slate-600 bg-slate-50 border-b-2 border-slate-200 sticky top-0 z-[2]"
+                        <th class="px-3 py-3 text-sm font-semibold text-slate-600 bg-slate-50 border-b-2 border-slate-200 sticky top-0 z-2"
                             style="min-width: 80px" v-if="isEditable">עריכה</th>
                     </tr>
                 </thead>
@@ -114,43 +114,43 @@
                             <td v-for="col in columns" :key="col.key" :data-col="col.key" class="border-b border-slate-300 px-2 py-1.5">
                                 <template v-if="col.editable">
                                     <div v-if="col.key === 'kind'">
-                                        <select v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5">
+                                        <select v-model="editingPallet[col.key]" class="input-field text-sm p-1.5!">
                                             <option v-for="kind in kinds" :key="kind" :value="kind">{{ kind }}</option>
                                         </select>
                                     </div>
                                     <div v-else-if="col.key === 'size'">
-                                        <select v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5">
+                                        <select v-model="editingPallet[col.key]" class="input-field text-sm p-1.5!">
                                             <option v-for="size in sizes" :key="size" :value="size">{{ size }}</option>
                                         </select>
                                     </div>
                                     <div v-else-if="col.key === 'destination'">
                                         <input type="text" v-model="destinationFilterText" placeholder="סנן יעד..."
-                                            class="input-field text-sm !p-1.5 mb-1" />
-                                        <select v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5">
+                                            class="input-field text-sm p-1.5! mb-1" />
+                                        <select v-model="editingPallet[col.key]" class="input-field text-sm p-1.5!">
                                             <option v-for="destination in filteredDestinations" :key="destination" :value="destination">{{ destination }}</option>
                                         </select>
                                     </div>
                                     <div v-else-if="col.key == 'gidon'">
                                         <input type="checkbox" v-model="editingPallet[col.key]"
-                                            class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
+                                            class="w-5 h-5 rounded-sm border-slate-300 text-mango-500 focus:ring-mango-400" />
                                     </div>
                                     <div v-else-if="col.key == 'sent'">
                                         <input type="checkbox" v-model="editingPallet[col.key]"
-                                            class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400" />
+                                            class="w-5 h-5 rounded-sm border-slate-300 text-mango-500 focus:ring-mango-400" />
                                     </div>
                                     <div v-else-if="col.key == 'shipmentDate'">
-                                        <input type="date" v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5" />
+                                        <input type="date" v-model="editingPallet[col.key]" class="input-field text-sm p-1.5!" />
                                     </div>
                                     <div v-else-if="col.key == 'palletNumber'">
-                                        <input type="number" v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5" />
+                                        <input type="number" v-model="editingPallet[col.key]" class="input-field text-sm p-1.5!" />
                                     </div>
                                     <div v-else>
-                                        <input v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5" />
+                                        <input v-model="editingPallet[col.key]" class="input-field text-sm p-1.5!" />
                                     </div>
                                 </template>
                                 <template v-else-if="col.key === 'selected'">
                                     <input type="checkbox" v-model="selectedPallets" :value="pallet.id"
-                                        class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
+                                        class="w-5 h-5 rounded-sm border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                                 </template>
                                 <template v-else>{{ pallet[col.key] }}</template>
                             </td>
@@ -162,7 +162,7 @@
                                     </button>
                                     <button v-else
                                         class="text-xs px-2 py-1.5 rounded-md bg-mango-50 text-mango-600 font-medium flex items-center justify-center min-h-[32px]">
-                                        <span class="loading-spinner !w-3 !h-3"></span>
+                                        <span class="loading-spinner w-3! h-3!"></span>
                                     </button>
                                     <button @click="closeEditing"
                                         class="text-xs px-2 py-1.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 font-medium transition-colors min-h-[32px]">
@@ -180,13 +180,13 @@
                                 <template v-if="col.key === 'selected'">
                                     <input v-if="!pallet._isContext" type="checkbox" v-model="selectedPallets" :value="pallet.id"
                                         @click.stop
-                                        class="w-5 h-5 rounded border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
+                                        class="w-5 h-5 rounded-sm border-slate-300 text-mango-500 focus:ring-mango-400 cursor-pointer" />
                                 </template>
                                 <template v-if="col.key === 'sent'">
                                     <div class="flex items-center justify-center gap-1.5">
                                         <span :class="[
-                                            'inline-flex items-center justify-center w-3 h-3 rounded-full flex-shrink-0',
-                                            pallet[col.key] ? 'bg-emerald-400 shadow-sm shadow-emerald-200' : 'bg-slate-300'
+                                            'inline-flex items-center justify-center w-3 h-3 rounded-full shrink-0',
+                                            pallet[col.key] ? 'bg-emerald-400 shadow-xs shadow-emerald-200' : 'bg-slate-300'
                                         ]"></span>
                                         <span v-if="pallet._isGroupLeader"
                                             class="text-xs font-medium text-slate-400 select-none">
@@ -202,7 +202,7 @@
                             </td>
                             <td class="border-b border-slate-200 px-3 py-2.5" v-if="isEditable">
                                 <div class="flex items-center justify-center gap-1.5" @click.stop>
-                                    <div v-if="pallet.editedBy" class="relative group flex-shrink-0">
+                                    <div v-if="pallet.editedBy" class="relative group shrink-0">
                                         <span class="text-slate-400 hover:text-slate-600 cursor-default text-sm leading-none select-none">ⓘ</span>
                                         <div class="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-10 hidden group-hover:block w-52 bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-lg pointer-events-none text-right">
                                             <p class="font-semibold mb-0.5">עודכן על ידי:</p>
@@ -212,7 +212,7 @@
                                         </div>
                                     </div>
                                     <button v-if="!pallet._isContext" @click="startEditing(pallet)"
-                                        class="text-xs text-mango-600 hover:text-mango-800 font-medium hover:bg-mango-50 px-3 py-1.5 rounded transition-colors min-h-[32px]">
+                                        class="text-xs text-mango-600 hover:text-mango-800 font-medium hover:bg-mango-50 px-3 py-1.5 rounded-sm transition-colors min-h-[32px]">
                                         ערוך
                                     </button>
                                 </div>

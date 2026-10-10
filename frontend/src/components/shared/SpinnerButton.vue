@@ -1,7 +1,7 @@
 <template>
     <button v-bind="$attrs" :disabled="loading || !!$attrs.disabled">
         <template v-if="loading">
-            <span :class="['loading-spinner !w-4 !h-4', inverted ? '!border-white/30 !border-t-white' : '']"></span>
+            <span :class="['loading-spinner w-4! h-4!', inverted ? 'border-white/30! border-t-white!' : '']"></span>
             <span v-if="loadingLabel">{{ loadingLabel }}</span>
         </template>
         <slot v-else />

@@ -1,9 +1,262 @@
 /* src/index.css — TsuberMango Design System */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+
+  --color-mango-50: #fffbeb;
+  --color-mango-100: #fef3c7;
+  --color-mango-200: #fde68a;
+  --color-mango-300: #fcd34d;
+  --color-mango-400: #fbbf24;
+  --color-mango-500: #f59e0b;
+  --color-mango-600: #d97706;
+  --color-mango-700: #b45309;
+  --color-mango-800: #92400e;
+  --color-mango-900: #78350f;
+
+  --color-sidebar: #1e293b;
+  --color-sidebar-dark: #0f172a;
+  --color-sidebar-hover: #334155;
+
+  --shadow-glow-amber: 0 0 15px rgba(251, 191, 36, 0.3);
+  --shadow-card:
+    0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover:
+    0 4px 12px 0 rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.08);
+
+  --animate-fade-in: fadeIn 0.3s ease-out;
+  --animate-slide-up: slideUp 0.3s ease-out;
+  --animate-slide-in-right: slideInRight 0.3s ease-out;
+  --animate-pulse-soft: pulseSoft 2s ease-in-out infinite;
+  --animate-drawer-in: drawerIn 0.25s ease-out forwards;
+  --animate-drawer-out: drawerOut 0.2s ease-in forwards;
+  --animate-backdrop-in: backdropIn 0.25s ease-out forwards;
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes slideUp {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes slideInRight {
+    0% {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes pulseSoft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+  @keyframes drawerIn {
+    0% {
+      transform: translateX(100%);
+    }
+    100% {
+      transform: translateX(0);
+    }
+  }
+  @keyframes drawerOut {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes backdropIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* ── Buttons ───────────────────────────────── */
+@utility btn-primary {
+  @apply font-semibold text-white px-5 py-2.5 rounded-lg
+           bg-linear-to-l from-mango-500 to-mango-600
+           hover:from-mango-600 hover:to-mango-700
+           hover:shadow-glow-amber hover:-translate-y-0.5
+           active:translate-y-0 active:shadow-none
+           disabled:from-slate-300 disabled:to-slate-400 disabled:text-slate-500
+           disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed;
+}
+
+@utility btn-danger {
+  @apply font-semibold text-white px-5 py-2.5 rounded-lg
+           bg-linear-to-l from-red-500 to-red-600
+           hover:from-red-600 hover:to-red-700
+           hover:shadow-lg hover:-translate-y-0.5
+           active:translate-y-0;
+}
+
+@utility btn-ghost {
+  @apply font-medium px-4 py-2 rounded-lg
+           text-slate-600 hover:bg-slate-100 hover:text-slate-800
+           active:bg-slate-200
+           disabled:opacity-40 disabled:cursor-not-allowed
+           disabled:hover:bg-transparent disabled:hover:text-slate-600;
+}
+
+/* ── Cards ─────────────────────────────────── */
+@utility card {
+  @apply bg-white rounded-xl shadow-card p-5 border border-slate-100;
+}
+
+@utility card-hover {
+  @apply card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200;
+}
+
+/* ── Inputs ────────────────────────────────── */
+@utility input-field {
+  @apply w-full p-2.5 bg-white border border-slate-200 rounded-lg
+           text-slate-800 placeholder-slate-400
+           focus:outline-hidden focus:ring-2 focus:ring-mango-400/50 focus:border-mango-400
+           hover:border-slate-300;
+}
+
+@utility select-field {
+  @apply input-field cursor-pointer appearance-none
+           bg-no-repeat bg-size-[16px] bg-position-[left_12px_center]
+           pl-10;
+}
+
+/* ── Chip / Toggle Buttons ─────────────────── */
+@utility chip {
+  @apply inline-flex items-center justify-center min-h-[44px] min-w-[60px]
+           px-4 py-2 border-2 border-slate-200 rounded-full cursor-pointer
+           text-center font-medium text-slate-600 select-none
+           hover:border-mango-300 hover:text-mango-700 hover:bg-mango-50
+           active:scale-95
+           transition-all duration-200;
+}
+
+@utility chip-active {
+  @apply bg-linear-to-l from-mango-400 to-mango-500
+           text-white border-mango-500 shadow-glow-amber
+           hover:from-mango-500 hover:to-mango-600 hover:text-white;
+}
+
+/* ── Loading ───────────────────────────────── */
+@utility loading-spinner {
+  @apply inline-block w-5 h-5 border-2 border-slate-200
+           border-t-mango-500 rounded-full animate-spin;
+}
+
+@utility loading-spinner-lg {
+  @apply inline-block w-8 h-8 border-3 border-slate-200
+           border-t-mango-500 rounded-full animate-spin;
+}
+
+@utility skeleton {
+  @apply bg-slate-200 rounded-sm animate-pulse;
+}
+
+/* ── Status Badges ─────────────────────────── */
+@utility badge {
+  @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold;
+}
+
+@utility badge-success {
+  @apply badge bg-emerald-100 text-emerald-700;
+}
+
+@utility badge-warning {
+  @apply badge bg-amber-100 text-amber-700;
+}
+
+@utility badge-danger {
+  @apply badge bg-red-100 text-red-700;
+}
+
+/* ── Toast Notifications ───────────────────── */
+@utility toast {
+  @apply fixed bottom-6 left-6 z-200 px-5 py-3.5 rounded-xl shadow-xl
+           animate-slide-up font-medium text-sm flex items-center gap-3
+           max-w-md backdrop-blur-xs;
+}
+
+@utility toast-success {
+  @apply toast bg-emerald-500/95 text-white;
+}
+
+@utility toast-error {
+  @apply toast bg-red-500/95 text-white;
+}
+
+@utility toast-warning {
+  @apply toast bg-amber-500/95 text-white;
+}
+
+/* ── Drawer overlay (mobile sidebar backdrop) ── */
+@utility drawer-overlay {
+  @apply fixed inset-0 bg-black/50 backdrop-blur-xs z-40;
+}
+
+/* ── RTL helper ────────────────────────────── */
+@utility rtl {
+  direction: rtl;
+}
+
+/* ── Touch-friendly tap target helper ──────── */
+@utility tap-target {
+  @apply min-h-[44px] min-w-[44px];
+}
 
 @layer base {
+  /* v3 compatibility: v4 dropped the pointer cursor on buttons and greys placeholders differently */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
   html, body {
     /* Disable native blue-grey tap-highlight on touch */
     -webkit-tap-highlight-color: transparent;
@@ -48,128 +301,6 @@
 }
 
 @layer components {
-  /* ── Buttons ───────────────────────────────── */
-  .btn-primary {
-    @apply font-semibold text-white px-5 py-2.5 rounded-lg
-           bg-gradient-to-l from-mango-500 to-mango-600
-           hover:from-mango-600 hover:to-mango-700
-           hover:shadow-glow-amber hover:-translate-y-0.5
-           active:translate-y-0 active:shadow-none
-           disabled:from-slate-300 disabled:to-slate-400 disabled:text-slate-500
-           disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed;
-  }
-
-  .btn-danger {
-    @apply font-semibold text-white px-5 py-2.5 rounded-lg
-           bg-gradient-to-l from-red-500 to-red-600
-           hover:from-red-600 hover:to-red-700
-           hover:shadow-lg hover:-translate-y-0.5
-           active:translate-y-0;
-  }
-
-  .btn-ghost {
-    @apply font-medium px-4 py-2 rounded-lg
-           text-slate-600 hover:bg-slate-100 hover:text-slate-800
-           active:bg-slate-200
-           disabled:opacity-40 disabled:cursor-not-allowed
-           disabled:hover:bg-transparent disabled:hover:text-slate-600;
-  }
-
-  /* ── Cards ─────────────────────────────────── */
-  .card {
-    @apply bg-white rounded-xl shadow-card p-5 border border-slate-100;
-  }
-
-  .card-hover {
-    @apply card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200;
-  }
-
-  /* ── Inputs ────────────────────────────────── */
-  .input-field {
-    @apply w-full p-2.5 bg-white border border-slate-200 rounded-lg
-           text-slate-800 placeholder-slate-400
-           focus:outline-none focus:ring-2 focus:ring-mango-400/50 focus:border-mango-400
-           hover:border-slate-300;
-  }
-
-  .select-field {
-    @apply input-field cursor-pointer appearance-none
-           bg-no-repeat bg-[length:16px] bg-[position:left_12px_center]
-           pl-10;
-  }
-
-  /* ── Chip / Toggle Buttons ─────────────────── */
-  .chip {
-    @apply inline-flex items-center justify-center min-h-[44px] min-w-[60px]
-           px-4 py-2 border-2 border-slate-200 rounded-full cursor-pointer
-           text-center font-medium text-slate-600 select-none
-           hover:border-mango-300 hover:text-mango-700 hover:bg-mango-50
-           active:scale-95
-           transition-all duration-200;
-  }
-
-  .chip-active {
-    @apply bg-gradient-to-l from-mango-400 to-mango-500
-           text-white border-mango-500 shadow-glow-amber
-           hover:from-mango-500 hover:to-mango-600 hover:text-white;
-  }
-
-  /* ── Loading ───────────────────────────────── */
-  .loading-spinner {
-    @apply inline-block w-5 h-5 border-2 border-slate-200
-           border-t-mango-500 rounded-full animate-spin;
-  }
-
-  .loading-spinner-lg {
-    @apply inline-block w-8 h-8 border-3 border-slate-200
-           border-t-mango-500 rounded-full animate-spin;
-  }
-
-  .skeleton {
-    @apply bg-slate-200 rounded animate-pulse;
-  }
-
-  /* ── Status Badges ─────────────────────────── */
-  .badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold;
-  }
-
-  .badge-success {
-    @apply badge bg-emerald-100 text-emerald-700;
-  }
-
-  .badge-warning {
-    @apply badge bg-amber-100 text-amber-700;
-  }
-
-  .badge-danger {
-    @apply badge bg-red-100 text-red-700;
-  }
-
-  /* ── Toast Notifications ───────────────────── */
-  .toast {
-    @apply fixed bottom-6 left-6 z-[200] px-5 py-3.5 rounded-xl shadow-xl
-           animate-slide-up font-medium text-sm flex items-center gap-3
-           max-w-md backdrop-blur-sm;
-  }
-
-  .toast-success {
-    @apply toast bg-emerald-500/95 text-white;
-  }
-
-  .toast-error {
-    @apply toast bg-red-500/95 text-white;
-  }
-
-  .toast-warning {
-    @apply toast bg-amber-500/95 text-white;
-  }
-
-  /* ── Drawer overlay (mobile sidebar backdrop) ── */
-  .drawer-overlay {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40;
-  }
-
   /* ── Fix for Firefox white-on-white dropdowns ── */
   select option {
     color: #000000 !important;
@@ -178,15 +309,5 @@
 
   select {
     color: #000000;
-  }
-
-  /* ── RTL helper ────────────────────────────── */
-  .rtl {
-    direction: rtl;
-  }
-
-  /* ── Touch-friendly tap target helper ──────── */
-  .tap-target {
-    @apply min-h-[44px] min-w-[44px];
   }
 }

@@ -6,13 +6,13 @@
         <p class="text-slate-400 text-sm mt-0.5">תעודות משלוח שהונפקו — {{ farmer }}</p>
       </div>
       <div class="flex flex-wrap items-end gap-2">
-        <label class="text-sm text-slate-500">מתאריך <input type="date" v-model="from" class="input-field !w-auto text-sm" /></label>
-        <label class="text-sm text-slate-500">עד <input type="date" v-model="to" class="input-field !w-auto text-sm" /></label>
-        <select v-model="destination" class="input-field !w-auto text-sm">
+        <label class="text-sm text-slate-500">מתאריך <input type="date" v-model="from" class="input-field w-auto! text-sm" /></label>
+        <label class="text-sm text-slate-500">עד <input type="date" v-model="to" class="input-field w-auto! text-sm" /></label>
+        <select v-model="destination" class="input-field w-auto! text-sm">
           <option value="">כל היעדים</option>
           <option v-for="d in destinations" :key="d" :value="d">{{ d }}</option>
         </select>
-        <input v-model="search" @input="exactNumber = ''" placeholder="חיפוש מספר..." class="input-field !w-32 text-sm" />
+        <input v-model="search" @input="exactNumber = ''" placeholder="חיפוש מספר..." class="input-field w-32! text-sm" />
         <button class="btn-ghost text-sm border border-slate-200 min-h-[40px] px-3" :disabled="!selected.length || busy" @click="printSelected">הדפס נבחרות</button>
         <button class="btn-primary text-sm min-h-[40px] px-3" :disabled="!filtered.length || busy" @click="exportExcel">ייצוא לאקסל</button>
       </div>
@@ -54,7 +54,7 @@
                 <div class="grid gap-4 md:grid-cols-2">
                   <div>
                     <h4 class="font-semibold text-slate-700 mb-1">משטחים</h4>
-                    <table class="w-full text-xs text-center bg-white rounded">
+                    <table class="w-full text-xs text-center bg-white rounded-sm">
                       <tr class="text-slate-500"><th>משטח</th><th>זן</th><th>גודל</th><th>ארגזים</th><th>משקל</th><th></th></tr>
                       <tr v-for="r in open[c.id].latest.rows" :key="r.recordId" class="border-t border-slate-100">
                         <td>{{ r.palletNumber }}</td><td>{{ r.kind }}</td><td>{{ r.size }}</td><td>{{ r.boxes }}</td><td>{{ r.weight }}</td>
@@ -65,7 +65,7 @@
                   <div>
                     <h4 class="font-semibold text-slate-700 mb-1">היסטוריית גרסאות</h4>
                     <ul class="space-y-1 text-xs">
-                      <li v-for="v in open[c.id].versions" :key="v.n" class="flex items-center justify-between bg-white rounded px-2 py-1">
+                      <li v-for="v in open[c.id].versions" :key="v.n" class="flex items-center justify-between bg-white rounded-sm px-2 py-1">
                         <span>גרסה {{ v.n }} · {{ reasonLabel(v.reason) }} · {{ v.createdBy }} · {{ fmtTime(v.createdAt) }}</span>
                         <button class="btn-ghost text-xs border border-slate-200 px-3 py-2 min-h-[40px]" @click="printVersion(c, v.n)">הדפס גרסה</button>
                       </li>

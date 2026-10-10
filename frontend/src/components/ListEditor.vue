@@ -9,11 +9,11 @@
           :value="item"
           @input="updateItem(idx, $event.target.value)"
           class="flex-1 text-sm p-2 bg-white border border-slate-200 rounded-lg
-                 focus:border-mango-400 focus:ring-1 focus:ring-mango-400/50 outline-none
+                 focus:border-mango-400 focus:ring-1 focus:ring-mango-400/50 outline-hidden
                  hover:border-slate-300 transition-colors min-h-[40px]"
         >
         <button @click="removeItem(idx)"
-                class="text-slate-400 hover:text-red-500 hover:bg-red-50 px-3 rounded-lg transition-all font-bold text-base min-h-[40px] min-w-[40px] flex items-center justify-center flex-shrink-0"
+                class="text-slate-400 hover:text-red-500 hover:bg-red-50 px-3 rounded-lg transition-all font-bold text-base min-h-[40px] min-w-[40px] flex items-center justify-center shrink-0"
                 aria-label="הסר פריט">
           ✕
         </button>

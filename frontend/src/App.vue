@@ -2,9 +2,9 @@
   <div class="h-screen w-full overflow-hidden flex bg-slate-100">
     <!-- ── Mobile Topbar ─────────────────────────────── -->
     <header v-if="!isLoginPage && isMobile"
-      class="fixed top-0 right-0 left-0 z-30 h-14 bg-white border-b border-slate-200 shadow-sm flex items-center gap-3 px-3 rtl">
+      class="fixed top-0 right-0 left-0 z-30 h-14 bg-white border-b border-slate-200 shadow-xs flex items-center gap-3 px-3 rtl">
       <button @click="mobileOpen = true"
-        class="p-2 rounded-xl text-slate-600 hover:bg-slate-100 active:scale-95 transition-all flex-shrink-0"
+        class="p-2 rounded-xl text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shrink-0"
         aria-label="פתח תפריט">
         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -12,10 +12,10 @@
       </button>
       <span class="flex-1 font-bold text-slate-800 text-base text-center truncate">{{ currentPageLabel }}</span>
       <span v-if="selectedFarmer"
-        class="text-sm font-semibold bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-2.5 py-1 flex-shrink-0">
+        class="text-sm font-semibold bg-mango-50 text-mango-800 border border-mango-200 rounded-lg px-2.5 py-1 shrink-0">
         {{ selectedFarmer }}
       </span>
-      <span v-else class="w-10 flex-shrink-0"></span>
+      <span v-else class="w-10 shrink-0"></span>
     </header>
 
     <!-- ── Mobile Backdrop ────────────────────────────── -->
@@ -23,7 +23,7 @@
       enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200" leave-from-class="opacity-100"
       leave-to-class="opacity-0">
       <div v-if="!isLoginPage && isMobile && mobileOpen" @click="mobileOpen = false"
-        class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" aria-hidden="true"></div>
+        class="fixed inset-0 bg-black/50 backdrop-blur-xs z-40" aria-hidden="true"></div>
     </Transition>
 
     <!-- ── Sidebar ─────────────────────────────────────── -->
@@ -39,12 +39,12 @@
       <!-- Brand + Toggle -->
       <div class="flex items-center justify-between p-4 border-b border-slate-700/50 gap-2">
         <div v-if="!desktopCollapsed || isMobile" class="flex items-center gap-2 min-w-0 flex-1">
-          <span class="text-2xl flex-shrink-0">🥭</span>
+          <span class="text-2xl shrink-0">🥭</span>
           <h1 class="text-base font-bold text-white truncate">Tsuberi Mango's</h1>
         </div>
         <!-- Mobile close button -->
         <button v-if="isMobile" @click="mobileOpen = false"
-          class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors flex-shrink-0"
+          class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors shrink-0"
           aria-label="סגור תפריט">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -52,7 +52,7 @@
         </button>
         <!-- Desktop collapse toggle -->
         <button v-else @click="desktopCollapsed = !desktopCollapsed"
-          class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors flex-shrink-0"
+          class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors shrink-0"
           :class="{ 'mx-auto': desktopCollapsed }" aria-label="כווץ סרגל">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 transition-transform duration-300"
             :class="{ 'rotate-180': desktopCollapsed }" fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -67,7 +67,7 @@
         <select v-model="selectedFarmer" :class="[
           'w-full bg-sidebar-dark border border-slate-600 rounded-lg',
           'text-white font-semibold cursor-pointer text-center',
-          'focus:outline-none focus:ring-2 focus:ring-mango-400/50 focus:border-mango-400',
+          'focus:outline-hidden focus:ring-2 focus:ring-mango-400/50 focus:border-mango-400',
           'hover:border-mango-400/50 transition-colors',
           isCompact ? 'p-1.5 text-sm' : 'p-2.5 text-base'
         ]">
@@ -79,7 +79,7 @@
       </div>
 
       <!-- Navigation Links -->
-      <ul class="flex flex-col gap-1.5 px-3 flex-grow overflow-y-auto mt-1">
+      <ul class="flex flex-col gap-1.5 px-3 grow overflow-y-auto mt-1">
         <li v-for="route in accessibleRoutes" :key="route.path">
           <router-link :to="route.path" @click="onNavigate" :class="[
             'flex items-center gap-3 rounded-lg font-medium transition-all duration-200',
@@ -125,7 +125,7 @@
       <div v-if="!isLoginPage" class="h-full p-3 sm:p-4 md:p-6" :style="isMobile ? 'padding-top: 4.25rem;' : ''">
         <div
           class="h-full w-full bg-white rounded-2xl shadow-card overflow-hidden flex flex-col min-h-0 border border-slate-100">
-          <div class="flex-grow min-h-0 min-w-0 overflow-auto p-3 sm:p-4 text-slate-800">
+          <div class="grow min-h-0 min-w-0 overflow-auto p-3 sm:p-4 text-slate-800">
             <router-view :selected-farmer="selectedFarmer" />
           </div>
         </div>
@@ -139,9 +139,9 @@
     enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200"
     leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-2">
     <div v-if="!isOnline"
-      class="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 bg-amber-500 text-white text-sm font-semibold px-4 py-2.5 shadow-md"
+      class="fixed top-0 inset-x-0 z-100 flex items-center justify-center gap-2 bg-amber-500 text-white text-sm font-semibold px-4 py-2.5 shadow-md"
       role="alert">
-      <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+      <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M12 12h.01M8.464 15.536a5 5 0 010-7.072M5.636 18.364a9 9 0 010-12.728" />
       </svg>
       אין חיבור לאינטרנט — שינויים לא יישמרו
@@ -153,9 +153,9 @@
     enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200 ease-in"
     leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-4">
     <div v-if="showOnlineToast"
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-100 flex items-center gap-2 bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg"
       role="status">
-      <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+      <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
       </svg>
       החיבור חזר

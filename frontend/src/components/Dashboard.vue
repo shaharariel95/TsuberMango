@@ -25,15 +25,15 @@
 
             <!-- Global Summary Cards -->
             <div class="grid grid-cols-3 gap-3">
-                <div class="rounded-xl p-4 bg-gradient-to-br from-mango-400 to-mango-600 text-white shadow-sm">
+                <div class="rounded-xl p-4 bg-linear-to-br from-mango-400 to-mango-600 text-white shadow-xs">
                     <p class="text-xs font-semibold opacity-80 mb-1">סה"כ משטחים</p>
                     <p class="text-2xl font-bold">{{ globalStats.totalPallets.toLocaleString('he') }}</p>
                 </div>
-                <div class="rounded-xl p-4 bg-gradient-to-br from-mango-300 to-mango-500 text-white shadow-sm">
+                <div class="rounded-xl p-4 bg-linear-to-br from-mango-300 to-mango-500 text-white shadow-xs">
                     <p class="text-xs font-semibold opacity-80 mb-1">סה"כ ארגזים</p>
                     <p class="text-2xl font-bold">{{ globalStats.totalBoxes.toLocaleString('he') }}</p>
                 </div>
-                <div class="rounded-xl p-4 bg-gradient-to-br from-mango-500 to-mango-700 text-white shadow-sm">
+                <div class="rounded-xl p-4 bg-linear-to-br from-mango-500 to-mango-700 text-white shadow-xs">
                     <p class="text-xs font-semibold opacity-80 mb-1">משקל כולל (ק"ג)</p>
                     <p class="text-2xl font-bold">{{ globalStats.totalWeight.toLocaleString('he') }}</p>
                 </div>
@@ -42,7 +42,7 @@
             <!-- Recent Pallets -->
             <div class="card">
                 <div class="flex items-center gap-2 mb-3">
-                    <svg class="w-4 h-4 text-mango-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <svg class="w-4 h-4 text-mango-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <h3 class="text-sm font-bold text-slate-700">5 המשטחים האחרונים</h3>
@@ -54,11 +54,11 @@
                     <div v-for="(rec, idx) in recentPallets" :key="idx"
                         class="flex items-center justify-between px-3 sm:px-4 py-2 text-sm">
                         <div class="flex items-center gap-2 min-w-0">
-                            <span class="text-xs text-slate-400 font-medium bg-slate-100 rounded px-1.5 py-0.5 flex-shrink-0">{{ rec.farmer }}</span>
+                            <span class="text-xs text-slate-400 font-medium bg-slate-100 rounded-sm px-1.5 py-0.5 shrink-0">{{ rec.farmer }}</span>
                             <span class="font-semibold text-slate-700">משטח {{ rec.palletNumber }}</span>
                             <span class="text-slate-500 truncate hidden sm:inline">{{ rec.kind }} · {{ rec.size }}</span>
                         </div>
-                        <div class="flex items-center gap-2 flex-shrink-0 mr-2">
+                        <div class="flex items-center gap-2 shrink-0 mr-2">
                             <span class="text-slate-600">{{ rec.boxes }} ארגזים</span>
                             <span v-if="rec.weight" class="text-mango-600 font-semibold">{{ rec.weight }} ק"ג</span>
                             <span v-else class="text-amber-500 text-xs font-medium">חסר משקל</span>

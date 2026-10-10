@@ -8,7 +8,7 @@ destinations, and shipping labels for farmers. The UI is in Hebrew, rendered rig
 
 | Layer | Technology |
 |---|---|
-| Frontend | Vue 3.5 + Vite 5, Vue Router 4, Tailwind CSS 3, Axios |
+| Frontend | Vue 3.5 + Vite 8, Vue Router 4, Tailwind CSS 4 (CSS-first config in `src/index.css`), Axios |
 | Backend | Node.js + Express 5 |
 | Primary DB | Firebase Firestore — pallet records, audit, config, users, real-time events (all under `centers/{centerId}/…`) |
 | Auth | Firebase Auth (Google provider) — ID tokens; Firestore `users` collection for authorization |

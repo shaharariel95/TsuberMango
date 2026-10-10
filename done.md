@@ -5,6 +5,12 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 34 — Frontend toolchain majors (Vite 8, Tailwind 4)
+- Vite 5 → 8 (Rolldown) + plugin-vue 6; `build.rollupOptions` → `rolldownOptions`. Build time 15s → under 1s. Non-breaking audit fixes (axios, vue).
+- Tailwind 3 → 4 via the official upgrade tool: CSS-first config in `src/index.css` (`@theme`, `@utility`), `@tailwindcss/vite` instead of PostCSS/autoprefixer, renamed utilities across 18 components. v3-compat base rules kept: default border colour, pointer cursor on buttons, grey-400 placeholders.
+- Visual QA by before/after screenshots of every page (desktop 1600 + tablet 1280, tall viewport, row edit mode, drawer): only real change was the intake form's `space-y` + `mb-1` headers (fixed). Remaining audit: `@grpc/grpc-js` (firebase 12+, task 35) and `xlsx` (no fix).
+- Builds now target browsers from ~2023 (Chrome 111+, Safari 16.4+).
+
 ### ✅ Merged to `main` — 2026-10-10 (PR #5)
 - `arch-redesign` merged into `main` (merge commit `7ae224e`); production already ran it. The Sheets-era `main` (`94b2272`) is kept as branch `sheets_db_backup`. Gates at merge: backend 186, frontend unit 40, e2e 30; production verified by hand (sign-in/out, users, intake, backups, certificate preview).
 
