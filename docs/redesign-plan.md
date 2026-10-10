@@ -24,7 +24,7 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 |---|---|---|---|---|
 | 7 | Shipping-certificate table layout (only if a customer needs a different one) | P2 | 1–2d | 6 (shipped) |
 | 8 | Config-driven optional fields (generalize `gidon`) | P1 | 3–4d | 6 (shipped; builds on `config/global.farmers` entries `{name, allowGidon, archived?}`, not per-farmer registry docs) |
-| 34 | Frontend toolchain majors (Vite 8, then Tailwind 4) | P2 | 4–6d | after CRs, before 9 |
+| 34 | Frontend toolchain majors (Vite 8 done on branch `task-34a-vite8`; Tailwind 4 next) | P2 | 4–6d | after CRs, before 9 |
 | 9 | PalletTable refactor | P2 | 2–3d | after 1/3 land (36 shipped) |
 | 10 | Pagination / virtual scrolling | P2 | 2–3d | 9 |
 | 11 | Season management & archival | P2 | 5–7d | 6 (shipped; builds on `config/global.farmers` entries, not per-farmer registry docs) |
