@@ -2,7 +2,8 @@
 const { Storage } = require('@google-cloud/storage');
 const path = require('path');
 const admin = require('firebase-admin');
-const repo = require('../repositories');
+const FirestoreRepository = require('../repositories/FirestoreRepository');
+const { CENTER_ID } = require('../config/center');
 const logger = require('../utils/logger');
 
 // GCS client — reuses the same service-account key already present for Firebase.
@@ -15,27 +16,53 @@ const BUCKET_NAME = process.env.GCS_BACKUP_BUCKET;
 const BACKUPS_COLLECTION = 'backups';
 
 /**
- * Retrieve the list of farmer names from Firestore config/global.
- * Falls back to an empty array if the document doesn't exist or has no farmers.
- *
- * @returns {Promise<string[]>}
+ * Build a complete, self-contained backup of one center (payload v2).
+ * Every farmers/{name} doc is included (also ones missing from the config list), with soft-deleted
+ * records. Any read failure rejects — a backup is all-or-nothing.
  */
-async function getFarmerNames() {
-    const db = admin.firestore();
-    const { CENTER_ID } = require('../config/center');
-    const snap = await db.collection('centers').doc(CENTER_ID).collection('config').doc('global').get();
-    if (!snap.exists) {
-        logger.info('[backupService] config/global not found — no farmers to back up');
-        return [];
+async function buildBackupPayload(db, centerId) {
+    const center = db.collection('centers').doc(centerId);
+    const records = new FirestoreRepository(db, centerId);
+
+    const configSnap = await center.collection('config').doc('global').get();
+    const usersSnap = await center.collection('users').get();
+    const farmerRefs = await center.collection('farmers').listDocuments();
+
+    const farmerDocs = {};
+    const farmers = {};
+    const audit = {};
+    for (const ref of farmerRefs) {
+        const docSnap = await ref.get();
+        if (docSnap.exists) farmerDocs[ref.id] = docSnap.data();
+        farmers[ref.id] = await records.getRecords(ref.id, { includeDeleted: true });
+        const auditSnap = await ref.collection('audit').get();
+        audit[ref.id] = auditSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
-    const data = snap.data();
-    const farmers = data.farmers || [];
-    // farmers is an array of { name, allowGidon } objects
-    return farmers.map(f => f.name).filter(Boolean);
+
+    const certSnap = await center.collection('certificates').get();
+    const certificates = [];
+    for (const d of certSnap.docs) {
+        const vs = await d.ref.collection('versions').get();
+        const versions = vs.docs.map(v => ({ n: Number(v.id), ...v.data() })).sort((x, y) => x.n - y.n);
+        certificates.push({ id: d.id, ...d.data(), versions });
+    }
+
+    return {
+        version: 2,
+        timestamp: new Date().toISOString(),
+        centerId,
+        config: configSnap.exists ? configSnap.data() : null,
+        users: Object.fromEntries(usersSnap.docs.map(d => [d.id, d.data()])),
+        farmerDocs,
+        farmers,
+        audit,
+        certificates,
+    };
 }
 
 /**
- * Perform a full backup of all farmer sheets to GCS and record metadata in Firestore.
+ * Perform a full backup of the center to GCS and record metadata in Firestore.
+ * All-or-nothing: any read failure aborts before upload and before the metadata doc.
  *
  * @param {string} triggeredBy  - email of the user who requested the backup
  * @returns {{ filename: string, rowCount: number, farmerCount: number }}
@@ -45,75 +72,39 @@ async function runBackup(triggeredBy) {
         throw new Error('GCS_BACKUP_BUCKET environment variable is not set');
     }
 
-    const timestamp = new Date();
-    const dateStr = timestamp.toISOString().slice(0, 10); // YYYY-MM-DD
-    const filename = `backups/${dateStr}.json`;
+    const db = admin.firestore();
+    const payload = await buildBackupPayload(db, CENTER_ID);
+    const timestamp = new Date(payload.timestamp);
+    const filename = `backups/${payload.timestamp.slice(0, 10)}.json`; // YYYY-MM-DD
+    const farmerCount = Object.keys(payload.farmers).length;
+    const rowCount = Object.values(payload.farmers).reduce((n, rows) => n + rows.length, 0);
 
-    logger.info(`[backupService] Starting backup — filename: ${filename}, triggeredBy: ${triggeredBy}`);
+    logger.info(`[backupService] Starting backup — filename: ${filename}, triggeredBy: ${triggeredBy}, farmers: ${farmerCount}, rows: ${rowCount}`);
 
-    // 1. Enumerate farmers
-    const farmerNames = await getFarmerNames();
-    logger.info(`[backupService] Backing up ${farmerNames.length} farmers: ${farmerNames.join(', ')}`);
-
-    // 2. Fetch all records per farmer
-    const farmersData = {};
-    let totalRows = 0;
-
-    for (const farmer of farmerNames) {
-        try {
-            // include soft-deleted rows (deleted: true) so the backup is complete and matches the season-reset counts
-            const records = await repo.getRecords(farmer, { includeDeleted: true });
-            farmersData[farmer] = records;
-            totalRows += records.length;
-            logger.info(`[backupService] Fetched ${records.length} rows for farmer: ${farmer}`);
-        } catch (err) {
-            // Log and continue so one bad sheet doesn't abort the whole backup
-            logger.error(`[backupService] Failed to fetch records for farmer ${farmer}: ${err.message}`);
-            farmersData[farmer] = [];
-        }
-    }
-
-    let certificates = [];
-    try { certificates = await repo.certificates.listAllWithVersions(); }
-    catch (err) { logger.error(`[backupService] Failed to fetch certificates: ${err.message}`); }
-
-    // 3. Serialize
-    const payload = JSON.stringify(
-        {
-            timestamp: timestamp.toISOString(),
-            farmers: farmersData,
-            certificates,
-        },
-        null,
-        2
-    );
-
-    // 4. Upload to GCS
+    const body = JSON.stringify(payload, null, 2);
     const bucket = storage.bucket(BUCKET_NAME);
     const file = bucket.file(filename);
 
-    await file.save(payload, {
+    await file.save(body, {
         contentType: 'application/json',
         metadata: {
             cacheControl: 'no-cache',
         },
     });
 
-    logger.info(`[backupService] Uploaded ${filename} to gs://${BUCKET_NAME} (${payload.length} bytes)`);
+    logger.info(`[backupService] Uploaded ${filename} to gs://${BUCKET_NAME} (${body.length} bytes)`);
 
-    // 5. Write Firestore metadata record
-    const db = admin.firestore();
     await db.collection(BACKUPS_COLLECTION).add({
         timestamp: admin.firestore.Timestamp.fromDate(timestamp),
         filename,
-        farmerCount: farmerNames.length,
-        rowCount: totalRows,
+        farmerCount,
+        rowCount,
         triggeredBy,
     });
 
-    logger.info(`[backupService] Backup record saved to Firestore. rowCount=${totalRows}, farmerCount=${farmerNames.length}`);
+    logger.info(`[backupService] Backup record saved to Firestore. rowCount=${rowCount}, farmerCount=${farmerCount}`);
 
-    return { filename, rowCount: totalRows, farmerCount: farmerNames.length };
+    return { filename, rowCount, farmerCount };
 }
 
 /**
@@ -143,4 +134,4 @@ async function getRecentBackups(limit = 7) {
     });
 }
 
-module.exports = { runBackup, getRecentBackups };
+module.exports = { runBackup, getRecentBackups, buildBackupPayload };
