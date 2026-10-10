@@ -60,3 +60,9 @@ Short log of calls I made while you slept. Each line says what I chose, why, and
 - **Renamed the helper** to `utils/gcpCredentials.js`, because the `*firebase*` rule in `.gitignore` hid it from search tools.
 - **Warning:** do not deploy the backend before granting the two roles (deploy skill → Credentials, steps 0–4). Rotate the key only after verifying.
 - **Verified:** backend 186 tests; the upload list contains no key file or logs.
+- **Cutover done 2026-10-10:**
+  - Granted the 2 roles and deployed the backend (`backend-service-00042-7wt`) and the frontend.
+  - Your manual check caught a disabled API: the backend project needed `identitytoolkit.googleapis.com` enabled. I enabled it, and the step is now in the deploy skill.
+  - Re-verified: sign-in, logout and add/remove user all work.
+  - Rotated the key: created new key `8df68e…`, checked it works for Firestore and Auth, then deleted old key `a531be…`. The old key is now dead in every past image.
+  - *Cost:* rolling back to a revision from before the key change no longer works, because that key is deleted.
