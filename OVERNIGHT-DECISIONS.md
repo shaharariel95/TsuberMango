@@ -52,3 +52,11 @@ Short log of calls I made while you slept. Each line says what I chose, why, and
 - **Drill done:** last season's real July backup (618 pallets) restored into the emulator.
 - **Ruling:** I broke the one-fix-wave rule once, to fix the `--farmer` data-loss bug. *Cost:* one small extra task.
 - **Verified:** backend 179 tests.
+
+## 2026-10-10: Cloud Run without the key file
+- **Production now uses Cloud Run's own identity** (`380552578196-compute@…`) instead of the key file. The key (`SheetsCred.env.json`) is now only for your PC and scripts, and is excluded from the upload along with log files.
+- **I kept Cloud Run's current account** rather than switching it to the Firebase admin account. *Why:* granting it two roles on the Firebase project is the smallest change. *If wrong:* switch with `--service-account` instead.
+- **I checked (read-only) that** `FIREBASE_PROJECT_ID` is already set on Cloud Run, and that the account already has Editor on its own project, which covers the backup bucket.
+- **Renamed the helper** to `utils/gcpCredentials.js`, because the `*firebase*` rule in `.gitignore` hid it from search tools.
+- **Warning:** do not deploy the backend before granting the two roles (deploy skill → Credentials, steps 0–4). Rotate the key only after verifying.
+- **Verified:** backend 186 tests; the upload list contains no key file or logs.
