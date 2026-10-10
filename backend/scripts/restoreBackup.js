@@ -6,7 +6,7 @@
 // Restore drill (no production writes): run under the Firestore emulator with CENTER_ID=drill — see NEW_SEASON.md.
 require('dotenv').config();
 const fs = require('fs');
-const { adminInitOptions, keyFileIfPresent, storageOptions } = require('../utils/firebaseCredentials');
+const { adminInitOptions, keyFileIfPresent, storageOptions } = require('../utils/gcpCredentials');
 const admin = require('firebase-admin');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');

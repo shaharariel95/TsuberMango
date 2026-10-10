@@ -8,3 +8,5 @@ Dockerfile
 
 services/*.env.json
 *.env.json
+logs/
+*.log

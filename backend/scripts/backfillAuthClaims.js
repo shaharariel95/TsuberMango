@@ -2,7 +2,7 @@
 // One-time, idempotent: ensure every Firestore user has a correct `centers` claim.
 // Run: node scripts/backfillAuthClaims.js   (uses the same service account as the server)
 const admin = require('firebase-admin');
-const { adminInitOptions } = require('../utils/firebaseCredentials');
+const { adminInitOptions } = require('../utils/gcpCredentials');
 const logger = require('../utils/logger');
 
 if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));

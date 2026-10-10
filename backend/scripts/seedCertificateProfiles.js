@@ -4,7 +4,7 @@
 // profile or whose sheet is not readable. Run: node scripts/seedCertificateProfiles.js [--dry-run]
 require('dotenv').config();
 const path = require('path');
-const { adminInitOptions } = require('../utils/firebaseCredentials');
+const { adminInitOptions } = require('../utils/gcpCredentials');
 const admin = require('firebase-admin');
 const { google } = require('googleapis');
 const logger = require('../utils/logger');

@@ -138,7 +138,7 @@ visual ordering).
 ## Firestore
 
 - **Firebase Hosting**: Serves the built frontend (`dist/`) with SPA rewrite (`/* → /index.html`).
-- **Firebase Admin SDK** (backend): Initialized in `app.js` via `utils/firebaseCredentials.js`: the local key `services/SheetsCred.env.json` when present (dev, scripts), otherwise Application Default Credentials with `FIREBASE_PROJECT_ID` (production: the Cloud Run service identity; the key is excluded from the image by `.gcloudignore`/`.dockerignore`). `backupService.js` picks its GCS credentials the same way. `const db = admin.firestore()` is available throughout the server.
+- **Firebase Admin SDK** (backend): Initialized in `app.js` via `utils/gcpCredentials.js`: the local key `services/SheetsCred.env.json` when present (dev, scripts), otherwise Application Default Credentials with `FIREBASE_PROJECT_ID` (production: the Cloud Run service identity; the key is excluded from the image by `.gcloudignore`/`.dockerignore`). `backupService.js` picks its GCS credentials the same way. `const db = admin.firestore()` is available throughout the server.
 
 ### Tree
 
@@ -233,7 +233,7 @@ known farmer names read from `centers/{centerId}/config/global`.
 | `CENTER_ID` | Tenant id (optional; defaults to `tsuberi`) — drives which Firestore `centers/{id}` tree the backend reads/writes and which id `ensureCenterAccess` checks against the token's `centers` claim |
 | `FRONT` | Frontend base URL for post-login/logout redirects |
 | `FRONT_CORS` | Comma-separated allowed CORS origins |
-| `FIREBASE_PROJECT_ID` | Firebase project |
+| `FIREBASE_PROJECT_ID` | Firebase project; required when no key file is present (production) |
 | `CLOUD_RUN_SERVICE_URL` | Expected audience when verifying the Cloud Scheduler OIDC token (`/api/internal/backup`) |
 | `GCS_BACKUP_BUCKET` | GCS bucket backups are written to (`tsuberi-mangos-backups`). `backupService.js` throws if unset |
 | `CRON_SECRET` | Dev-only shared secret accepted by `/api/internal/backup` when `NODE_ENV≠production` |

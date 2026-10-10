@@ -1,6 +1,6 @@
 // services/backupService.js
 const { Storage } = require('@google-cloud/storage');
-const { storageOptions } = require('../utils/firebaseCredentials');
+const { storageOptions } = require('../utils/gcpCredentials');
 const admin = require('firebase-admin');
 const FirestoreRepository = require('../repositories/FirestoreRepository');
 const { CENTER_ID } = require('../config/center');

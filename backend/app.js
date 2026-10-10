@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const recordRoutes = require("./routes/recordRoutes");
 const admin = require("firebase-admin");
-const { adminInitOptions } = require("./utils/firebaseCredentials");
+const { adminInitOptions } = require("./utils/gcpCredentials");
 const logger = require("./utils/logger");
 const { verifyFirebaseToken, ensureCenterAccess, ensureAdmin, syncUserClaims } = require('./middleware/auth');
 
@@ -18,7 +18,8 @@ if (!admin.apps.length) {
     admin.initializeApp(opts);
     logger.info(`Firebase Admin initialized for project ${opts.projectId} using ${opts.credential ? 'service-account key file' : 'Application Default Credentials'}`);
   } catch (error) {
-    console.error("Firebase Admin Initialization Error:", error);
+    logger.error(`Firebase Admin initialization failed: ${error.message}`);
+    throw error;
   }
 }
 const db = admin.firestore();

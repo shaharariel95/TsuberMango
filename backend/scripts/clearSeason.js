@@ -5,7 +5,7 @@
 // One farmer only (records, audit, certificates; nothing else): add --farmer <name>.
 // Executing requires a backup from the last 24 h unless --skip-backup-check (pre-season test data).
 require('dotenv').config();
-const { adminInitOptions } = require('../utils/firebaseCredentials');
+const { adminInitOptions } = require('../utils/gcpCredentials');
 const admin = require('firebase-admin');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');

@@ -23,12 +23,16 @@ Production uses the **Cloud Run service identity** (`380552578196-compute@develo
 Application Default Credentials) with `projectId: FIREBASE_PROJECT_ID`. The key file
 `backend/services/SheetsCred.env.json` is for local dev and scripts only; it is listed in
 `backend/.gcloudignore` / `.dockerignore` (`*.env.json`) and must never ship in the image. Code
-(`utils/firebaseCredentials.js`) uses the key file when present, ADC otherwise. After a deploy the
+(`utils/gcpCredentials.js`) uses the key file when present, ADC otherwise. After a deploy the
 Cloud Run log line "Firebase Admin initialized ... using Application Default Credentials" confirms the mode.
-Check what would upload (read-only) from `backend/`: `gcloud meta list-files-for-upload` must not list `*.env.json`.
+Scripts prefer `FIREBASE_PROJECT_ID` over the key's `project_id` (the same project today). Check what would upload (read-only) from `backend/`: `gcloud meta list-files-for-upload` must not list `*.env.json`.
 
 ### One-time keyless cutover checklist (in this order)
 
+0. **Confirm `FIREBASE_PROJECT_ID` is set on the service** (read-only; the app now requires it without a key file; expect `tsuberi-mangos-7e449`):
+   ```
+   gcloud run services describe backend-service --region europe-west1 --project tsuberi-mangos --format="value(spec.template.spec.containers[0].env)"
+   ```
 1. **Grant roles** to the Cloud Run identity on the Firebase project:
    ```
    gcloud projects add-iam-policy-binding tsuberi-mangos-7e449 --member=serviceAccount:380552578196-compute@developer.gserviceaccount.com --role=roles/datastore.user
@@ -36,7 +40,7 @@ Check what would upload (read-only) from `backend/`: `gcloud meta list-files-for
    ```
    (Its storage access to `tsuberi-mangos-backups` is already in place.)
 2. **Deploy the backend** (Commands below).
-3. **Verify**: sign in, intake one test pallet, Settings -> גיבויים -> run a backup, and check the Cloud Run log says Application Default Credentials.
+3. **Verify** (sign-in alone cannot detect a broken `firebaseauth.admin` grant: it only uses `verifyIdToken`, and `syncUserClaims`/logout swallow IAM failures): sign in AND sign out; in Settings add then remove a test user (exercises `setCustomUserClaims`); intake one test pallet; run a backup from Settings -> גיבויים. Then check the Cloud Run logs contain the "Application Default Credentials" init line and NONE of: `[syncUserClaims] no auth user`, `[/api/auth/logout] revoke failed`, `Backup failed`.
 4. **Only then rotate the key**: the old key sits in every previous image. List keys, create a new one for local use, delete the old key id:
    ```
    gcloud iam service-accounts keys list --iam-account firebase-adminsdk-fbsvc@tsuberi-mangos-7e449.iam.gserviceaccount.com --project tsuberi-mangos-7e449

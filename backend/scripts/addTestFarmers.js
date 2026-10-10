@@ -7,7 +7,7 @@
 //   node scripts/addTestFarmers.js "Name A" "Name B"     (custom names)
 require('dotenv').config();
 const admin = require('firebase-admin');
-const { adminInitOptions } = require('../utils/firebaseCredentials');
+const { adminInitOptions } = require('../utils/gcpCredentials');
 const { CENTER_ID } = require('../config/center');
 
 if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));

@@ -6,7 +6,7 @@
 ## October 2026 — Pre-season push
 
 ### ✅ Keyless Cloud Run (code + docs; cutover pending)
-- Service-account key no longer ships: `*.env.json` added to `.gcloudignore`/`.dockerignore`; `utils/firebaseCredentials.js` uses the key file locally and Application Default Credentials (Cloud Run identity) otherwise; app, backup service and scripts use it.
+- Service-account key no longer ships: `*.env.json` added to `.gcloudignore`/`.dockerignore`; `utils/gcpCredentials.js` uses the key file locally and Application Default Credentials (Cloud Run identity) otherwise; app, backup service and scripts use it.
 - Cutover (grant roles, deploy, verify, rotate key) is a manual checklist in the deploy skill -> Credentials; not yet executed.
 
 ### ✅ Backups you can restore
