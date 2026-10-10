@@ -24,16 +24,26 @@
                         </svg>
                         הפק מדבקה
                     </SpinnerButton>
-                    <SpinnerButton v-if="isEditable" @click="requestConfirm(true)"
+                    <SpinnerButton v-if="isEditable" @click="confirmBulkAction(true)"
                         :loading="isCreatingLabel" :disabled="selectedPallets.length === 0"
                         class="btn-primary text-sm bg-gradient-to-l from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 min-h-[36px] px-3">
                         העבר למשלוח
                     </SpinnerButton>
-                    <SpinnerButton v-if="isEditable" @click="requestConfirm(false)"
+                    <SpinnerButton v-if="isEditable" @click="confirmBulkAction(false)"
                         :loading="isCreatingLabel" :inverted="false" :disabled="selectedPallets.length === 0"
                         class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
                         הורד ממשלוח
                     </SpinnerButton>
+                    <div v-if="isEditable" class="flex items-center gap-1.5" data-testid="bulk-date">
+                        <input type="date" v-model="bulkShipmentDate" aria-label="תאריך משלוח לכל הנבחרים"
+                            :disabled="selectedPallets.length === 0"
+                            class="border border-slate-200 rounded-lg text-sm px-2 py-1 min-h-[36px] bg-white disabled:opacity-50" />
+                        <SpinnerButton @click="applyShipmentDateToSelected"
+                            :loading="isApplyingDate" :inverted="false" :disabled="selectedPallets.length === 0"
+                            class="btn-ghost text-sm border border-slate-200 min-h-[36px] px-3">
+                            החל על הכל
+                        </SpinnerButton>
+                    </div>
                     <SpinnerButton v-if="isEditable" @click="sendSelectedPallets"
                         :loading="isCreatingLabel" :disabled="isCreateLabelAllowed"
                         class="btn-primary text-sm min-h-[36px] px-3">
@@ -101,7 +111,7 @@
                         :style="getMixStyle(pallet)"
                         @click="(pallet._isGroupLeader || pallet._isContext) && toggleCollapse(pallet.palletNumber)">
                         <template v-if="editingId === pallet.id">
-                            <td v-for="col in columns" :key="col.key" class="border-b border-slate-300 px-2 py-1.5">
+                            <td v-for="col in columns" :key="col.key" :data-col="col.key" class="border-b border-slate-300 px-2 py-1.5">
                                 <template v-if="col.editable">
                                     <div v-if="col.key === 'kind'">
                                         <select v-model="editingPallet[col.key]" class="input-field text-sm !p-1.5">
@@ -158,11 +168,15 @@
                                         class="text-xs px-2 py-1.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 font-medium transition-colors min-h-[32px]">
                                         ביטול
                                     </button>
+                                    <button v-if="canDeleteEditing" @click="deleteEditing" :disabled="isLoading"
+                                        class="text-xs px-2 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-colors min-h-[32px]">
+                                        מחק
+                                    </button>
                                 </div>
                             </td>
                         </template>
                         <template v-else>
-                            <td v-for="col in columns" :key="col.key" class="border-b border-slate-200 px-3 py-2.5">
+                            <td v-for="col in columns" :key="col.key" :data-col="col.key" class="border-b border-slate-200 px-3 py-2.5">
                                 <template v-if="col.key === 'selected'">
                                     <input v-if="!pallet._isContext" type="checkbox" v-model="selectedPallets" :value="pallet.id"
                                         @click.stop
@@ -179,6 +193,10 @@
                                             {{ collapsedPallets.has(String(pallet.palletNumber)) ? `+${pallet._contextCount}` : '▼' }}
                                         </span>
                                     </div>
+                                </template>
+                                <template v-else-if="col.key === 'cardId' && pallet.cardId !== '' && pallet.cardId != null">
+                                    <router-link :to="{ path: '/Certificates', query: { farmer, number: String(pallet.cardId) } }"
+                                        class="text-mango-700 underline font-medium" @click.stop>{{ pallet.cardId }}</router-link>
                                 </template>
                                 <template v-else>{{ pallet[col.key] }}</template>
                             </td>
@@ -205,28 +223,6 @@
             </table>
         </div>
 
-        <!-- Bulk Action Confirmation Modal -->
-        <ConfirmModal
-            :show="confirmModal.show"
-            title="אישור פעולה"
-            :icon-variant="confirmModal.toSend ? 'emerald' : 'amber'"
-            confirm-text="אשר"
-            cancel-text="ביטול"
-            :confirm-variant="confirmModal.toSend ? 'emerald' : 'amber'"
-            @confirm="() => { confirmModal.show = false; updateToDestinations(confirmModal.toSend); }"
-            @cancel="confirmModal.show = false"
-        >
-            <template v-if="confirmModal.toSend">
-                האם להעביר <strong>{{ confirmModal.count }} משטחים</strong> למשלוח?
-            </template>
-            <template v-else>
-                האם להוריד <strong>{{ confirmModal.count }} משטחים</strong> מהמשלוח?
-            </template>
-            <p v-if="confirmModal.destinations.length" class="text-slate-400 text-xs mt-1">
-                יעדים: {{ confirmModal.destinations.join(', ') }}
-            </p>
-        </ConfirmModal>
-
         <!-- Error Toast -->
         <ErrorToast :error="error" @dismiss="error = null" />
     </div>
@@ -236,13 +232,17 @@
 import { kinds, sizes, destinations, farmerConfigs as staticFarmerConfigs } from '../data/data.js';
 import { inject } from 'vue';
 import createStickerPDF from '../data/printData.js';
-import ConfirmModal from './shared/ConfirmModal.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
 import ErrorToast from './shared/ErrorToast.vue';
+import { requestAlert, requestConfirm } from '../composables/useDialogs';
+import { authHeaders } from '../utils/auth';
+import { deleteRecord } from '../api/records';
+import { previewCertificates, issueCertificates } from '../api/certificates';
+import { printWithRetap, preloadPdf } from '../data/certificatePdf';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
-    components: { ConfirmModal, SpinnerButton, ErrorToast },
+    components: { SpinnerButton, ErrorToast },
     props: {
         pallets: {
             type: Array,
@@ -298,7 +298,7 @@ export default {
         let columns = [
             { key: 'sent', label: 'נשלח', editable: true, minWidth: '70px' },
             { key: 'shipmentDate', label: 'תאריך משלוח', sortable: true, editable: true, minWidth: '120px' },
-            { key: 'cardId', label: 'מספר תעודה', filter: true, editable: true, minWidth: '100px' },
+            { key: 'cardId', label: 'מספר תעודה', filter: true, editable: false, minWidth: '100px' },
             { key: 'harvestDate', label: 'תאריך קטיף', editable: true, minWidth: '110px' },
             { key: 'palletNumber', label: 'מספר משטח', sortable: true, editable: true, minWidth: '95px' },
             { key: 'kind', label: 'זן', filter: true, sortable: true, editable: true, minWidth: '95px' },
@@ -342,16 +342,12 @@ export default {
             error: null,
             isLoading: false,
             isCreatingLabel: false,
+            isApplyingDate: false,
+            bulkShipmentDate: '',
             sentView: false,
             destinationFilterText: '',
             searchText: '',
             collapsedPallets: new Set(),
-            confirmModal: {
-                show: false,
-                toSend: true,
-                count: 0,
-                destinations: []
-            }
         }
     },
 
@@ -370,8 +366,13 @@ export default {
         kinds() { return this.config.kinds || []; },
         sizes() { return this.config.sizes || []; },
         destinations() { return this.config.destinations || []; },
+        // Only unsent pallets without a certificate number can be deleted (the server enforces it too).
+        canDeleteEditing() {
+            const p = this.pallets.find(x => x.id === this.editingId);
+            return !!p && !p.sent && (p.cardId === '' || p.cardId == null);
+        },
         isCreateLabelAllowed() {
-            return this.selectedPallets.length === 0 || this.selectedPallets.length > 13
+            return this.selectedPallets.length === 0
         },
         globalMixedPalletNumbers() {
             const counts = {};
@@ -523,6 +524,25 @@ export default {
     },
 
     methods: {
+        async deleteEditing() {
+            const p = this.pallets.find(x => x.id === this.editingId);
+            if (!p) return;
+            const ok = await requestConfirm({ title: 'מחיקת משטח', confirmText: 'מחק משטח',
+                message: `למחוק את משטח ${p.palletNumber}? מנהל יכול לשחזר אותו מההגדרות (משטחים שנמחקו).` });
+            if (!ok) return;
+            this.isLoading = true;
+            try {
+                await deleteRecord(this.farmer, p.id);
+                this.$emit('update:pallets', this.pallets.filter(x => x.id !== p.id));
+                this.editingId = null;
+                this.editingPallet = null;
+            } catch (e) {
+                await requestAlert({ title: 'המחיקה נכשלה', message: e.message, variant: 'error' });
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
         toggleCollapse(palletNumber) {
             const k = String(palletNumber);
             if (this.collapsedPallets.has(k)) {
@@ -554,9 +574,19 @@ export default {
             return [...new Set(this.pallets.map(p => p[key]))];
         },
 
-        startEditing(pallet) {
-            this.editingId = pallet.id;
+        async startEditing(pallet) {
             const raw = this.pallets.find(p => p.id === pallet.id) || pallet;
+            const hasCertificate = raw.cardId !== undefined && raw.cardId !== null
+                && String(raw.cardId).trim() !== '' && Number(raw.cardId) !== 0;
+            if (raw.sent === true || hasCertificate) {
+                const ok = await requestConfirm({
+                    title: 'המשטח כבר יצא',
+                    message: 'המשטח כבר יצא / הונפקה לו תעודה — לשנות בכל זאת?',
+                    variant: 'yellow',
+                });
+                if (!ok) return;
+            }
+            this.editingId = pallet.id;
             this.editingPallet = {
                 ...raw,
                 sent: !!raw.sent,
@@ -572,10 +602,15 @@ export default {
             this.editingId = null;
             this.editingPallet = null;
         },
-        requestConfirm(toSend) {
+        async confirmBulkAction(toSend) {
             const selectedData = this.filteredPallets.filter(p => this.selectedPallets.includes(p.id));
             const destinations = [...new Set(selectedData.map(p => p.destination).filter(Boolean))];
-            this.confirmModal = { show: true, toSend, count: selectedData.length, destinations };
+            const message = toSend
+                ? `האם להעביר ${selectedData.length} משטחים למשלוח?`
+                : `האם להוריד ${selectedData.length} משטחים מהמשלוח?`;
+            const details = destinations.length ? `יעדים: ${destinations.join(', ')}` : '';
+            const ok = await requestConfirm({ message, details, variant: toSend ? 'emerald' : 'amber' });
+            if (ok) this.updateToDestinations(toSend);
         },
 
         async updateToDestinations(toSend) {
@@ -594,9 +629,9 @@ export default {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify(selectedPalletsData),
-                    credentials: 'include',
                 });
 
                 if (!response.ok) {
@@ -617,9 +652,11 @@ export default {
             const originalPallet = { ...this.pallets.find(p => p.id === this.editingId) };
             this.isLoading = true
             this.editingPallet.palletNumber = Number(this.editingPallet.palletNumber);
-            if (this.editingPallet.cardId !== undefined) this.editingPallet.cardId = Number(this.editingPallet.cardId);
-            if (this.editingPallet.boxes !== undefined) this.editingPallet.boxes = Number(this.editingPallet.boxes);
-            if (this.editingPallet.weight !== undefined) this.editingPallet.weight = Number(this.editingPallet.weight);
+            // Empty stays empty — Number('') is 0, which showed a "0" certificate number after save.
+            for (const key of ['cardId', 'boxes', 'weight']) {
+                const v = this.editingPallet[key];
+                if (v !== undefined && v !== '' && v !== null) this.editingPallet[key] = Number(v);
+            }
             this.editingPallet.gidon = !!this.editingPallet.gidon;
             this.editingPallet.sent = !!this.editingPallet.sent;
 
@@ -628,22 +665,34 @@ export default {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify(this.editingPallet),
-                    credentials: 'include',
                 });
 
+                if (response.status === 404) {
+                    // Deleted on another device and this tab missed the realtime event.
+                    this.$emit('update:pallets', this.pallets.filter(x => x.id !== this.editingId));
+                    this.editingId = null;
+                    this.editingPallet = null;
+                    this.isLoading = false;
+                    await requestAlert({ title: 'המשטח נמחק', message: 'המשטח נמחק במכשיר אחר ולכן לא נשמר.', variant: 'warning' });
+                    return;
+                }
                 if (!response.ok) {
                     this.isLoading = false;
                     throw new Error('Failed to update pallet');
                 }
 
+                // The server decides cardId/sent (a certified row keeps its own) — take the stored values back.
+                const { data: stored } = await response.json().catch(() => ({}));
                 const index = this.pallets.findIndex(pallet => pallet.id === this.editingId);
 
                 if (index !== -1) {
                     // Create a new array to trigger reactivity
                     const newPallets = [...this.pallets];
-                    newPallets[index] = { ...originalPallet, ...this.editingPallet };
+                    newPallets[index] = { ...originalPallet, ...this.editingPallet,
+                        ...(stored ? { cardId: stored.cardId, sent: stored.sent } : {}) };
                     this.$emit('update:pallets', newPallets);
                 }
 
@@ -686,78 +735,81 @@ export default {
         toggleSentView() {
             this.sentView = !this.sentView;
         },
-        validatePallet(pallet) {
-            const requiredFields = ['boxes', 'weight', 'size', 'kind', 'destination', 'shipmentDate', 'harvestDate'];
-            const missing = requiredFields.filter(field => !pallet[field]);
-            if (missing.length > 0) {
-                return `שדות חסרים: ${missing.join(', ')}`;
-            }
-            return null;
-        },
         async sendSelectedPallets() {
-            this.isCreatingLabel = true
-            const selectedPalletsData = this.filteredPallets.filter(p =>
-                this.selectedPallets.includes(p.id)
-            );
-
+            const ids = [...this.selectedPallets];
+            this.isCreatingLabel = true;
+            preloadPdf(); // warm pdfmake + font now so printing right after issue stays within the tap window
             try {
-                for (const pallet of selectedPalletsData) {
-                    const validationError = this.validatePallet(pallet);
-                    if (validationError) throw new Error(validationError);
-                }
-                const response = await fetch(`${baseUrl}/api/shipping/newlabel`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ pallets: selectedPalletsData, farmer: this.farmer }),
-                    credentials: 'include',
+                const pv = await previewCertificates(this.farmer, ids);
+                const sizes = pv.chunks.map(c => c.rows);
+                const summary = sizes.length === 1
+                    ? `תיווצר תעודה אחת (${sizes[0]} שורות)`
+                    : `ייווצרו ${sizes.length} תעודות: ${sizes.join(' + ')}`;
+                const ok = await requestConfirm({
+                    title: 'הפקת תעודת משלוח',
+                    message: summary,
+                    details: `יעד: ${pv.destination} · תאריך: ${pv.shipmentDate}`,
+                    confirmText: 'אשר',
                 });
-                const res = await response.json();  // or just handle this if you have a response
-                console.log(`respose: `, res)
-                if (!response.ok) {
-                    throw new Error(res['error'] || 'Failed to create label');
+                if (!ok) return;
+                const { certificates } = await issueCertificates(this.farmer, ids);
+                const byRecord = new Map();
+                certificates.forEach(c => c.snapshot.rows.forEach(r => byRecord.set(r.recordId, c.number)));
+                const updated = this.pallets.map(p => byRecord.has(p.id)
+                    ? { ...p, cardId: byRecord.get(p.id), sent: true, mark: false } : p);
+                this.$emit('update:pallets', updated);
+                this.selectedPallets = [];
+                const numbers = certificates.map(c => c.number).join('-');
+                try {
+                    await printWithRetap(certificates.map(c => c.snapshot), `תעודת-משלוח-${numbers}.pdf`, requestConfirm);
+                } catch {
+                    await requestAlert({ title: 'ההדפסה לא הושלמה',
+                        message: `התעודה נשמרה (${numbers}). ניתן להדפיס אותה שוב ממסך "תעודות".`, variant: 'warning' });
                 }
-                // Update selected pallets with the new label name and sent status
-                const palletsToUpdate = selectedPalletsData.map(pallet => ({
-                    ...pallet,
-                    gidon: !!pallet.gidon,
-                    cardId: Number(res['result'].name),
-                    sent: true,
-                    mark: false,
-                }));
-                console.log(`paleltsToUpdate: `, palletsToUpdate)
-                const response2 = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/updatemany`, {
+            } catch (err) {
+                const soft = err.status === 400 || err.status === 409;
+                await requestAlert({ title: soft ? 'לא ניתן להפיק תעודה' : 'שגיאה',
+                    message: err.message, variant: soft ? 'warning' : 'error' });
+            } finally {
+                this.isCreatingLabel = false;
+            }
+        },
+
+        async applyShipmentDateToSelected() {
+            const ids = this.selectedPallets.slice();
+            if (!ids.length) return;
+            if (!this.bulkShipmentDate) {
+                await requestAlert({ title: 'חסר תאריך', message: 'יש לבחור תאריך משלוח לפני הלחיצה על "החל על הכל"', variant: 'warning' });
+                return;
+            }
+            const date = this.bulkShipmentDate;
+            const ok = await requestConfirm({
+                title: 'עדכון תאריך משלוח',
+                message: `האם לקבוע תאריך משלוח ${date} ל-${ids.length} משטחים?`,
+                variant: 'amber',
+            });
+            if (!ok) return;
+
+            this.isApplyingDate = true;
+            try {
+                const response = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(this.farmer)}/records/shipmentDate`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        ...(await authHeaders()),
                     },
-                    body: JSON.stringify(palletsToUpdate),
-                    credentials: 'include',
+                    body: JSON.stringify({ palletIds: ids, shipmentDate: date }),
                 });
-                console.log(response2)
-                const updatedPallets = [...this.pallets];
-                selectedPalletsData.forEach((selectedPallet) => {
-                    const index = this.pallets.findIndex(pallet => pallet.id === selectedPallet.id);
-                    if (index !== -1) {
-                        updatedPallets[index] = {
-                            ...updatedPallets[index],
-                            cardId: Number(res['result'].name),  // Update the label name (as number)
-                            sent: true                    // Set the sent flag to true
-                        };
-                    }
-                });
-
+                if (!response.ok) {
+                    throw new Error('Failed to update shipment date');
+                }
+                const updatedPallets = this.pallets.map(p => ids.includes(p.id) ? { ...p, shipmentDate: date } : p);
                 this.$emit('update:pallets', updatedPallets);
                 this.selectedPallets = [];
-                this.isCreatingLabel = false
             } catch (err) {
-                this.error = err.message;
-                setTimeout(() => {
-                    this.error = null;
-                    this.selectedPallets = [];
-                    this.isCreatingLabel = false;
-                }, 5000);
+                await requestAlert({ title: 'שגיאה', message: 'עדכון תאריך המשלוח נכשל, נסה שוב', variant: 'error' });
+            } finally {
+                this.isApplyingDate = false;
             }
         },
 
@@ -771,18 +823,21 @@ export default {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify({ palletIds: selectedPalletIds }), // Send only IDs
-                    credentials: 'include',
                 });
 
                 if (!response.ok) {
                     throw new Error('Failed to send pallets');
                 }
 
+                // The server reports the stored state (certified rows also lose cardId and return to prep).
+                const { updated = [] } = await response.json().catch(() => ({}));
+                const byId = new Map(updated.map(u => [u.id, u]));
                 const updatedPallets = this.pallets.map(p => {
                     if (selectedPalletIds.includes(p.id)) {
-                        return { ...p, sent: false };
+                        return { ...p, sent: false, ...(byId.get(p.id) || {}) };
                     }
                     return p;
                 });
@@ -819,7 +874,7 @@ export default {
                 const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`;
                 const response = await fetch(URL, {
                     method: 'GET',
-                    credentials: 'include', // Include cookies for authentication
+                    headers: { ...(await authHeaders()) },
                 });
 
                 if (!response.ok) {

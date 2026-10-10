@@ -1,5 +1,5 @@
-// sheetModel.js
-class SheetModel {
+// palletRecord.js — pallet record model: required-field validation + normalization/boolean coercion before persistence.
+class PalletRecord {
     constructor(shipmentDate, cardId, harvestDate, palletNumber, kind, size, boxes, weight, destination, sent, gidon, mark, editedBy, editedAt) {
         this.validate(harvestDate, palletNumber, boxes, kind, size);
 
@@ -29,25 +29,6 @@ class SheetModel {
             throw new Error(`Missing required fields: ${missing.join(', ')}`);
         }
     }
-
-    toArray() {
-        return [
-            this.shipmentDate,
-            this.cardId,
-            this.harvestDate,
-            this.palletNumber,
-            this.kind,
-            this.size,
-            this.boxes,
-            this.weight,
-            this.destination,
-            this.sent,
-            this.gidon,
-            this.mark,
-            this.editedBy,
-            this.editedAt,
-        ];
-    }
 }
 
-module.exports = SheetModel;
+module.exports = PalletRecord;

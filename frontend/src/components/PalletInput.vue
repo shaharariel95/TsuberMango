@@ -42,7 +42,7 @@
         </Transition>
 
         <!-- Form -->
-        <form @submit.prevent="submitForm" class="space-y-5 rtl">
+        <form @submit.prevent="submitForm" novalidate class="space-y-5 rtl">
             <!-- Required Fields Section -->
             <div class="card space-y-5">
                 <div class="flex items-center gap-2 mb-1">
@@ -135,14 +135,6 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-base">
                     <div>
-                        <label class="block text-slate-600 mb-1.5 text-sm">תאריך משלוח</label>
-                        <input type="date" v-model="formData.shipmentDate" class="input-field" />
-                    </div>
-                    <div>
-                        <label class="block text-slate-600 mb-1.5 text-sm">מספר תעודה</label>
-                        <input type="number" v-model="formData.cardId" class="input-field" />
-                    </div>
-                    <div>
                         <label class="block text-slate-600 mb-1.5 text-sm">משקל</label>
                         <input type="number" v-model="formData.weight" min="0" class="input-field" />
                     </div>
@@ -234,16 +226,8 @@
                         <span class="font-semibold">{{ lastFormData.harvestDate }}</span>
                     </div>
                     <div class="bg-slate-50 rounded-lg p-2.5">
-                        <span class="text-slate-400 text-xs block">תאריך משלוח</span>
-                        <span class="font-semibold">{{ lastFormData.shipmentDate || 'לא צוין' }}</span>
-                    </div>
-                    <div class="bg-slate-50 rounded-lg p-2.5">
                         <span class="text-slate-400 text-xs block">מספר משטח</span>
                         <span class="font-semibold">{{ lastFormData.palletNumber }}</span>
-                    </div>
-                    <div class="bg-slate-50 rounded-lg p-2.5">
-                        <span class="text-slate-400 text-xs block">מספר כרטיס</span>
-                        <span class="font-semibold">{{ lastFormData.cardId || 'לא צוין' }}</span>
                     </div>
                     <div class="bg-slate-50 rounded-lg p-2.5">
                         <span class="text-slate-400 text-xs block">זן</span>
@@ -280,6 +264,8 @@ import { inject, ref, reactive, watch, computed, nextTick } from 'vue'
 import createStickerPDF from '../data/printData.js';
 import ConfirmModal from './shared/ConfirmModal.vue';
 import SpinnerButton from './shared/SpinnerButton.vue';
+import { useDialogs } from '../composables/useDialogs';
+import { authHeaders } from '../utils/auth';
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '');
 
 export default {
@@ -292,6 +278,7 @@ export default {
     },
 
     setup(props) {
+        const { requestAlert } = useDialogs()
         const isSubmitting = ref(false)
         const submitStatus = ref('')
         const statusMessage = ref('')
@@ -311,8 +298,6 @@ export default {
             size: 'גודל',
             weight: 'משקל',
             destination: 'יעד',
-            shipmentDate: 'תאריך משלוח',
-            cardId: 'מספר תעודה',
             farmer: 'שם חקלאי',
         }
 
@@ -323,7 +308,7 @@ export default {
                 const translated = fields.split(',').map(f => FIELD_NAMES_HE[f.trim()] || f.trim()).join(', ')
                 return `שדות חובה חסרים: ${translated}`
             }
-            if (msg.includes('Invalid farmer sheet')) return 'שם החקלאי לא נמצא במערכת'
+            if (msg.startsWith('Unknown farmer')) return 'שם החקלאי לא נמצא במערכת'
             if (msg.includes('Farmer name is required')) return 'שם חקלאי הוא שדה חובה'
             if (msg.includes('Failed to add record')) return 'שגיאה בהוספת הרשומה, נסה שוב'
             return 'שגיאה בשליחת הטופס'
@@ -341,8 +326,6 @@ export default {
 
         const formData = reactive({
             farmer: props.selectedFarmer,
-            shipmentDate: '',
-            cardId: null,
             harvestDate: new Date().toISOString().split('T')[0],
             palletNumber: null,
             kind: '',
@@ -361,7 +344,7 @@ export default {
             try {
                 const encodedFarmer = encodeURIComponent(farmer)
                 const URL = `${baseUrl}/api/farmers/${encodedFarmer}/records/lastPallet`
-                const res = await fetch(URL, { credentials: 'include' })
+                const res = await fetch(URL, { headers: { ...(await authHeaders()) } })
                 const data = await res.json()
                 message.value = data.data
             } catch (err) {
@@ -380,12 +363,10 @@ export default {
         }, { immediate: true })
 
         const resetForm = () => {
-            formData.cardId = null
             formData.palletNumber = null
             formData.boxes = null
             formData.weight = null
             formData.destination = ''
-            formData.shipmentDate = ''
             if (!fastMode.value) {
                 formData.kind = ''
                 formData.size = null
@@ -400,20 +381,15 @@ export default {
             statusMessage.value = ''
 
             try {
-                const formattedData = {
-                    ...formData,
-                    shipmentDate: formData.shipmentDate ?
-                        new Date(formData.shipmentDate).toLocaleDateString('en-GB') : '',
-                    harvestDate: new Date(formData.harvestDate)
-                        .toLocaleDateString('en-GB').slice(0, 5),
-                }
+                // The <input type="date"> already yields canonical ISO yyyy-mm-dd.
+                const formattedData = { ...formData };
                 const response = await fetch(`${baseUrl}/api/records`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        ...(await authHeaders()),
                     },
                     body: JSON.stringify(formattedData),
-                    credentials: 'include'
                 })
 
                 if (!response.ok) {
@@ -432,24 +408,38 @@ export default {
                     palletNumberInput.value?.focus()
                 }
             } catch (error) {
-                submitStatus.value = 'error'
-                statusMessage.value = error.message
                 console.error('Submit error:', error)
+                await requestAlert({ title: 'שגיאה', message: error.message, variant: 'error' })
             } finally {
                 isSubmitting.value = false
             }
         }
 
+        // Client-side check of the mandatory fields (the kind/size radios are visually
+        // hidden, so native `required` never surfaces for them). Returns the Hebrew
+        // labels of whatever is missing.
+        const missingRequiredFields = () => {
+            const isEmpty = (v) => v === null || v === undefined || String(v).trim() === ''
+            return ['harvestDate', 'palletNumber', 'boxes', 'kind', 'size']
+                .filter(key => isEmpty(formData[key]))
+                .map(key => FIELD_NAMES_HE[key])
+        }
+
         const submitForm = async () => {
-            if (!formData.palletNumber) {
-                await doSubmit()
+            const missing = missingRequiredFields()
+            if (missing.length) {
+                await requestAlert({
+                    title: 'שדות חובה חסרים',
+                    message: `שדות חובה חסרים: ${missing.join(', ')}`,
+                    variant: 'error',
+                })
                 return
             }
             try {
                 const encodedFarmer = encodeURIComponent(formData.farmer)
                 const res = await fetch(
                     `${baseUrl}/api/farmers/${encodedFarmer}/records/pallet/${formData.palletNumber}`,
-                    { credentials: 'include' }
+                    { headers: { ...(await authHeaders()) } }
                 )
                 if (res.ok) {
                     duplicateWarning.value = true

@@ -4,3 +4,7 @@ npm-debug.log
 .git
 .gitignore
 .env
+services/*.env.json
+*.env.json
+logs/
+*.log

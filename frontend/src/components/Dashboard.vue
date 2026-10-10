@@ -135,6 +135,7 @@ import { ref, computed, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import LoadingState from './shared/LoadingState.vue'
 import ErrorState from './shared/ErrorState.vue'
+import { authHeaders } from '../utils/auth'
 
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '')
 
@@ -173,7 +174,10 @@ export default {
                     all.push({ farmer: fd.name, ...rec })
                 }
             }
-            all.sort((a, b) => Number(b.palletNumber) - Number(a.palletNumber))
+            // Most recently touched first (ISO editedAt sorts lexically); pallet number breaks ties.
+            // Sorting by pallet number alone let one farmer's high numbers hide everyone else's new pallets.
+            all.sort((a, b) => String(b.editedAt || '').localeCompare(String(a.editedAt || ''))
+                || Number(b.palletNumber) - Number(a.palletNumber))
             return all.slice(0, 5)
         })
 
@@ -198,7 +202,7 @@ export default {
 
             const results = await Promise.allSettled(
                 farmers.map(async name => {
-                    const res = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(name)}/records`, { credentials: 'include' })
+                    const res = await fetch(`${baseUrl}/api/farmers/${encodeURIComponent(name)}/records`, { headers: { ...(await authHeaders()) } })
                     if (!res.ok) throw new Error(`שגיאת שרת: ${res.status}`)
                     const json = await res.json()
                     return { name, records: json.data || [] }

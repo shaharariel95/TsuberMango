@@ -5,3 +5,8 @@ Dockerfile
 .git
 .gitignore
 .env
+
+services/*.env.json
+*.env.json
+logs/
+*.log

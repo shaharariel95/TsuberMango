@@ -167,21 +167,29 @@
 
   <!-- ── Error Toast ───────────────────────────────── -->
   <ErrorToast :error="showError ? error : null" @dismiss="error = null" />
+
+  <!-- ── Blocking Dialogs (alert / confirm) ────────── -->
+  <DialogHost />
 </template>
 
 <script>
 import { ref, reactive, provide, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { db } from './main';
+import axios from 'axios';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { db, auth } from './main';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { setCenterId, centerId } from './composables/useCenter';
 import { farmerConfigs } from './data/data'; // Fallback for initial load
 import NotificationList from './components/NotificationList.vue'
 import ErrorToast from './components/shared/ErrorToast.vue'
+import DialogHost from './components/shared/DialogHost.vue'
 
 export default {
   components: {
     NotificationList,
-    ErrorToast
+    ErrorToast,
+    DialogHost
   },
   setup() {
     const showError = ref(false);
@@ -206,6 +214,10 @@ export default {
     // Viewport width tracking
     const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
     const user = ref(null);
+    // Firebase listeners we must tear down (login is popup-based, so auth state
+    // can change repeatedly within one App lifetime — never leave stale listeners).
+    let unsubscribeConfig = null;
+    let unsubscribeAuth = null;
 
     const isMobile = computed(() => windowWidth.value <= 1366);
     // The sidebar is "compact" only on desktop when collapsed; on mobile it's always full width
@@ -233,6 +245,7 @@ export default {
     provide('config', config);
     provide('selectedFarmer', selectedFarmer);
     provide('currentUserEmail', computed(() => user.value?.email || ''));
+    provide('centerId', centerId);
 
     const isActiveLink = (path) => {
       return route.path === path;
@@ -271,11 +284,11 @@ export default {
 
     const logout = async () => {
       try {
-        await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, { credentials: 'include' });
+        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`);
       } catch (err) {
-        // Session is cleared server-side regardless — proceed with client-side logout
-        console.warn('Logout request error (session still cleared):', err);
+        console.warn('Logout revoke error (signing out locally anyway):', err);
       }
+      await signOut(auth).catch(() => {});
       user.value = null;
       if (isMobile.value) mobileOpen.value = false;
       router.push('/login');
@@ -289,6 +302,7 @@ export default {
       { path: '/SentPalletsForMark', label: 'יצאו למשלוח', role: 'user' },
       { path: '/SentPallets', label: 'משטחים שנשלחו', role: 'admin' },
       { path: '/DestinationsSummary', label: 'סיכום יעדים', role: 'user' },
+      { path: '/Certificates', label: 'תעודות', role: 'user' },
       { path: '/Settings', label: 'ניהול הגדרות', role: 'admin', isBottom: true },
     ]);
 
@@ -316,44 +330,52 @@ export default {
       window.addEventListener('offline', handleOffline);
       window.addEventListener('online', handleOnline);
 
-      // 1. Fetch User Info
-      fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.email) user.value = data;
-        })
-        .catch(err => console.error("Not logged in"));
-
-      // 2. Listen to Firestore Config
-      const configDoc = doc(db, "config", "global");
-      onSnapshot(configDoc, (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          kinds.value = data.kinds || [];
-          sizes.value = data.sizes || [];
-          destinations.value = data.destinations || [];
-
-          // Map farmer list
-          const farmersList = data.farmers || [];
-          farmers.value = farmersList.map(f => f.name);
-
-          // Map farmer configs
-          const fConfigs = {};
-          farmersList.forEach(f => {
-            fConfigs[f.name] = { allowGidon: f.allowGidon };
-          });
-          dynamicFarmerConfigs.value = fConfigs;
-
-          // Sync the shared reactive config object
-          config.kinds = data.kinds || [];
-          config.sizes = data.sizes || [];
-          config.destinations = data.destinations || [];
-          config.farmers = farmers.value;
-          config.farmerConfigs = fConfigs;
-
-          if (!selectedFarmer.value && farmers.value.length > 0) {
-            selectedFarmer.value = farmers.value[0];
+      // Drive user state + tenant config from Firebase auth state.
+      unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+        if (!fbUser) {
+          // Signed out — drop the tenant config listener so a logged-out
+          // (or next) user isn't left with a live subscription.
+          if (unsubscribeConfig) { unsubscribeConfig(); unsubscribeConfig = null; }
+          user.value = null;
+          return;
+        }
+        try {
+          const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`);
+          const data = res.data;
+          if (data.refreshToken) await auth.currentUser?.getIdToken(true);
+          user.value = { email: data.email, role: data.role };
+          if (data.centerId) {
+            setCenterId(data.centerId);
+            const configRef = doc(db, "centers", data.centerId, "config", "global");
+            // Tear down any prior subscription before opening a new one.
+            if (unsubscribeConfig) { unsubscribeConfig(); unsubscribeConfig = null; }
+            unsubscribeConfig = onSnapshot(configRef, (snapshot) => {
+              if (!snapshot.exists()) return;
+              const cfg = snapshot.data();
+              kinds.value = cfg.kinds || [];
+              sizes.value = cfg.sizes || [];
+              destinations.value = cfg.destinations || [];
+              // Archived (hidden) farmers keep their data but leave every menu; Settings reads the raw list.
+              const farmersList = (cfg.farmers || []).filter(f => !f.archived);
+              farmers.value = farmersList.map(f => f.name);
+              const fConfigs = {};
+              farmersList.forEach(f => { fConfigs[f.name] = { allowGidon: f.allowGidon }; });
+              dynamicFarmerConfigs.value = fConfigs;
+              config.kinds = cfg.kinds || [];
+              config.sizes = cfg.sizes || [];
+              config.destinations = cfg.destinations || [];
+              config.farmers = farmers.value;
+              config.farmerConfigs = fConfigs;
+              // Also covers the selected farmer being hidden from another tab.
+              if (!farmers.value.includes(selectedFarmer.value)) {
+                selectedFarmer.value = farmers.value[0] || '';
+              }
+            }, (err) => {
+              console.error('[config listener] permission/other error:', err?.message);
+            });
           }
+        } catch (err) {
+          console.warn('Failed to load user/config:', err?.message);
         }
       });
     });
@@ -365,6 +387,8 @@ export default {
       if (typeof document !== 'undefined') {
         document.body.classList.remove('drawer-open');
       }
+      if (unsubscribeConfig) { unsubscribeConfig(); unsubscribeConfig = null; }
+      if (unsubscribeAuth) { unsubscribeAuth(); unsubscribeAuth = null; }
     });
 
     const accessibleRoutes = computed(() => {

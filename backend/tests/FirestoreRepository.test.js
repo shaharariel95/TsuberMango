@@ -1,0 +1,175 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import admin from 'firebase-admin';
+import FirestoreRepository from '../repositories/FirestoreRepository.js';
+
+const CENTER = 'test-center';
+const FARMER = 'test-farmer';
+let db;
+let repo;
+
+beforeAll(() => {
+  // firebase emulators:exec sets FIRESTORE_EMULATOR_HOST for us.
+  if (!admin.apps.length) {
+    admin.initializeApp({ projectId: 'demo-tsuber' });
+  }
+  db = admin.firestore();
+  repo = new FirestoreRepository(db, CENTER);
+});
+
+afterAll(async () => {
+  await Promise.all(admin.apps.map(app => app.delete()));
+});
+
+beforeEach(async () => {
+  // Clear the farmer's records + audit between tests.
+  for (const col of ['records', 'audit']) {
+    const snap = await db.collection('centers').doc(CENTER)
+      .collection('farmers').doc(FARMER).collection(col).get();
+    await Promise.all(snap.docs.map(d => d.ref.delete()));
+  }
+});
+
+it('instantiates with an injected db and center id', () => {
+  expect(repo.centerId).toBe(CENTER);
+  expect(repo.recordsCol(FARMER).path)
+    .toBe(`centers/${CENTER}/farmers/${FARMER}/records`);
+});
+
+describe('reads', () => {
+  it('getRecords returns docs with string id merged in', async () => {
+    await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER)
+      .collection('records').add({ palletNumber: '5', kind: 'mango', sent: false });
+    const recs = await repo.getRecords(FARMER);
+    expect(recs).toHaveLength(1);
+    expect(typeof recs[0].id).toBe('string');
+    expect(recs[0].palletNumber).toBe('5');
+  });
+
+  it('getRecord returns one record with its id, or null when missing', async () => {
+    const { id } = await repo.appendRecord(FARMER, { palletNumber: '1', weight: 5 });
+    expect(await repo.getRecord(FARMER, id)).toEqual({ id, palletNumber: '1', weight: 5 });
+    expect(await repo.getRecord(FARMER, 'no-such-id')).toBeNull();
+  });
+
+  it('getRecordsByPallet filters by palletNumber (string-compared)', async () => {
+    const col = db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('records');
+    await col.add({ palletNumber: 5 });
+    await col.add({ palletNumber: '7' });
+    const hits = await repo.getRecordsByPallet(FARMER, '5');
+    expect(hits).toHaveLength(1);
+    expect(await repo.getRecordsByPallet(FARMER, '99')).toHaveLength(0);
+  });
+
+  it('getLastPallet returns the highest numeric palletNumber, else 0', async () => {
+    expect(await repo.getLastPallet(FARMER)).toBe(0);
+    const col = db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('records');
+    await col.add({ palletNumber: '3' });
+    await col.add({ palletNumber: '11' });
+    await col.add({ palletNumber: '' });
+    expect(await repo.getLastPallet(FARMER)).toBe(11);
+  });
+});
+
+describe('writes', () => {
+  const rec = () => ({ palletNumber: '1', kind: 'mango', size: 'L', boxes: 10, weight: 200, sent: false, gidon: false, mark: false, harvestDate: '2026-07-13', shipmentDate: '', cardId: '', destination: '', editedBy: 'a@b.c', editedAt: '2026-07-13T00:00:00Z' });
+
+  it('appendRecord assigns a string id and stores the object', async () => {
+    const out = await repo.appendRecord(FARMER, rec());
+    expect(typeof out.id).toBe('string');
+    const back = await repo.getRecords(FARMER);
+    expect(back).toHaveLength(1);
+    expect(back[0].id).toBe(out.id);
+    expect(back[0].kind).toBe('mango');
+  });
+
+  it('updateRecord overwrites the doc at id', async () => {
+    const { id } = await repo.appendRecord(FARMER, rec());
+    await repo.updateRecord(FARMER, id, { ...rec(), weight: 999 });
+    const back = await repo.getRecords(FARMER);
+    expect(back[0].weight).toBe(999);
+  });
+
+  it('updateRecords batch-overwrites multiple docs', async () => {
+    const a = await repo.appendRecord(FARMER, rec());
+    const b = await repo.appendRecord(FARMER, rec());
+    const res = await repo.updateRecords(FARMER, [a.id, b.id], [{ ...rec(), destination: 'X' }, { ...rec(), destination: 'Y' }]);
+    expect(res.success).toBe(true);
+    const back = (await repo.getRecords(FARMER)).sort((x, y) => x.destination.localeCompare(y.destination));
+    expect(back.map(r => r.destination)).toEqual(['X', 'Y']);
+  });
+});
+
+describe('bulk status + audit', () => {
+  const rec = (extra) => ({ palletNumber: '1', sent: false, mark: false, ...extra });
+
+  it('updateSentStatus flips sent on the given ids only', async () => {
+    const a = await repo.appendRecord(FARMER, rec());
+    const b = await repo.appendRecord(FARMER, rec());
+    const out = await repo.updateSentStatus(FARMER, [a.id], true);
+    expect(out).toEqual([{ id: a.id, sent: true }]);
+    const back = await repo.getRecords(FARMER);
+    expect(back.find(r => r.id === a.id).sent).toBe(true);
+    expect(back.find(r => r.id === b.id).sent).toBe(false);
+  });
+
+  it('updateMarkStatus flips mark on the given ids', async () => {
+    const a = await repo.appendRecord(FARMER, rec());
+    const out = await repo.updateMarkStatus(FARMER, [a.id], true);
+    expect(out).toEqual([{ id: a.id, mark: true }]);
+    expect((await repo.getRecords(FARMER))[0].mark).toBe(true);
+  });
+
+  it('updateShipmentDate touches only shipmentDate + editor stamp, and rejects missing ids', async () => {
+    const a = await repo.appendRecord(FARMER, rec({ weight: 12, destination: 'X' }));
+    const b = await repo.appendRecord(FARMER, rec({ weight: 34 }));
+    const out = await repo.updateShipmentDate(FARMER, [a.id], '2026-10-12', 'a@b.c', '2026-10-08T00:00:00Z');
+    expect(out).toEqual([{ id: a.id, palletNumber: '1', shipmentDate: '2026-10-12' }]);
+    const back = await repo.getRecords(FARMER);
+    expect(back.find(r => r.id === a.id)).toMatchObject({
+      shipmentDate: '2026-10-12', editedBy: 'a@b.c', editedAt: '2026-10-08T00:00:00Z', weight: 12, destination: 'X',
+    });
+    expect(back.find(r => r.id === b.id).shipmentDate).toBeUndefined();
+    await expect(repo.updateShipmentDate(FARMER, ['nope'], '2026-10-12', 'a@b.c', 'x')).rejects.toThrow(/not found/);
+  });
+
+  it('clearCardIds resets sent + cardId and stamps the editor, leaving other fields alone', async () => {
+    const a = await repo.appendRecord(FARMER, rec({ sent: true, cardId: 999, weight: 12 }));
+    // A concurrent edit between the caller's read and this write must survive (no read-then-overwrite).
+    await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('records').doc(a.id).update({ weight: 50 });
+    await repo.clearCardIds(FARMER, [a.id], 'a@b.c', '2026-10-09T00:00:00Z');
+    const back = (await repo.getRecords(FARMER)).find(r => r.id === a.id);
+    expect(back).toMatchObject({ sent: false, cardId: '', weight: 50, editedBy: 'a@b.c', editedAt: '2026-10-09T00:00:00Z' });
+  });
+
+  it('appendAuditLog writes an audit doc', async () => {
+    await repo.appendAuditLog(FARMER, { recordId: 'r1', palletNumber: '1', action: 'קליטה', editedBy: 'a@b.c', editedAt: '2026-07-13T00:00:00Z' });
+    const snap = await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('audit').get();
+    expect(snap.size).toBe(1);
+    expect(snap.docs[0].data().action).toBe('קליטה');
+  });
+});
+
+describe('soft-deleted records', () => {
+  it('getRecords/getRecord hide deleted records; includeDeleted and getDeletedRecords show them', async () => {
+    const live = await repo.appendRecord(FARMER, { palletNumber: '71', sent: false, cardId: '' });
+    const gone = await repo.appendRecord(FARMER, { palletNumber: '72', sent: false, cardId: '' });
+    await repo.softDeleteRecord(FARMER, gone.id, 'a@b.c', '2026-10-10T00:00:00Z');
+    const ids = (await repo.getRecords(FARMER)).map(r => r.id);
+    expect(ids).toContain(live.id);
+    expect(ids).not.toContain(gone.id);
+    expect(await repo.getRecord(FARMER, gone.id)).toBeNull();
+    expect((await repo.getRecords(FARMER, { includeDeleted: true })).map(r => r.id)).toContain(gone.id);
+    expect((await repo.getDeletedRecords(FARMER)).map(r => r.id)).toEqual([gone.id]);
+    expect(await repo.getLastPallet(FARMER)).not.toBe(72);
+  });
+});
+
+describe('updateRecord vs soft delete', () => {
+  it('rejects 404 on a soft-deleted record and leaves it deleted', async () => {
+    const gone = await repo.appendRecord(FARMER, { palletNumber: '81', sent: false, cardId: '' });
+    await repo.softDeleteRecord(FARMER, gone.id, 'a@b.c', '2026-10-10T00:00:00Z');
+    await expect(repo.updateRecord(FARMER, gone.id, { palletNumber: '81', boxes: 1 })).rejects.toMatchObject({ status: 404 });
+    const stored = (await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).collection('records').doc(gone.id).get()).data();
+    expect(stored.deleted).toBe(true);
+  });
+});

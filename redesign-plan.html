@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TsuberMango — Redesign & Task Board</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
+    --ink: #e7e9ee; --dim: #9aa3b2; --mango: #f5a524; --mango2: #d98324;
+    --p0: #ef4444; --p1: #8b5cf6; --p2: #3b82f6; --p3: #2dd4bf; --done: #10b981;
+    --code: #0b0d11;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -0.4px; }
+  h2 { font-size: 21px; margin: 44px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 0; }
+  .sub { color: var(--dim); margin: 0 0 8px; }
+  a { color: var(--mango); }
+  code { background: var(--code); padding: 1px 6px; border-radius: 4px; font-size: 13px; color: #f0c987; }
+  .lead { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin: 22px 0; }
+  .lead p { margin: 8px 0; }
+
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; color: #0b0d11; }
+  .pill.p0 { background: var(--p0); color: #fff; }
+  .pill.p1 { background: var(--p1); color: #fff; }
+  .pill.p2 { background: var(--p2); color: #fff; }
+  .pill.p3 { background: var(--p3); color: #04231f; }
+  .pill.done { background: var(--done); color: #04220f; }
+  .tag { font-size: 12px; color: var(--dim); border: 1px solid var(--line); padding: 2px 8px; border-radius: 999px; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line);
+          border-radius: 10px; padding: 16px 18px; margin: 12px 0; }
+  .card.p0 { border-left-color: var(--p0); }
+  .card.p1 { border-left-color: var(--p1); }
+  .card.p2 { border-left-color: var(--p2); }
+  .card.p3 { border-left-color: var(--p3); }
+  .card .head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .num { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px;
+         border-radius: 8px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; font-size: 15px; }
+  .meta { margin-inline-start: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .card .body { color: var(--ink); }
+  .card .body p { margin: 8px 0; }
+  .card ul { margin: 8px 0; padding-inline-start: 20px; }
+  .card li { margin: 3px 0; }
+  .files { font-size: 13px; color: var(--dim); }
+  .files code { color: #9fd3ff; }
+  .he { direction: rtl; text-align: right; unicode-bidi: isolate; }
+  .why { color: var(--dim); font-size: 14px; border-top: 1px dashed var(--line); margin-top: 10px; padding-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--dim); font-weight: 600; }
+  tr:hover td { background: #14171e; }
+
+  pre { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 18px;
+        overflow-x: auto; font-size: 13px; line-height: 1.55; color: #cdd6e4; white-space: pre-wrap; }
+  .promptbox { position: relative; }
+  .copyhint { position: absolute; top: 10px; inset-inline-end: 14px; font-size: 12px; color: var(--dim); }
+  .stale { color: #f0a; }
+  .muted { color: var(--dim); }
+  .kbd { font-size: 12px; background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px;
+         border-radius: 5px; padding: 1px 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>TsuberMango — Redesign &amp; Task Board</h1>
+  <p class="sub">Season maintenance window · prioritized plan combining customer change-requests, open backlog, and the multi-tenant modularity refactor.</p>
+
+  <div class="legend">
+    <span class="pill p0">P0 — Customer CRs (this season)</span>
+    <span class="pill p1">P1 — Modularity / multi-tenant</span>
+    <span class="pill p2">P2 — Backlog high-value</span>
+    <span class="pill p3">P3 — Platform (next horizon)</span>
+  </div>
+
+  <div class="lead">
+    <p><strong>The core problem to solve alongside the CRs:</strong> the app is welded to one customer. A new farmer today needs a code edit (<code>FARMER_SPREADSHEET_IDS</code> map), a new <code>.env</code> variable, and a hand-built label spreadsheet whose cell layout is hardcoded in the backend. The label writer assumes every customer's template is byte-identical. One customer-specific flag (<code>gidon</code>) is baked into the core sheet schema. Until this is data-driven, "expand to more customers" means "re-deploy per customer."</p>
+    <p><strong>Recommended sequence (superseded 2026-07-13 — see the priority decision box below):</strong> <span class="stale">ship the 5 customer CRs first, then land the P1 modularity foundation, then resume P2 backlog.</span> Getting fully off Google Sheets (15 → 16 → 20) now comes first; the CRs and modularity work follow.</p>
+  </div>
+
+  <div class="lead" style="border-color:var(--p0)">
+    <p><strong>★ Priority decision — 2026-07-13: getting off Google Sheets is now the top priority.</strong> Made during an off-season planning session (the app is idle right now, no live pallet data to protect):</p>
+    <p style="color:var(--dim)">"Off-season collapses the migration from a 'project' to a 'cutover.' Task 16's whole cost and risk in the original plan came from doing it <em>live</em> — dual-write to both stores, compare for a week, flip reads farmer-by-farmer behind a feature flag. That ceremony exists only to protect <em>active season data</em>. With the data frozen: export every sheet once, import to Firestore, flip the reads, keep the sheets as a cold backup. Off-season the cutover is <strong>~1&ndash;1.5 weeks and low-risk</strong>, not the original '6&ndash;10 weeks, front-loaded risk' estimate."</p>
+    <p style="border-inline-start:3px solid var(--done); padding-inline-start:12px"><strong>Refinement — 2026-07-13 (fresh-start decision): there is no data to migrate.</strong> The coming season starts <em>fresh</em> on Firestore — last year's sheets are not exported, imported, or normalized; they stay in place as a read-only historical archive. That collapses task&nbsp;16 one more step, from "one-time import cutover" to simply <em>standing up <code>FirestoreRepository</code> and opening the new season on it</em>. The import/export/normalize script disappears entirely — and with it the risk (no data to corrupt) and most of the effort (<strong>~1&ndash;1.5wk → ~3&ndash;5d</strong>).</p>
+    <p><strong>One new constraint, comfortably met:</strong> 15&nbsp;+&nbsp;16 must land <em>before</em> the new season's first intake — once farmers start entering pallets, that store is the store for the year. But the off-season runway is roughly a <strong>full year against a ≤20-week total</strong> for the entire redesign, so the whole top-priority spine, the CRs, and P1 all fit before the season with wide margin. The deadline is real, not tight.</p>
+    <p><strong>Priority order is unchanged — reinforced.</strong> Fresh-start makes 15/16 cheaper and lower-risk <em>and</em> hands them the one hard deadline on the board, so they belong first even more clearly than before.</p>
+    <p><strong>Decided sequence</strong> (supersedes the old "CRs first" recommendation):</p>
+    <ol>
+      <li><strong>15 — Repository layer.</strong> Still comes first regardless of season — the cheap linchpin (~2&ndash;3d) that makes the cutover mechanical.</li>
+      <li><strong>16 — Stand up the Firestore records store (fresh-start).</strong> No import, no dual-write, no normalization pass — the new season opens directly on Firestore and last year's sheets stay as a cold archive. <strong>Ex-task 21 shrinks to almost nothing</strong> — write ISO from the first record; the only leftover is the <code>Dashboard.vue</code> "פעילות היום" <code>dd/mm</code> fix.</li>
+      <li><strong>23 — Firebase Auth + Firestore rules — pulled in alongside 16</strong> (decision: <strong>not left parked</strong>). Moving records to Firestore leaves the existing open-rules leak exactly as-is; since 16 already means being deep in the auth/Firestore layer, closing that leak in the same window is cheaper than coming back for it.</li>
+      <li><strong>20 — Shipping labels off Sheets.</strong> Records (16) alone don't get you off Sheets — the label spreadsheets are the bigger, more painful tentacle. "Off Sheets" = 16 <strong>and</strong> 20.</li>
+      <li><strong>CRs 2 / 3 / 4 / 5</strong> — now come after the above. Built directly against the Firestore-backed repository = <strong>zero throwaway work</strong>.</li>
+      <li>Everything else (6&ndash;14, 22, 24&ndash;35) keeps its existing relative order, resuming after the CRs.</li>
+      <li><strong>17 / 18 / 19 — pushed down / deprioritized.</strong> No driver reaches them yet; parked behind a confirmed second customer, now explicitly de-emphasized.</li>
+    </ol>
+    <p class="why" style="border-color:#f59e0b"><strong>⚠ Open dependency tension, not yet resolved:</strong> task 20's original spec depends on task 4 (chunking logic reused for "paginate across N label documents") and task 7 (config-driven label template) — both now scheduled <em>after</em> 20. Whoever picks up 20 needs to either build the chunking/config logic directly into it, or accept a follow-up patch once 4 and 7 land. Flag it back before starting 20.</p>
+  </div>
+
+  <h2>Ranked board (canonical task numbers)</h2>
+  <table>
+    <thead><tr><th>#</th><th>Task</th><th>Priority</th><th>Effort</th><th>Depends on</th></tr></thead>
+    <tbody>
+      <tr style="opacity:.62"><td><strong>0</strong></td><td><strong>Refresh CLAUDE.md — it is stale (run before ANY agent session)</strong> <span class="pill done">DONE</span></td><td>P0</td><td>~0.5d</td><td>do first</td></tr>
+      <tr style="opacity:.62"><td><strong>0.1</strong></td><td>Safe dependency refresh — <code>npm update</code> (in-major only; incl. axios security patch) <span class="pill done">DONE</span></td><td>P0</td><td>~0.5d</td><td>—</td></tr>
+      <tr style="opacity:.62"><td><strong>1</strong></td><td>CR#5 — Centered "problem" modals (blocking alerts) <span class="pill done">DONE</span></td><td>P0</td><td>~0.5d</td><td>0</td></tr>
+      <tr style="opacity:.62"><td>15+16</td><td>★ Firestore records layer — interface + <code>FirestoreRepository</code> + full Phase 1 namespacing <span class="tag">merged · no SheetsRepository · auto-string IDs</span> <span class="pill done">DONE</span></td><td><span class="pill p0">★ TOP</span> <span class="tag">was P3</span></td><td>~1&ndash;1.5wk</td><td><span class="pill done">DONE</span></td></tr>
+      <tr style="opacity:.62"><td>23</td><td>★ Firebase Auth migration + lock down Firestore rules <span class="tag">alongside 16, not parked</span> <span class="pill done">DONE</span></td><td><span class="pill p0">★ TOP</span> <span class="tag">was P1</span></td><td>~3&ndash;4d</td><td><span class="pill done">DONE</span> <span class="tag">shipped 2026-07-26</span></td></tr>
+      <tr style="background:#1a1508"><td>20</td><td>★ Shipping labels off Sheets — dynamic docs, log, archive &amp; bulk download</td><td><span class="pill p0">★ TOP</span> <span class="tag">was P3</span></td><td>~1&ndash;2wk</td><td>16, 7 (soft), 4 (soft — see flag above)</td></tr>
+      <tr><td>2</td><td>CR#2 — Intake: drop shipment date, enforce harvest date</td><td>P0</td><td>~0.5d</td><td>1 (soft — see card)</td></tr>
+      <tr><td>3</td><td>CR#1 — Shipment prep: pick date once + "apply to all"</td><td>P0</td><td>~1d</td><td>1; date format already canonical (via 16)</td></tr>
+      <tr><td>4</td><td>CR#4 — Certificate &gt;13 rows: auto-split into N certificates</td><td>P0</td><td>~1.5&ndash;2d</td><td>1</td></tr>
+      <tr><td>5</td><td>CR#3 — Edit destination &amp; weight after certificate issued</td><td>P0</td><td>~1&ndash;1.5d</td><td>1</td></tr>
+      <tr><td>6</td><td>Farmer registry in Firestore (kill hardcoded ID map)</td><td>P1</td><td>~2&ndash;3d</td><td>—</td></tr>
+      <tr><td>7</td><td>Config-driven shipping-label template (cells in config)</td><td>P1</td><td>~3&ndash;4d</td><td>6, ideally 4</td></tr>
+      <tr><td>8</td><td>Config-driven optional fields (generalize <code>gidon</code>)</td><td>P1</td><td>~3&ndash;4d</td><td>6</td></tr>
+      <tr><td>9</td><td>M8 — PalletTable refactor (composable + sub-components)</td><td>P2</td><td>~2&ndash;3d</td><td>do before more table features</td></tr>
+      <tr><td>10</td><td>C3 — Pagination / virtual scrolling</td><td>P2</td><td>~2&ndash;3d</td><td>9</td></tr>
+      <tr><td>11</td><td>C1 — Season management &amp; archival</td><td>P2</td><td>~5&ndash;7d</td><td>6</td></tr>
+      <tr><td>12</td><td>C4 — Automatic daily backup (Cloud Scheduler)</td><td>P2</td><td>~2&ndash;3d</td><td>—</td></tr>
+      <tr><td>13</td><td>H8 — Mobile responsiveness audit</td><td>P2</td><td>~2&ndash;3d</td><td>9</td></tr>
+      <tr><td>14</td><td>M1 — Session expiry warning <span class="stale">(very likely obsolete — 23 now lands early)</span></td><td>P2</td><td>~0.5d</td><td>—</td></tr>
+      <tr><td colspan="5" style="color:var(--dim);font-size:13px;padding-top:14px">— added from review: correctness pre-work, security, and feature ideas —</td></tr>
+      <tr><td>22</td><td>Automated test harness — bootstrap Vitest + CI (L1)</td><td>P2</td><td>~2&ndash;3d</td><td>—</td></tr>
+      <tr><td>24</td><td>Farmer-scoped roles &amp; access (H7)</td><td>P2</td><td>~4&ndash;5d</td><td>6, 23</td></tr>
+      <tr><td>25</td><td>Soft-delete a record + restore (audit-logged)</td><td>P2</td><td>~1&ndash;2d</td><td>—</td></tr>
+      <tr><td>26</td><td>Weight sanity checks (per-box range / missing-on-send)</td><td>P2</td><td>~0.5&ndash;1d</td><td>1</td></tr>
+      <tr><td>27</td><td>QR code on pallet sticker → opens record (covers L3)</td><td>P2</td><td>~1&ndash;2d</td><td>—</td></tr>
+      <tr><td>28</td><td>Pallet timeline view (surfaces the audit trail; H3 base)</td><td>P2</td><td>~1&ndash;2d</td><td>—</td></tr>
+      <tr><td>29</td><td>Global pallet / certificate search across all farmers</td><td>P2</td><td>~1d</td><td>—</td></tr>
+      <tr><td>30</td><td>Batch sticker printing + preview (covers M2)</td><td>P2</td><td>~1d</td><td>—</td></tr>
+      <tr><td>31</td><td>Stale-pallet nudges on Dashboard</td><td>P2</td><td>~1d</td><td>—</td></tr>
+      <tr><td>32</td><td>Undo last bulk action (30s revert toast)</td><td>P2</td><td>~1&ndash;2d</td><td>1</td></tr>
+      <tr><td>33</td><td>Driver manifest PDF (per destination/truck)</td><td>P2</td><td>~1&ndash;2d</td><td>—</td></tr>
+      <tr><td>34</td><td>Frontend toolchain majors — Vite 8 / plugin-vue 6, then Tailwind 4 (two contained PRs)</td><td>P2</td><td>~4&ndash;6d</td><td>after CRs, <strong>before 9</strong></td></tr>
+      <tr><td>35</td><td>Remaining major bumps — pdfmake 0.3 · vue-router 5 · firebase 12 / admin 14 · googleapis · dotenv 17</td><td>P2</td><td>~3&ndash;5d spread</td><td>anytime (maint.)</td></tr>
+      <tr><td>36</td><td>Naming cleanup — files/classes named for Sheets that no longer touch Sheets</td><td>P2</td><td>~0.5&ndash;1d</td><td><strong>6 and 20</strong> (hard)</td></tr>
+      <tr><td>17</td><td>Schema-as-data — record types &amp; field definitions <span class="stale">parked/deprioritized</span></td><td>P3</td><td>~1&ndash;2wk</td><td>16, builds on 6&ndash;8</td></tr>
+      <tr><td>18</td><td>Schema-driven forms &amp; tables (config-rendered UI) <span class="stale">parked/deprioritized</span></td><td>P3</td><td>~1&ndash;2wk</td><td>17, 9</td></tr>
+      <tr><td>19</td><td>Center (tenant) model + workflow engine + document templating <span class="stale">parked/deprioritized</span></td><td>P3</td><td>~2&ndash;3wk</td><td>17</td></tr>
+    </tbody>
+  </table>
+  <p class="muted" style="font-size:13px">Rows 15/16/23/20 are highlighted at the top on purpose — their Priority badge shows <strong>★ TOP</strong> plus their original category tag (P3 = platform-shaped work, P1 = auth/security). Row order above is the actual priority, per the 2026-07-13 decision, not the P0&ndash;P3 category tags.</p>
+  <p class="muted" style="font-size:13px">Stale items from <code>todoNow.md</code> already resolved and dropped from the board: Firestore session storage (commit <code>ec233ca</code>), Dashboard "פעילות היום" fix (see <code>done.md</code>). <span class="stale">Verify before re-opening.</span></p>
+
+  <!-- ===================== TOP PRIORITY: OFF SHEETS ===================== -->
+  <h2>★ Top priority — get off Google Sheets (decided 2026-07-13)</h2>
+  <p class="sub">See the priority-decision box above for the full rationale. This block runs <strong>before</strong> the customer CRs below.</p>
+
+  <div class="lead" style="border-color:var(--done)">
+    <p><span class="pill done">DONE</span> <strong>Cutover verified live on Firestore (2026-07-13).</strong> See <code>done.md</code> for the shipped summary. Records, audit, config, users, and farmer_events all live under <code>centers/tsuberi/…</code>; opaque string record IDs; ISO dates; write-path farmer validation added; interim Firestore rules deployed (<code>frontend/firestore.rules</code>). <strong>Residuals still on Sheets (by design):</strong> <code>googleSheetsService.js</code> is retained for farmer provisioning (<code>create-sheet</code>/<code>delete-sheet</code>), <code>refresh-cache</code>, and startup cache-warming → <strong>task&nbsp;6</strong> removes it; shipping labels → <strong>task&nbsp;20</strong>. Firestore-rule lockdown → <strong>task&nbsp;23</strong> (<span class="pill done">DONE</span> shipped 2026-07-26); real per-subdomain centerId resolution is still open.</p>
+    <p><strong>★ 15 + 16 were executed as ONE merged workstream</strong> (brainstormed 2026-07-13 → spec: <code>docs/superpowers/specs/2026-07-13-firestore-records-layer-design.md</code>). Task numbers stay canonical for cross-references, but there is <strong>no separate <code>SheetsRepository</code></strong> — fresh-start means Firestore is the first and only implementation, so the interface (15) and <code>FirestoreRepository</code> (16) land together.</p>
+    <p><strong>Locked decisions:</strong> <strong>full Phase 1 namespacing</strong> (records + audit <em>and</em> config, users, farmer_events all move under <code>centers/tsuberi/…</code>), <strong>auto-string record IDs</strong> (no counter; <code>id</code> becomes opaque), <strong>records cache dropped</strong>, centerId a constant via <code>/api/auth/me</code> (real resolution → 23), farmer provisioning → task&nbsp;6, a minimal Vitest+emulator test down-payment. <strong>Combined effort ~1&ndash;1.5wk.</strong> The 15 and 16 cards below are kept for history; the spec supersedes them where they differ.</p>
+  </div>
+
+  <div class="card p0">
+    <div class="head"><span class="num">15</span><h3>Repository layer — abstract data access</h3>
+      <div class="meta"><span class="pill p0">★ TOP</span><span class="tag">was P3</span><span class="tag">~2&ndash;3d</span><span class="tag">no behavior change</span></div></div>
+    <div class="body">
+      <p>Define a <code>RecordRepository</code> interface (<code>getRecords</code>, <code>appendRecord</code>, <code>updateRecord(s)</code>, <code>bulkUpdateStatus</code>, …). Reshape today's <code>googleSheetsService.js</code> to implement it as <code>SheetsRepository</code> without changing behavior. Controllers depend on the interface, not on Sheets directly. <strong>This is the unlock</strong> — task&nbsp;16 swaps in <code>FirestoreRepository</code>, and the parked Postgres option (see the DB decision further down) stays a mechanical swap if its trigger ever fires.</p>
+      <p class="files">Files: new <code>backend/repositories/RecordRepository.js</code> (contract) + <code>SheetsRepository.js</code> (wrap existing service); <code>controllers/sheetController.js</code> injected with the repo.</p>
+    </div>
+  </div>
+
+  <div class="card p0">
+    <div class="head"><span class="num">16</span><h3>Stand up the Firestore records store — fresh-start, no import</h3>
+      <div class="meta"><span class="pill p0">★ TOP</span><span class="tag">was P3</span><span class="tag">~3&ndash;5d</span><span class="tag">ex-task 21 → a Dashboard fix</span></div></div>
+    <div class="body">
+      <p>Implement <code>FirestoreRepository</code> against the interface from task&nbsp;15, with all data under <code>centers/{centerId}</code> (tree further down this page). Because the coming season starts <strong>fresh</strong> (2026-07-13 decision — no data to migrate), this is a <strong>standup, not a migration</strong>: no export/import/normalize step at all.</p>
+      <ul>
+        <li><strong>Phase 1 — center-aware namespacing:</strong> move <code>config/global</code>, <code>users</code>, and <code>farmer_events</code> under <code>centers/tsuberi/…</code>; frontend gets <code>centerId</code> from <code>/api/auth/me</code>. <strong>Coordinate with task&nbsp;6</strong> (the <code>farmers</code> subcollection IS that registry) <strong>and task&nbsp;23</strong> (center resolution via Firebase Auth custom claims).</li>
+        <li><strong>Fresh records store:</strong> <code>farmers/{name}/records</code> and the <code>audit</code> subcollections start <strong>empty</strong> and fill as the new season runs. Last year's sheets stay untouched as a read-only historical archive — not imported.</li>
+        <li><strong>Canonical dates from day one:</strong> write ISO <code>yyyy-mm-dd</code> from the first record — no legacy <code>dd/mm</code> vs <code>dd/mm/yyyy</code> to normalize (this is all that's left of ex-task&nbsp;21). <strong>Still update <code>Dashboard.vue</code>'s "פעילות היום" comparison</strong> — it compares <code>dd/mm</code> today, so an ISO store silently re-breaks that feed unless Dashboard is fixed too. That one-line change is the only survivor of ex-task&nbsp;21.</li>
+        <li><strong>Cutover = flip writes</strong> before the season's first intake. Nothing to re-run or roll back — there's no data yet.</li>
+      </ul>
+      <p class="why"><strong>Google Sheets has two tentacles.</strong> This task removes the <em>records</em> dependency only. The shipping-label spreadsheets are separate (task&nbsp;20) — "fully off Sheets" needs both. Once records live in Firestore, point the nightly backup (task&nbsp;12) at Firestore instead of Sheets.</p>
+      <p class="files">Files: <code>backend/repositories/FirestoreRepository.js</code>, <code>middleware/resolveCenterId</code> (custom-claims based), <code>frontend/src/utils/dates.js</code> (ISO formatting helper); <code>useFarmerEvents.js</code> + <code>App.vue</code> path updates; <code>Dashboard.vue</code>.</p>
+    </div>
+  </div>
+
+  <div class="card p0" style="border-left-color:var(--done);background:#101a14">
+    <div class="head"><span class="num" style="background:#0f2a1c">23</span><h3>Firebase Auth migration + lock down Firestore rules</h3>
+      <div class="meta"><span class="pill done">DONE</span><span class="pill p0">★ TOP</span><span class="tag">was P1</span><span class="tag">~3&ndash;4d</span><span class="tag">shipped 2026-07-26</span></div></div>
+    <div class="body">
+      <p class="why" style="border-color:var(--done)"><strong>✅ Shipped to production 2026-07-26.</strong> See <code>done.md</code> for the full summary and cutover log. Client reads of <code>config</code>/<code>farmer_events</code> are now authed + center-matched (<code>request.auth != null &amp;&amp; centerId in request.auth.token.centers</code>), replacing <code>read: if true</code>; the released ruleset was verified byte-identical to <code>frontend/firestore.rules</code>.</p>
+      <p class="why" style="border-color:var(--done)"><strong>Two things the cutover proved the plan had wrong.</strong> (1) <code>backfillAuthClaims.js</code> was a <strong>structural no-op</strong> — production Firebase Auth had zero user records, because Passport did the Google dance server-side and a Firebase Auth user only exists after the first <code>signInWithPopup</code>. Claims self-heal at first login instead: <code>/api/auth/me</code> is mounted <em>above</em> the <code>ensureCenterAccess</code> guard, so a claimless token still reaches it, gets its claim stamped, and force-refreshes before the config <code>onSnapshot</code> opens. Every user works with no manual step, whenever they first log in. (2) <strong>Rules must deploy LAST, not first</strong> — the checklist's "rules after the backfill" order rested on a safety that never existed, and would have broken the live Passport frontend. Correct order: <strong>backend → frontend → rules</strong>, since the new frontend runs fine on the old permissive rules, making the rules flip an independently reversible final step.</p>
+      <p><strong>Still deferred:</strong> <code>centerId</code> stays env-resolved (<code>CENTER_ID</code>, constant <code>'tsuberi'</code>) rather than derived from the subdomain — the <code>centers</code> claim gates which centers a user <em>may</em> access, but performs no hostname→tenant resolution. <span class="stale">The original spec below is kept for history.</span></p>
+      <p><strong>Problem:</strong> Firestore security rules leave <code>config</code> and <code>farmer_events</code> <code>read: if true</code> — world-readable. That is fine for one customer, but a <strong>data leak the moment you're multi-tenant</strong>. Cookie-based sessions are why <code>request.auth</code> is null client-side, which forced the open rules.</p>
+      <p><strong>What:</strong> execute the Firebase Auth migration already designed in <code>firebaseSession.html</code> (Passport/express-session → Firebase ID tokens, <code>verifyFirebaseToken</code> middleware, <code>onAuthStateChanged</code> router guard). With real <code>request.auth</code>, tighten Firestore rules to per-tenant/per-user reads.</p>
+      <p class="why" style="border-color:var(--done)"><strong>2026-07-13 decision:</strong> pulled in alongside task&nbsp;16 rather than left parked — moving records to Firestore leaves this rules leak exactly as-is (not worse, not fixed); since 16 already means being deep in the auth/Firestore layer, closing the leak in the same window is cheaper than a separate pass later. Resolve the center from the subdomain at login and stamp it as a Firebase Auth custom claim; middleware and Firestore rules both read the claim.</p>
+      <p class="files">Files: per <code>firebaseSession.html</code> — <code>server.js</code>, auth middleware, <code>Login.vue</code>, router guard, <code>App.vue</code>, <code>firestore.rules</code>.</p>
+    </div>
+  </div>
+
+  <div class="card p0">
+    <div class="head"><span class="num">20</span><h3>Shipping labels off Sheets — dynamic docs + label log + archive &amp; bulk download</h3>
+      <div class="meta"><span class="pill p0">★ TOP</span><span class="tag">was P3</span><span class="tag">~1&ndash;2wk</span><span class="tag">the 2nd half of Sheets offboarding</span></div></div>
+    <div class="body">
+      <p><strong>Problem:</strong> a shipping label today <em>is</em> a Google Sheet — a copied <code>base</code> tab, number in cell <code>D7</code>, data written cell-by-cell. No queryable history, no independent backup, no bulk pull.</p>
+      <ul>
+        <li><strong>Dynamic generation:</strong> render each label server-side (HTML→PDF or <code>pdfmake</code>, already wired for stickers) from a config template — no spreadsheet involved.</li>
+        <li><strong>DB-issued numbering:</strong> a Firestore transactional counter (<code>centers/{id}/counters</code>) per farmer, replacing the fragile <code>D7</code> cell increment.</li>
+        <li><strong>Persistent label log:</strong> every generated label writes a <code>documents</code> doc (number, farmer, buyer, shipment date, record ids, generated_by, timestamp, status, artifact path).</li>
+        <li><strong>Artifact storage + backup:</strong> rendered PDFs in a GCS bucket; extend the nightly backup (task&nbsp;12) to cover it.</li>
+        <li><strong>Archive &amp; bulk download UI:</strong> admin "תעודות" screen — filters, multi-select → ZIP/merged PDF, re-download any one.</li>
+      </ul>
+      <p class="files">Files: new <code>backend/services/labelService.js</code> + <code>documentService.js</code>, GCS client, <code>documents</code> collection; new <code>frontend/src/components/Labels.vue</code>; <strong>retire</strong> <code>shippingLabelsService.js</code> and all <code>SHIPPING_LABELS_ID_*</code> env vars.</p>
+      <p class="why" style="border-color:#f59e0b"><strong>⚠ See the open dependency-tension flag in the priority-decision box above</strong> before starting — this task's original spec assumed tasks 4 and 7 already existed.</p>
+    </div>
+  </div>
+
+  <!-- ===================== P0 ===================== -->
+  <h2>P0 — Customer change requests</h2>
+  <p class="sub">Now runs after the top-priority Sheets migration above — see the 2026-07-13 decision.</p>
+
+  <div class="card p0" style="border-left-color:var(--done);background:#101a14">
+    <div class="head"><span class="num" style="background:#0f2a1c">0</span><h3>Pre-flight: refresh CLAUDE.md before any agent session</h3>
+      <div class="meta"><span class="pill done">DONE</span><span class="tag">~0.5d</span></div></div>
+    <div class="body">
+      <p><strong>Why this was task 0:</strong> agents are told to treat <code>CLAUDE.md</code> as authoritative, but it had drifted from the code. An agent that reads it works from wrong facts.</p>
+      <p><strong>Resolved</strong> — reconciled <code>CLAUDE.md</code> against the codebase. Each claim was verified against source, not just <code>done.md</code>. Fixes:</p>
+      <ul>
+        <li>✅ Routes table now lists <code>/Dashboard</code> (admin landing) and <code>/Intake</code> (was <code>/</code>); documented that no <code>/</code> route exists and the real guard/redirect behavior.</li>
+        <li>✅ Deleted the stale "Known Issues" entry — <code>getRowsByPallet</code> is implemented and the <code>/records/pallet/:palletNumber</code> endpoint works.</li>
+        <li>✅ Auth section rewritten: authorization reads the Firestore <code>users</code> collection (<code>users.json</code> is a first-boot seed only), plus Firestore-backed session storage and <code>seedUsersIfEmpty()</code> startup behavior.</li>
+        <li>✅ Verified caching (accurate), real-time, and endpoint tables against current code; added the missing <code>/api/auth/unauthorized</code> and Cloud-Scheduler <code>/api/internal/backup</code> (OIDC, bypasses session guard) endpoints.</li>
+      </ul>
+      <p><strong>Improvements beyond the fix:</strong> added <code>backupService.js</code>, <code>Dashboard.vue</code>, the <code>components/shared/</code> primitives, and <code>useNotification.js</code> to the structure; added the <code>sessions</code> Firestore collection and the <code>FRONT</code> / <code>CLOUD_RUN_SERVICE_URL</code> / <code>CRON_SECRET</code> env vars; corrected the stale "edit users.json manually" rule.</p>
+      <p class="why" style="border-color:var(--done)"><strong>Left intentionally as-is:</strong> the note that Firestore rules leave <code>config</code>/<code>farmer_events</code> <code>read: if true</code> was accurate when task&nbsp;0 ran — that was the leak <strong>task&nbsp;23</strong> closes, not stale drift. <span class="stale">Since closed: task&nbsp;23 shipped 2026-07-26 and those reads are now claim-gated.</span></p>
+      <p class="files">Files: <code>CLAUDE.md</code>.</p>
+    </div>
+  </div>
+
+  <div class="card p0" style="border-left-color:var(--done);background:#101a14">
+    <div class="head"><span class="num" style="background:#0f2a1c">0.1</span><h3>Safe dependency refresh — the in-major set only</h3>
+      <div class="meta"><span class="pill done">DONE</span><span class="tag">~0.5d</span></div></div>
+    <div class="body">
+      <p><strong>Resolved</strong> — <code>npm update</code> ran on both sides within existing <code>^</code> ranges; lockfile-only, no source changes (branch <code>chore/dep-refresh-0.1</code>, one commit per side).</p>
+      <ul>
+        <li>✅ <strong>axios 1.8.4 → 1.18.1</strong> — the targeted security patch (redirect credential leakage, SSRF, ReDoS) is closed.</li>
+        <li>✅ Frontend also: <code>firebase 11.6→11.10</code>, <code>vue 3.5.12→3.5.39</code>, <code>vue-router 4.0→4.6</code>, <code>vite 5.4.11→5.4.21</code>, <code>@vitejs/plugin-vue 5.1→5.2</code>, <code>tailwindcss 3.4.14→3.4.19</code>, <code>pdfmake 0.2.18→0.2.23</code>, postcss/autoprefixer patches. Production <code>vite build</code> passes.</li>
+        <li>✅ Backend also: <code>express 5.1→5.2</code>, <code>express-session 1.18→1.19</code>, <code>firebase-admin 13.8→13.10</code>, <code>@google-cloud/storage 7.19→7.21</code>, <code>winston 3.17→3.19</code>, <code>nodemon 3.1.9→3.1.14</code>, cors/dotenv patches. All deps load; entry/service/controller files syntax-check clean.</li>
+      </ul>
+      <p class="why" style="border-color:var(--done)"><strong>Audit — remaining findings are out of in-major scope, not regressions:</strong> frontend <code>esbuild</code> (moderate, dev-server only → needs vite 8, task&nbsp;34) and <code>xlsx</code> (high ×2, no npm fix published); backend 10 moderate all rooted in transitive <code>uuid&lt;11.1.1</code> in the Google client stack whose only fix is <code>googleapis@173</code> (breaking → task&nbsp;35). Force-fixing any would break the in-major boundary.</p>
+      <p class="why" style="border-color:#f59e0b"><strong>⚠ Manual smoke test still owed:</strong> no automated net (task&nbsp;22). Build + dep-load are verified programmatically, but the live pass — login/session (<code>withCredentials</code>), one Sheets read+write, real-time flash, one sticker PDF, one shipping label — must be run against real creds before this ships to <code>main</code>.</p>
+      <p class="files">Files: <code>frontend/package-lock.json</code>, <code>backend/package-lock.json</code>. Manifests unchanged (ranges already permitted the new versions).</p>
+    </div>
+  </div>
+
+  <div class="card p0" style="border-left-color:var(--done);background:#101a14">
+    <div class="head"><span class="num" style="background:#0f2a1c">1</span><h3>Centered "problem" modals — blocking alert dialogs</h3>
+      <div class="meta"><span class="tag">CR#5</span><span class="pill done">DONE</span><span class="tag">~0.5d</span></div></div>
+    <p class="he">חלונות קופצים באמצע המסך שנראה אם יש בעיה.</p>
+    <div class="body">
+      <p><strong>Resolved</strong> — promoted confirm/alert into an app-level shared mechanism. New <code>composables/useDialogs.js</code> (module singleton, promise-based <code>requestAlert()</code> / <code>requestConfirm()</code> with <code>{title, message, details, variant}</code>; one dialog at a time). New <code>shared/AlertModal.vue</code> (single <code>הבנתי</code> button, <code>error | warning | info</code> variants) styled as a twin of the existing <code>ConfirmModal.vue</code>. New <code>shared/DialogHost.vue</code> mounted once in <code>App.vue</code> renders the active modal, resolves the promise, and handles backdrop-click + <kbd class="kbd">Esc</kbd> dismissal.</p>
+      <ul>
+        <li>✅ Extracted the bulk-destination confirm out of <code>PalletTable.vue</code> — removed the inline <code>&lt;ConfirmModal&gt;</code>, the local <code>confirmModal</code> state, and the <code>requestConfirm</code> method; <code>confirmBulkAction</code> now awaits the shared <code>requestConfirm</code> (emerald/amber preserved).</li>
+        <li>✅ Routed hard failures through <code>requestAlert</code>: label-creation error + validation blockers (<code>שדות חסרים</code>, mixed-destination) in <code>sendSelectedPallets</code>, and <code>PalletInput</code>'s server submit error — replacing easy-to-miss corner toasts.</li>
+        <li>✅ Verified live (isolated harness): centered render, backdrop blur, RTL, variant colors, and button/backdrop/Escape resolution for both confirm outcomes. Prod build passes.</li>
+      </ul>
+      <p class="why" style="border-color:var(--done)"><strong>Tests deferred:</strong> no Vitest harness yet — automated coverage for <code>useDialogs</code> lands with task&nbsp;22. Spec: <code>docs/superpowers/specs/2026-07-13-blocking-dialogs-design.md</code>. This is now the standard error surface CR#3/CR#4 lean on.</p>
+    </div>
+  </div>
+
+  <div class="card p0">
+    <div class="head"><span class="num">2</span><h3>Intake: remove shipment date, enforce harvest date</h3>
+      <div class="meta"><span class="tag">CR#2</span><span class="pill p0">P0</span><span class="tag">~0.5d</span></div></div>
+    <p class="he">קליטת משטחים — להשאיר בלי תאריך (משלוח) ולהוסיף חיוב הוספת תאריך קטיף.</p>
+    <div class="body">
+      <p><strong>What:</strong> On the intake (קליטה) form, shipment date is set later at shipment prep — not at intake. Harvest date must be mandatory.</p>
+      <p><strong>How:</strong> Remove the shipment-date field ([PalletInput.vue:137-140](frontend/src/components/PalletInput.vue#L137-L140)) and its reset/format lines (<code>formData.shipmentDate</code> at 344/388/405-406). Harvest date input already carries <code>required</code> (line 59), which blocks submit natively — so the dependency on task&nbsp;1 is <strong>soft</strong>: if 1 hasn't landed yet, ship with native validation and add the Hebrew modal error later; if it has, route the guard through <code>requestAlert()</code>.</p>
+      <p class="files">Files: <code>frontend/src/components/PalletInput.vue</code> only.</p>
+      <p class="why"><strong>Note:</strong> mostly a subtraction — verify no downstream report assumes intake writes a shipment date.</p>
+    </div>
+  </div>
+
+  <div class="card p0">
+    <div class="head"><span class="num">3</span><h3>Shipment prep: pick date once + "apply to all"</h3>
+      <div class="meta"><span class="tag">CR#1</span><span class="pill p0">P0</span><span class="tag">~1d</span></div></div>
+    <p class="he">בהכנה למשלוח — בחירת תאריך פעם אחת + לחצן "החל על הכל" כך שכל המשטחים יהיו על אותו תאריך.</p>
+    <div class="body">
+      <p><strong>What:</strong> In the shipment-prep view (where pallets are selected for a certificate), one date picker + a "החל על הכל" button stamps the chosen shipment date onto every selected pallet in one action.</p>
+      <p><strong>How:</strong> Add a small bulk-date toolbar to the selection UI in [PalletTable.vue](frontend/src/components/PalletTable.vue) (near the label/toolbar block). On click: set <code>shipmentDate</code> on all <code>selectedPallets</code> locally, then persist. Confirm the count through task&nbsp;1's modal first.</p>
+      <p class="why" style="border-color:#f59e0b"><strong>⚠ Do NOT reuse <code>PUT /records/updatemany</code> naively.</strong> That controller validates the whole row and <strong>rejects pallets with missing/zero weight or boxes</strong> — if a user sets the shipment date <em>before</em> weighing (the normal order), "apply to all" 400s. It also overwrites the entire row, which risks clobbering concurrent edits (a risk task&nbsp;5 makes worse). <strong>Recommended:</strong> add a narrow <code>updateShipmentDateForPallets</code> endpoint that touches only that column — mirror the existing <code>updateSentStatusForPallets</code> / <code>updateSendToDestinationPallets</code> pattern (partial-column update, its own append-lock, its own Firestore event).</p>
+      <p class="why"><strong>Date format:</strong> already settled by the time this task runs — task&nbsp;16 makes canonical ISO <code>yyyy-mm-dd</code> the store's native format from day one (fresh-start, no legacy dates), ahead of the CRs in the new sequencing, so no separate decision needed here (ex-task&nbsp;21 is gone — shrank into 16's Dashboard fix).</p>
+      <p class="files">Files: <code>frontend/src/components/PalletTable.vue</code>; new <code>updateShipmentDateForPallets</code> in the repository/service + <code>sheetController.js</code> + a route.</p>
+    </div>
+  </div>
+
+  <div class="card p0">
+    <div class="head"><span class="num">4</span><h3>Certificate &gt;13 rows — auto-split into multiple certificates</h3>
+      <div class="meta"><span class="tag">CR#4</span><span class="pill p0">P0</span><span class="tag">~1.5&ndash;2d</span></div></div>
+    <p class="he">הפקת תעודת משלוח למעל 13 שורות — אפשרות פיצול ל-2 תעודות אוטומטית.</p>
+    <div class="body">
+      <p><strong>What:</strong> The label template holds 13 rows (rows 11&ndash;23). Today &gt;13 pallets is a hard block. Instead, chunk into groups of 13 and emit one certificate per chunk automatically.</p>
+      <p><strong>How:</strong>
+      <ul>
+        <li>Remove the &gt;13 disable in <code>isCreateLabelAllowed</code> ([PalletTable.vue:374](frontend/src/components/PalletTable.vue#L374)); allow any count &gt; 0.</li>
+        <li><strong>Chunk by pallet-number GROUP, not by raw row.</strong> The label sheet counts unique wooden pallets (the <code>C24</code> <code>=COUNTA(UNIQUE(...))</code> formula and the "1" written in column&nbsp;C for the first row of each pallet). If two rows that share a pallet number land in different chunks, the wooden-pallet count is wrong on both certificates. Group rows by <code>palletNumber</code> first, then bin whole groups into certificates of ≤13 rows.</li>
+        <li>Backend: chunk in <code>createNewShippingLabel</code>; for each chunk run the base-copy + write flow, returning an array of created certificate names/ids. Keep the single-destination guard per chunk.</li>
+        <li><strong>Make it atomic — move the record update into the backend.</strong> Today the frontend creates the label then separately calls <code>updatemany</code> to stamp <code>cardId</code>/<code>sent</code>; if that second call fails you get an <em>orphan certificate</em>. With N chunks this multiplies. Have the backend flow write the label AND stamp the records' <code>cardId</code> per chunk in one transaction-ish path, returning the final state.</li>
+        <li><strong>Fix the numbering race.</strong> The certificate number is a read-increment-write on cell <code>D7</code> — two concurrent creations can mint the same number. Reuse the per-farmer append-lock pattern already built for Sheets writes (commit <code>94b2272</code>) around the increment.</li>
+        <li>Frontend: map each returned certificate number back to the correct chunk's pallets (currently one <code>res.result.name</code> is assigned to all).</li>
+        <li>Surface a <strong>split preview in the confirm modal</strong> before creating: "ייווצרו 2 תעודות: 13 + 4".</li>
+        <li>On success, show "נוצרו N תעודות" and a <strong>"פתח תעודה" link</strong> straight to each created sheet tab (today users hunt for it in Google Sheets — free win, replaced later by task&nbsp;20's archive).</li>
+        <li><strong>Write the Firestore label log now.</strong> Emit one fire-and-forget doc per created certificate (number, farmer, pallet ids, date, creator) — same fire-and-forget style as the audit events. Gives "log of all labels ever" from day one, so task&nbsp;20's archive UI opens with history instead of empty. Fits naturally into this backend work.</li>
+      </ul></p>
+      <p class="why" style="border-color:#f59e0b"><strong>ASK THE CUSTOMER before building:</strong> with auto-split, should mixed destinations still hard-fail, or auto-split by destination too (one certificate per destination)? Cheap to ask now, changes the chunking rule.</p>
+      <p class="why" style="border-color:#f59e0b"><strong>⚠ Sequencing note (2026-07-13):</strong> task&nbsp;20 (shipping labels off Sheets) is now scheduled <em>before</em> this task, and 20's original spec assumed this task's chunking logic already existed. See the open dependency-tension flag in the priority-decision box near the top of this page.</p>
+      <p class="files">Files: <code>backend/controllers/labelController.js</code>, <code>backend/services/shippingLabelsService.js</code>, <code>firestoreEventService.js</code> (label-log emit), <code>frontend/src/components/PalletTable.vue</code>.</p>
+      <p class="why"><strong>Why:</strong> a real operational blocker — large shipments currently can't produce a certificate at all.</p>
+    </div>
+  </div>
+
+  <div class="card p0">
+    <div class="head"><span class="num">5</span><h3>Edit destination &amp; weight after certificate issued</h3>
+      <div class="meta"><span class="tag">CR#3</span><span class="pill p0">P0</span><span class="tag">~1&ndash;1.5d</span></div></div>
+    <p class="he">אפשרות לשנות יעד ומשקל גם אחרי הנפקת תעודה (שינויי מיקום ומשקל שקורים כשהמשטח כבר יצא).</p>
+    <div class="body">
+      <p><strong>What:</strong> After a pallet is marked sent / a certificate is issued, weight and destination can still change in reality. Allow editing both post-issuance, safely and auditably.</p>
+      <p><strong>How:</strong>
+      <ul>
+        <li><strong>Resolved during review: nothing locks sent rows today.</strong> The edit button renders for every non-context row wherever <code>isEditable</code> is true (Weight, SentPallets), so post-issuance editing already works mechanically. The task is therefore just: (a)&nbsp;gate edits on sent rows behind a warning modal (task&nbsp;1): "המשטח כבר יצא — לשנות בכל זאת?", and (b)&nbsp;the certificate-resync decision below. Effort reduced from ~2&ndash;3d accordingly.</li>
+        <li>Persist via the existing single-record <code>PUT /records/:id</code> (already stamps <code>editedBy</code>/<code>editedAt</code> → audit trail covers the change).</li>
+        <li>Decide certificate resync policy: the label spreadsheet was already written from a snapshot. Options — (a) leave the printed certificate as-is and only correct the source record, or (b) offer "עדכן תעודה" to rewrite the matching row on the label sheet. Recommend (a) for v1 with a visible "התעודה הופקה לפני השינוי" indicator; (b) as a follow-up.</li>
+      </ul></p>
+      <p class="files">Files: <code>frontend/src/components/PalletTable.vue</code>; <code>backend/controllers/sheetController.js</code> (already supports update). Label rewrite (option b) → <code>shippingLabelsService.js</code>.</p>
+      <p class="why"><strong>Why:</strong> largest CR — real-world weight/location corrections happen after dispatch; today the record is effectively frozen at issuance.</p>
+    </div>
+  </div>
+
+  <!-- ===================== P1 ===================== -->
+  <h2>P1 — Modularity &amp; multi-tenant foundation</h2>
+  <p class="sub">Turn the three hardcoded single-customer couplings into data-driven config so a new farmer is an admin action, not a deploy. <span class="stale">Task 23, formerly listed here, has moved up to the top-priority Sheets-migration block.</span></p>
+
+  <div class="card p1">
+    <div class="head"><span class="num">6</span><h3>Farmer registry in Firestore — kill the hardcoded ID map</h3>
+      <div class="meta"><span class="pill p1">P1</span><span class="tag">~2&ndash;3d</span></div></div>
+    <div class="body">
+      <p><strong>Problem:</strong> <code>FARMER_SPREADSHEET_IDS</code> ([shippingLabelsService.js:5-13](backend/services/shippingLabelsService.js#L5-L13)) and per-farmer <code>SHIPPING_LABELS_ID_*</code> env vars mean adding a farmer = edit code + add env var + redeploy.</p>
+      <p><strong>What:</strong> A <code>farmers</code> collection (or extend <code>config/global.farmerConfigs</code>) holding per-farmer: <code>displayName</code>, <code>sheetName</code>, <code>shippingLabelsSpreadsheetId</code>, feature flags. <code>getSpreadsheetIdByFarmer()</code> reads from this (cached), not from the env map. Admin "ניהול חקלאים" section in <code>Settings.vue</code> to add/edit farmers.</p>
+      <p><strong>How:</strong> load registry at startup + cache like <code>cachedSheetNames</code>; invalidate on the admin write; keep env vars as a migration fallback for one release. New admin endpoints <code>GET/POST/PUT /api/admin/farmers</code> mirroring the existing users endpoints.</p>
+      <p class="why" style="border-color:#f59e0b"><strong>⚠ Fix the silent fallback.</strong> <code>getSpreadsheetIdByFarmer()</code> currently returns Tsuberi's spreadsheet for any unknown farmer — so a new/misspelled farmer's certificates get written into another customer's file. Make it <strong>fail loudly</strong> (throw / 400) instead of defaulting. This is a data-leak-shaped bug that gets worse the moment there's a second customer.</p>
+      <p class="why"><strong>Design note (for task 24):</strong> shape the farmer record with "users linked to a farmer" in mind — a nullable <code>ownerEmails</code> / <code>accountId</code> field — even though farmer-scoped access (task&nbsp;24) ships later. Cheap to reserve, painful to retrofit.</p>
+      <p class="why" style="border-color:var(--done)"><strong>DB decision ripple:</strong> this registry IS the <code>farmers</code> subcollection from the adopted Firestore architecture. Build it as <code>centers/tsuberi/farmers/{name}</code> from day one (or trivially movable to that path) — then it doubles as Phase&nbsp;1 of task&nbsp;16 instead of being migrated twice.</p>
+      <p class="files">Files: <code>backend/services/shippingLabelsService.js</code>, <code>backend/services/googleSheetsService.js</code>, <code>routes/sheetRoutes.js</code>, <code>frontend/src/components/Settings.vue</code>, Firestore.</p>
+    </div>
+  </div>
+
+  <div class="card p1">
+    <div class="head"><span class="num">7</span><h3>Config-driven shipping-label template</h3>
+      <div class="meta"><span class="pill p1">P1</span><span class="tag">~3&ndash;4d</span></div></div>
+    <div class="body">
+      <p><strong>Problem:</strong> <code>writeShippingDataToSheet</code> hardcodes cell coordinates (date→B6, destination→B8, count→C24, data→row 11, id→D7) and column order. Any customer whose template differs breaks silently.</p>
+      <p><strong>What:</strong> A per-farmer (or per-template) <code>labelTemplate</code> config: <code>{ idCell, dateCell, destinationCell, countCell, dataStartRow, rowsPerCert, columnMap }</code>. The writer reads coordinates from config instead of literals.</p>
+      <p><strong>How:</strong> refactor the batch-update builder to iterate <code>columnMap</code> and use configured cells; keep the current values as the default template so behavior is identical for the existing customer. Best done right after task&nbsp;4 so the chunking + config land together and the label code is only reworked once.</p>
+      <p class="files">Files: <code>backend/services/shippingLabelsService.js</code>, template config in Firestore.</p>
+    </div>
+  </div>
+
+  <div class="card p1">
+    <div class="head"><span class="num">8</span><h3>Config-driven optional fields — generalize <code>gidon</code></h3>
+      <div class="meta"><span class="pill p1">P1</span><span class="tag">~3&ndash;4d</span></div></div>
+    <div class="body">
+      <p><strong>Problem:</strong> <code>gidon</code> (column L) is a single-customer flag hardwired into the core schema, <code>SheetModel</code>, and <code>farmerConfigs: { "גבי צוברי": { allowGidon: true } }</code>. Any customer-specific field today means schema surgery.</p>
+      <p><strong>What:</strong> Represent customer-specific booleans/fields as declarative config (<code>customFields: [{ key, label, type, column }]</code>) driven off the farmer registry (task&nbsp;6). The table, intake form, and model read the list rather than naming <code>gidon</code> directly.</p>
+      <p><strong>How:</strong> incremental — keep <code>gidon</code> working, add the generic path alongside, then express <code>gidon</code> through it as the first migrated field. Column A&ndash;O layout stays; custom fields map to reserved columns per template.</p>
+      <p class="files">Files: <code>backend/models/sheetModel.js</code>, <code>googleSheetsService.js</code>, <code>frontend/src/data/data.js</code>, <code>PalletInput.vue</code>, <code>PalletTable.vue</code>.</p>
+      <p class="why"><strong>Note:</strong> lower urgency than 6/7 — do only when a second customer actually needs a distinct field.</p>
+    </div>
+  </div>
+
+  <!-- ===================== P2 ===================== -->
+  <h2>P2 — Backlog high-value (resume after P0/P1)</h2>
+
+  <div class="card p2">
+    <div class="head"><span class="num">9</span><h3>PalletTable refactor (M8)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~2&ndash;3d</span></div></div>
+    <div class="body">
+      <p><code>PalletTable.vue</code> is ~880 lines and growing, owning inline edit, sort, search, bulk-select, filtering, label creation, and toolbars. Extract <code>usePalletTableState</code> composable + <code>PalletTableToolbar.vue</code> + <code>PalletTableRow.vue</code>; main file becomes a thin orchestrator. <strong>Do this before 10/13</strong> — CRs 1/3/4 also touch this file, so consider extracting only after those land to avoid churn.</p>
+    </div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">10</span><h3>Pagination / virtual scrolling (C3)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~2&ndash;3d</span></div></div>
+    <div class="body"><p>Server-side pagination on <code>GET /records</code> or <code>useVirtualList</code> in the table; Hebrew row counter "מציג 50 מתוך 347". Depends on task&nbsp;9.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">11</span><h3>Season management &amp; archival (C1)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~5&ndash;7d</span></div></div>
+    <div class="body"><p>Firestore <code>seasons</code> concept, "close season" that archives tabs (<code>{farmer}_2025</code>) and opens fresh ones, season selector, auto summary on close. Pairs with the farmer registry (task&nbsp;6) and replaces the manual <code>NEW_SEASON.md</code> ritual.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">12</span><h3>Automatic daily backup (C4)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~2&ndash;3d</span></div></div>
+    <div class="body"><p>Cloud Scheduler nightly export of all active-season sheets → JSON in GCS; admin "גיבויים" list. Endpoints already scaffolded (<code>/api/admin/backup</code>, <code>/api/admin/backups</code>) per CLAUDE.md — see <code>backend/CLOUD_SCHEDULER.md</code>. After task&nbsp;16, the export source becomes the Firestore <code>records</code> subcollections instead of Sheets.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">13</span><h3>Mobile responsiveness audit (H8)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~2&ndash;3d</span></div></div>
+    <div class="body"><p>Audit at 390px / 768px; collapse low-priority table columns, ≥44px tap targets, stack bulk toolbar. Depends on task&nbsp;9.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">14</span><h3>Session expiry warning (M1)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~0.5d</span><span class="tag stale">very likely obsolete — 23 now lands early</span></div></div>
+    <div class="body"><p>On 401, set <code>sessionExpired</code> in <code>sessionStorage</code> and show a Hebrew banner on Login. <span class="stale">Re-scope first</span> — Firestore session storage already landed; confirm what expiry behavior remains. <strong>Very likely to skip entirely:</strong> task&nbsp;23 (Firebase Auth) now ships early in the new top-priority sequencing — ID tokens auto-refresh, so "session expiry" mostly stops existing as a concept by the time this task would start.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">22</span><h3>Automated test harness (L1)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~2&ndash;3d</span></div></div>
+    <div class="body"><p>Bootstrap this <strong>once, deliberately</strong> — not ad hoc per task. Vitest for backend (<code>sheetModel</code> validation, the new chunking/date utils, controller error paths) + Vitest/Vue Test Utils for <code>PalletInput</code> and <code>PalletTable</code> filter/sort. GitHub Actions CI on push. The chunking (task&nbsp;4) is exactly the kind of thing that must have tests. (The task&nbsp;16 migration/normalization script that used to be the other flagship target no longer exists — fresh-start dropped the import.)</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">34</span><h3>Frontend toolchain majors — do them <em>before</em> the frontend refactors</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~4&ndash;6d</span><span class="tag">after CRs · before 9</span></div></div>
+    <div class="body">
+      <p><strong>Why these two are early, not gated on tests:</strong> their blast radius <em>grows with the code you write</em>. Every component the P2 cluster adds or restyles — the PalletTable refactor (task&nbsp;9), virtual scroll (10), mobile audit (13) — is more surface a later Tailwind migration has to redo. Land the toolchain first and that work is written once, on the new versions. And unit tests (task&nbsp;22) are the <em>wrong</em> net here: they don't catch a broken <code>mango</code> palette — CSS regressions need visual QA, so there's no reason to wait for task&nbsp;22.</p>
+      <p><strong>Sequencing:</strong> not mid-season — ship the P0 CRs first (their Tailwind footprint is small and cheap to re-migrate). Then, in the quiet window before task&nbsp;9, do <strong>two separate contained PRs</strong> (keep each isolated so a regression is obvious): <strong>(1)</strong> Vite&nbsp;8 + plugin-vue&nbsp;6 — config-level, de-risks the build first; <strong>(2)</strong> Tailwind&nbsp;4 — CSS-wide, rides the now-settled Vite plugin.</p>
+      <table>
+        <thead><tr><th>Upgrade</th><th>Risk</th><th>What breaks / why</th></tr></thead>
+        <tbody>
+          <tr><td><code>vite</code> 5→8 <span class="muted">(+ plugin-vue 6)</span></td><td style="color:var(--mango)">Med-High</td><td>Three majors compounded — Node-version floors, default browser targets, Environment API, config changes across 6/7/8. Move <code>@vitejs/plugin-vue</code> to 6 in lockstep. Test <code>build</code> + <code>preview</code>, not just <code>dev</code>. Do this one first.</td></tr>
+          <tr><td><code>tailwindcss</code> 3→4</td><td style="color:var(--p0)">High</td><td>Ground-up rewrite: CSS-first config replaces most of <code>tailwind.config.js</code>, <code>@tailwind</code>→<code>@import "tailwindcss"</code>, PostCSS plugin moves to <code>@tailwindcss/postcss</code>, default palette changed, deprecated utilities removed. With the custom <code>mango</code>/<code>sidebar</code> palette and Tailwind-only styling, this is a migration project. (Works on Vite&nbsp;5+, so Vite&nbsp;8 isn't a hard prereq — but doing them in one window means one build re-verification.)</td></tr>
+        </tbody>
+      </table>
+      <p class="files">Files: <code>frontend/package.json</code> + lockfile, <code>vite.config.js</code>, <code>tailwind.config.js</code> → CSS entry / <code>@theme</code>, PostCSS config; visual pass over every page.</p>
+    </div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">35</span><h3>Remaining major bumps — maintenance, anytime</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~3&ndash;5d spread</span><span class="tag">no urgency</span></div></div>
+    <div class="body">
+      <p>The opposite of task&nbsp;34: these are config/environment-level, so their cost <em>doesn't grow with app code</em> — waiting is free, and there's no reason to rush them before the big changes. <strong>Don't batch them</strong> — one PR each so a regression is traceable. The router/service ones do benefit from task&nbsp;22's JS tests; the rest are pure manual smoke test. Ranked by pain:</p>
+      <table>
+        <thead><tr><th>Upgrade</th><th>Risk</th><th>What breaks / why</th></tr></thead>
+        <tbody>
+          <tr><td><code>pdfmake</code> 0.2→0.3</td><td style="color:var(--mango)">Med</td><td>0.x → a minor is breaking. Changed vfs/build handling directly threatens the custom <code>vfs_fonts</code> + lazy-load <code>pdfMake.vfs = pdfFonts</code> pattern. Sticker-PDF only (labels are Sheets-based) — but load-bearing; careful QA.</td></tr>
+          <tr><td><code>vue-router</code> 4→5</td><td style="color:#eab308">Med</td><td>Navigation-guard API changes affect the <code>beforeEach</code>/<code>next()</code> guard. Router is ~100 lines, so contained — rewrite the guard, test every redirect.</td></tr>
+          <tr><td><code>firebase</code> 11→12 · <code>firebase-admin</code> 13→14</td><td style="color:#eab308">Low-Med</td><td>Modular API is stable, so app code likely fine — risk is environment/peer (min Node/browser floors). Check Cloud Run's Node version before admin&nbsp;14.</td></tr>
+          <tr><td><code>googleapis</code> 148→173</td><td style="color:#eab308">Low-Med</td><td>25 majors, but this package auto-bumps major on every regeneration; Sheets&nbsp;v4 usage is narrow and stable. Test the read/write path.</td></tr>
+          <tr><td><code>dotenv</code> 16→17</td><td style="color:var(--done)">Low</td><td>Trivial; v17 mainly added a startup log line. Safe whenever.</td></tr>
+        </tbody>
+      </table>
+      <p class="files">Files: both <code>package.json</code>s + lockfiles; per-upgrade touchpoints (<code>router.js</code>, <code>printData.js</code>/<code>vfs_fonts.js</code>, <code>googleSheetsService.js</code>).</p>
+    </div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">36</span><h3>Naming cleanup — files and identifiers should say what they do</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~0.5&ndash;1d</span><span class="tag">after 6 + 20</span></div></div>
+    <div class="body">
+      <p>The Sheets→Firestore migration (15/16) renamed the storage layer but not its callers. <code>sheetController.js</code> hasn't touched a spreadsheet since the cutover; <code>SheetModel</code> is a pallet record; <code>sheetRoutes.js</code> serves records <em>and</em> shipping <em>and</em> destinations. Someone opening <code>controllers/sheetController.js</code> reasonably concludes the app is Sheets-backed — and here that's <em>half</em> right, which is worse than plainly wrong, because Sheets really does still exist for labels.</p>
+      <table>
+        <thead><tr><th>Now</th><th>Proposed</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td><code>controllers/sheetController.js</code></td><td><code>recordController.js</code></td><td>601 lines, the biggest backend file</td></tr>
+          <tr><td><code>routes/sheetRoutes.js</code></td><td><code>apiRoutes.js</code></td><td>carries records + shipping + destinations — <code>recordRoutes</code> would be as wrong as <code>sheetRoutes</code>. <strong>Open decision.</strong></td></tr>
+          <tr><td><code>models/sheetModel.js</code> → <code>SheetModel</code></td><td><code>models/palletRecord.js</code> → <code>PalletRecord</code></td><td>also drop the dead <code>toArray()</code> row serializer</td></tr>
+          <tr><td><code>services/googleSheetsService.js</code></td><td><em>(no rename)</em></td><td>correctly named; <strong>task 6 deletes it outright</strong></td></tr>
+        </tbody>
+      </table>
+      <p class="why"><strong>Why gated on 6 and 20, not done now.</strong> Current <code>sheet</code> occurrences: <code>server.js</code> 36, <code>sheetController.js</code> 14, <code>sheetRoutes.js</code> 13, <code>Settings.vue</code> 9, <code>labelController.js</code> 8, <code>sheetModel.js</code> 3, then single digits. But the two biggest concentrations — <code>server.js</code> and <code>Settings.vue</code> — are the <code>create-sheet</code>/<code>delete-sheet</code> admin endpoints and their UI, which are <em>accurately</em> named today and are <strong>deleted by task 6</strong>. Renaming first means editing lines that are about to vanish, and leaves the confusing halfway state where <code>recordController.js</code> sits next to a live <code>googleSheetsService.js</code>. After 6 and 20, every remaining <code>sheet</code> is unambiguously wrong and the rename is mechanical instead of judgement-call-per-line. <strong>Do it before task 9</strong> so the P2 frontend cluster is written against final names.</p>
+      <p><strong>Execution constraints:</strong> pure rename, <em>zero</em> behavior change (anything else found goes in a separate commit) · <code>git mv</code> so history follows, verify with <code>git log --follow</code> · gate on <code>cd backend &amp;&amp; npm test</code> (28 tests, needs the Firestore emulator) green before <em>and</em> after, plus a manual intake → weight → destination smoke · update <code>CLAUDE.md</code>, <code>docs/architecture.md</code>, <code>docs/api-reference.md</code> and this plan in the same commit.</p>
+      <p class="files">Files: <code>backend/controllers/</code>, <code>backend/routes/</code>, <code>backend/models/</code>, <code>backend/server.js</code> requires, <code>docs/*.md</code>, <code>CLAUDE.md</code>.</p>
+    </div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">24</span><h3>Farmer-scoped roles &amp; access (H7)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~4&ndash;5d</span><span class="tag">needs 6 + 23</span></div></div>
+    <div class="body"><p>A <code>farmer</code> role linked to a specific farmer; router + backend <code>ensureOwnFarmerOrAdmin</code> so Farmer A can't see Farmer B's data. Overlaps task&nbsp;6 (registry stores the user↔farmer link) and depends on task&nbsp;23 (real <code>request.auth</code> for enforceable rules). Ship after the registry and auth migration.</p></div>
+  </div>
+
+  <h3 style="margin-top:32px">Feature ideas (from review) — mostly cheap, high day-to-day value</h3>
+
+  <div class="card p2">
+    <div class="head"><span class="num">25</span><h3>Soft-delete a record + restore</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~1&ndash;2d</span></div></div>
+    <div class="body"><p><strong>Probably the most-hit real gap.</strong> There is no way to delete a mistaken row from the UI — it requires opening Google Sheets by hand. Add a delete that marks the row (or moves it to a trash sheet) with an admin "שחזר" restore, audit-logged.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">26</span><h3>Weight sanity checks</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~0.5&ndash;1d</span></div></div>
+    <div class="body"><p>Warn (via task&nbsp;1's modal) when weight÷boxes falls outside a normal per-box range, or weight is missing/zero on a pallet being sent. Catches typos (485 vs 48.5) before they reach a certificate.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">27</span><h3>QR code on the pallet sticker (covers L3)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~1&ndash;2d</span></div></div>
+    <div class="body"><p>The sticker PDF already exists — embed a QR encoding the pallet ID. Scanning from a phone opens that record (or pre-fills the weight form). Delivers the backlog's barcode-scan story with no new hardware.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">28</span><h3>Pallet timeline view (H3 base)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~1&ndash;2d</span></div></div>
+    <div class="body"><p>Click a pallet → side panel with its full story: intake, weighing, destination mark, certificate number, every edit from the audit sheet. The audit data is <em>already collected</em> — today only the <code>ⓘ</code> tooltip exposes any of it. A "print PDF" on this panel is the traceability doc (H3).</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">29</span><h3>Global pallet / certificate search</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~1d</span></div></div>
+    <div class="body"><p>One search box (Dashboard or header) that finds a pallet number / certificate number across <em>all</em> farmers and jumps to it. Today you must pick the right farmer first and search inside that table.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">30</span><h3>Batch sticker printing + preview (covers M2)</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~1d</span></div></div>
+    <div class="body"><p>Multi-select pallets → one PDF with all stickers, with a preview before print. Currently exactly one sticker per click. Peak-season time saver; folds in the old M2 "sticker preview" item.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">31</span><h3>Stale-pallet nudges on Dashboard</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~1d</span></div></div>
+    <div class="body"><p>Cards for the fall-throughs: "unweighed for 3+ days", "marked for destination but never sent", "sent without certificate". The data exists; nobody is checking for these gaps.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">32</span><h3>Undo last bulk action</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~1&ndash;2d</span></div></div>
+    <div class="body"><p>After "העבר למשלוח" on 30 pallets or a bulk reset, a 30-second "בטל" toast that reverts it. Complements the confirmation modals (task&nbsp;1) — mistakes still happen after clicking אשר. The audit trail already captures the before-state to revert to.</p></div>
+  </div>
+
+  <div class="card p2">
+    <div class="head"><span class="num">33</span><h3>Driver manifest PDF</h3>
+      <div class="meta"><span class="pill p2">P2</span><span class="tag">~1&ndash;2d</span></div></div>
+    <div class="body"><p>From <code>DestinationsSummary</code>, print a per-destination/per-truck page: pallets, boxes, total weight, farmer. Today that summary lives only on screen or as Excel; drivers get screenshots.</p></div>
+  </div>
+
+  <div class="lead">
+    <p><strong>Backlog items consciously parked (not dropped silently):</strong></p>
+    <ul>
+      <li><strong>H2 — PWA + offline entry queue</strong> (<code>pwaRequirements.md</code>): big bet, real value for spotty packhouse WiFi. Parked until after the DB move — and the Firestore decision <em>strengthens</em> it: the Firestore SDK's built-in offline persistence + queued writes replaces most of the hand-rolled IndexedDB queue that doc specs. Re-scope H2 down after task&nbsp;16.</li>
+      <li><strong>H3 — Traceability PDF:</strong> absorbed into task&nbsp;28 (timeline view → print).</li>
+      <li><strong>M2 — Sticker preview:</strong> absorbed into task&nbsp;30.</li>
+      <li><strong>L3 — Barcode scan intake:</strong> absorbed into task&nbsp;27 (QR).</li>
+      <li><strong>M7 — <code>shippedAt</code> timestamp:</strong> small; fold into task&nbsp;4's label log (<code>generated_at</code>) / task&nbsp;20 rather than a standalone column.</li>
+      <li><strong>M3 WhatsApp summary, M5 analytics, L2 scale integration, L4 buyer portal, L5 i18n:</strong> still valid, still long-term — revisit once there's a second customer and the DB is real.</li>
+    </ul>
+  </div>
+
+  <!-- ===================== P3 PLATFORM ===================== -->
+  <h2>P3 — Platform vision: from mango-sorting app to configurable record platform <span class="stale">(17&ndash;19 parked/deprioritized)</span></h2>
+
+  <div class="lead" style="border-color:var(--p3)">
+    <p><strong>Note (2026-07-13):</strong> tasks 15, 16, and 20 — originally introduced in this section as "the migration strategy" — have been <strong>promoted to the top-priority block</strong> near the start of this page. The rationale and reference material below (DB decision, data model, architecture) still apply and stay here for context. Only tasks <strong>17, 18, and 19</strong> remain in scope for this section, and they are explicitly <strong>parked/deprioritized</strong> — no driver reaches them until a confirmed second customer exists.</p>
+  </div>
+
+  <div class="lead">
+    <p><strong>The goal:</strong> today the app tracks one thing (mango pallets) for one business. You want it to track <em>anything</em> for <em>anyone</em> — different products, different fields, different workflows — and to run on a real database instead of Google Sheets.</p>
+    <p><strong>The key reframe:</strong> stop hardcoding the domain. A pallet is just a <em>record</em> with typed fields moving through <em>stages</em>, owned by an <em>account</em>, belonging to a <em>tenant</em>. When the domain (fields, stages, lists, documents) becomes <em>data</em> instead of code, the same engine runs a mango packhouse, a citrus co-op, or a warehouse — no fork, no redeploy. P1 tasks 6&ndash;8 already start this: they move farmers, label layout, and custom fields out of code and into config. P3 finishes the job.</p>
+  </div>
+
+  <div class="lead" style="border-color:var(--p3)">
+    <p><strong>Decided product direction (read before touching the DB schema):</strong></p>
+    <p>No confirmed second customer yet, and money/settlement is "maybe later." Therefore the strategy is <strong>reserve the seams, don't build the features, don't over-abstract.</strong> The failure mode here is gold-plating a platform for customers who don't exist — not under-abstracting.</p>
+    <p><strong>DO</strong> (cheap now, expensive to retrofit later — and with fresh-start there's no second import to sneak them in during, so bake them into task&nbsp;16's schema from the first record):</p>
+    <ul>
+      <li>Model <strong>buyers/destinations as an entity</strong> (a <code>buyers</code> table), even while the UI still uses a string dropdown. Keeps orders / invoicing / settlement possible with no future migration.</li>
+      <li><strong>Reserve money fields</strong> (price, grade, amount) as nullable columns — present, unused, absent from the UI.</li>
+      <li>Use <strong>generic naming</strong> at the data layer (record / lot, not "pallet").</li>
+    </ul>
+    <p><strong>DON'T</strong> (until a real second customer forces it): rich workflow engine early (task 19 stays late), self-serve tenant creation, no-code field builder, settlement/invoicing UI, infinitely-generic fields. <strong>Keep it produce-shaped</strong> — one seeded tenant, one "pallet" record type. Prove the mango tenant runs cleanly on the new DB first, onboard a real second customer, then let their needs drive 17&ndash;19. <em>Validate before you generalize.</em></p>
+  </div>
+
+  <div class="lead" style="border-color:var(--done)">
+    <p><strong>DB DECISION (Jul 2026) — Firestore, not PostgreSQL.</strong> This supersedes the earlier Postgres framing of tasks 15&ndash;20 and adopts <code>docs/multi-tenant-architecture.md</code> <em>with amendments</em> (that doc's status header lists them; this plan is canonical wherever they disagree).</p>
+    <p><strong>Why Firestore:</strong></p>
+    <ul>
+      <li><strong>Cost asymmetry:</strong> Cloud SQL never scales to zero (~$10&ndash;30/mo idle, forever) — abandoning the scale-to-zero economics this app was built around. The entire dataset is ~1,500 tiny documents; if Firestore turns out wrong, re-migrating to Postgres is a script, not a project.</li>
+      <li><strong>Reuses infra already in production:</strong> config, users, and the real-time <code>farmer_events</code> layer are already Firestore. One DB, one SDK, free tier at target scale (3 centers × ~5 farmers).</li>
+      <li><strong>The concrete next customer is another sorting center</strong> doing mango-shaped work — not a new domain. Per this plan's own rule: validate before you generalize.</li>
+    </ul>
+    <p><strong>Postgres is parked behind explicit triggers, not dead.</strong> Revisit the moment the first of these arrives: (a)&nbsp;settlement / invoicing (real transactions), (b)&nbsp;cross-center reporting or analytics needing joins/aggregations Firestore can't do, (c)&nbsp;a non-produce domain. Task&nbsp;15's repository interface exists precisely so that swap stays mechanical.</p>
+  </div>
+
+  <h3 style="margin-top:26px">The generalization map</h3>
+  <table>
+    <thead><tr><th>Today (mango-specific, hardcoded)</th><th>Generalized concept (config-driven)</th></tr></thead>
+    <tbody>
+      <tr><td>Farmer</td><td><strong>Account</strong> — a record owner within a tenant</td></tr>
+      <tr><td>Pallet record (fixed columns A&ndash;O)</td><td><strong>Record</strong> of a <strong>Record Type</strong>, with typed <strong>field definitions</strong></td></tr>
+      <tr><td>kind / size / boxes / weight / <code>gidon</code></td><td>Fields declared in the record type's schema (typed, optional, per-tenant)</td></tr>
+      <tr><td>Intake → Weight → Destination → Sent</td><td><strong>Stages</strong> in a configurable <strong>workflow</strong></td></tr>
+      <tr><td>Shipping label / certificate</td><td><strong>Document</strong> produced by a <strong>template</strong> (any format, not just a Sheet)</td></tr>
+      <tr><td>Season</td><td><strong>Period / cycle</strong> — a generic time bucket</td></tr>
+      <tr><td>kinds / sizes / destinations lists</td><td><strong>Lookup lists</strong> — named reference options per tenant</td></tr>
+      <tr><td>One Google Sheet per farmer</td><td>Firestore docs under <code>centers/{centerId}/farmers/{farmer}/records</code></td></tr>
+      <tr><td>Single business</td><td><strong>Center</strong> (tenant) — top-level isolation boundary, resolved per subdomain</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:26px">Target architecture (layered)</h3>
+<pre>            ┌──────────────────────────────────────────────┐
+            │  UI  (Vue)                                    │
+            │  Schema-driven forms & tables — rendered from │
+            │  field definitions, not hardcoded columns     │
+            └───────────────┬──────────────────────────────┘
+                            │  REST / typed API
+            ┌───────────────▼──────────────────────────────┐
+            │  Application / domain services                │
+            │  validation · workflow/stage transitions ·    │
+            │  document generation · audit                  │
+            └───────────────┬──────────────────────────────┘
+                            │  RecordRepository interface   ◄── task 15
+            ┌───────────────▼──────────────────────────────┐
+            │  Data access (swappable implementations)      │
+            │   ├─ SheetsRepository    (today, legacy)      │
+            │   ├─ FirestoreRepository (target)        ◄── task 16
+            │   └─ PostgresRepository  (parked — trigger-   │
+            │      based, see DB decision box)              │
+            └───────────────┬──────────────────────────────┘
+                            │
+            ┌───────────────▼──────────────────────────────┐
+            │  Firestore — everything under centers/{id}    │
+            │  config · users · farmers/records · audit     │
+            │  documents · record_types · periods ·         │
+            │  counters · farmer_events (unchanged)         │
+            └──────────────────────────────────────────────┘
+
+  Config (record types, fields, stages, lists, templates) lives in the DB
+  and is edited by admins — the engine reads it at runtime.</pre>
+
+  <h3 style="margin-top:26px">Data model — Firestore tree (merges <code>docs/multi-tenant-architecture.md</code> with the reserved seams)</h3>
+  <p class="sub">Everything namespaced under <code>centers/{centerId}</code> — the tenant boundary. Keep documents flat and typed; the reserved seams (buyers as entity, money fields, generic naming) apply to document shapes exactly as they would to columns. Promote a hot field to a composite index only when a view needs to filter/sort on it.</p>
+<pre>centers/{centerId}                          -- tenant boundary, resolved per subdomain
+  config (doc)          kinds, sizes, destinations, farmerConfigs
+  users/{email}         role, farmerId?     -- farmerId → farmer-scoped users (task 24)
+  buyers/{buyerId}      name, contact, terms     -- "destination" as an ENTITY
+                                            -- reserve NOW even while UI keeps a string dropdown
+  record_types/{id}     fields[], stages[]  -- schema-as-data (task 17)
+  farmers/{farmerName}  name, shippingLabelsSpreadsheetId, customFields   -- = task 6 registry
+    records/{recordId}  ...today's columns B–O as fields..., buyerId?, stage,
+                        price?, grade?, amount?    -- reserved money seam: present, unused
+    audit/{auditId}     recordId, action, editedBy, editedAt   -- replaces {farmer}_audit sheet
+  farmer_events/{farmerName}   -- real-time delta, overwritten per write (pattern unchanged)
+  documents/{docId}     number, farmerName, buyerId?, recordIds[], status, generatedAt, path
+  periods/{periodId}    name, status, startedAt, endedAt       -- "season"
+  counters/{name}       value   -- transactional certificate numbering (replaces the D7 cell)</pre>
+  <p class="muted" style="font-size:13px">The current mango app becomes exactly one seeded tree: one center (<code>tsuberi</code>), N farmer docs, one <code>record_type</code> "pallet" whose <code>fields</code> = today's columns A&ndash;O, whose <code>stages</code> = today's flow, and one label template. <strong>Known trade-off:</strong> Firestore is weak at ad-hoc aggregation — summaries (DestinationsSummary, dashboards) compute over a farmer's record set in the backend, which is fine at this scale; if that stops being fine, that's a Postgres trigger (see decision box).</p>
+
+  <h3 style="margin-top:26px">Migration strategy — now a one-time cutover, not strangler-fig</h3>
+  <p class="sub"><span class="stale">Superseded 2026-07-13: this originally described a live dual-write strangler-fig migration. Off-season it became a one-time cutover; the fresh-start decision removes even that — there is no migration at all, task&nbsp;16 just stands up an empty Firestore store for the new season. See the priority-decision box at the top of this page. Tasks 15, 16, and 20 have moved there; this note stays for historical context.</span></p>
+
+  <div class="card p3">
+    <div class="head"><span class="num">17</span><h3>Schema-as-data — record types &amp; field definitions</h3>
+      <div class="meta"><span class="pill p3">P3</span><span class="tag">~1&ndash;2wk</span><span class="tag">parked/deprioritized</span></div></div>
+    <div class="body">
+      <p>Introduce <code>record_types</code> with typed <code>fields</code> + <code>stages</code>. Validation and serialization read the field list instead of the hardcoded <code>SheetModel</code>. Migrate the mango pallet into a seeded record type. This is the direct continuation of P1 task&nbsp;8 (config-driven fields) — do 8 first as the small proof, then generalize here.</p>
+      <p class="files">Files: replace <code>models/sheetModel.js</code> with a generic <code>RecordSchema</code> validator; record-type CRUD endpoints; admin "סוגי רשומות" UI.</p>
+    </div>
+  </div>
+
+  <div class="card p3">
+    <div class="head"><span class="num">18</span><h3>Schema-driven forms &amp; tables</h3>
+      <div class="meta"><span class="pill p3">P3</span><span class="tag">~1&ndash;2wk</span><span class="tag">parked/deprioritized</span></div></div>
+    <div class="body">
+      <p>Render <code>PalletInput</code> and <code>PalletTable</code> from field definitions — a <code>FieldRenderer</code> maps each field <code>type</code> (text/number/date/select/boolean) to an input and a cell. The mango table stops being bespoke; it's the generic table fed the pallet record type. Depends on the PalletTable refactor (task&nbsp;9), which is why 9 is worth doing regardless.</p>
+      <p class="files">Files: new <code>frontend/src/components/schema/</code> (FieldRenderer, DynamicForm, DynamicTable); refactor <code>PalletInput.vue</code> / <code>PalletTable.vue</code> to consume them.</p>
+    </div>
+  </div>
+
+  <div class="card p3">
+    <div class="head"><span class="num">19</span><h3>Center (tenant) model + workflow engine + document templating</h3>
+      <div class="meta"><span class="pill p3">P3</span><span class="tag">~2&ndash;3wk</span><span class="tag">parked/deprioritized</span></div></div>
+    <div class="body">
+      <p>The final generalization layer:</p>
+      <ul>
+        <li><strong>Centers:</strong> largely delivered by task&nbsp;16's namespacing — all data lives under <code>centers/{centerId}</code>, middleware resolves the center from the subdomain / auth claims, and onboarding a center = create its Firestore tree + DNS CNAME + Hosting domain (per the old doc's Phase 3). This task finishes the edges: center-scoped admin UI, per-center feature flags. The mango business is center #1.</li>
+        <li><strong>Workflow engine:</strong> stages + allowed transitions as config; the "sent / mark / weight" buttons become generic stage-advance actions.</li>
+        <li><strong>Document templating:</strong> generalize the now-DB-backed label engine (task&nbsp;20) into a template engine for <em>any</em> document type — delivery notes, certificates, reports — targeting pdfmake or HTML per template. Labels already moved off Sheets in task&nbsp;20; this task extends that engine to the rest of the domain.</li>
+      </ul>
+      <p class="files">Files: tenant middleware in <code>server.js</code>; <code>workflowService.js</code>; <code>documentService.js</code> abstracting <code>shippingLabelsService.js</code>.</p>
+    </div>
+  </div>
+
+  <div class="lead" style="border-color:var(--p3)">
+    <p><strong>Sequencing &amp; guardrails:</strong></p>
+    <p>1. Do <strong>not</strong> start 17&ndash;19 mid-season — it's infrastructure, best done in a quiet window, and stays parked/deprioritized until a confirmed second customer exists.<br>
+       2. P1 (6&ndash;8) is the <em>rehearsal</em> for 17&ndash;19: it externalizes farmers, label layout, and fields into config on the current stack. Land it after the CRs — it de-risks a future platform push and is useful even if 17&ndash;19 slip indefinitely.<br>
+       3. Tasks 15 → 16 → 20 are now the <strong>top-priority spine</strong> (see the decision box at the top of this page) — they no longer wait on P1/P0.<br>
+       4. Resist EAV and premature "no-code builder" ambitions. Ship the mango tenant on the generic engine <em>first</em>; onboard a second real domain <em>before</em> building self-serve tenant creation.</p>
+  </div>
+
+  <p class="muted" style="font-size:13px"><strong>Open question worth deciding before task 17:</strong> how different are the "more" use cases? If they're all pack/ship/track logistics (other crops, warehouses), a fixed workflow with configurable fields is enough. If they diverge structurally (e.g. non-logistics domains), the workflow engine (task&nbsp;19) needs to come earlier and be richer. This changes how generic tasks 17&ndash;19 must be. Not urgent — 17&ndash;19 are parked.</p>
+
+  <!-- ===================== PROMPT ===================== -->
+  <h2>Agent kickoff prompt</h2>
+  <p class="sub">Paste this into a <strong>fresh agent session per task</strong> — one task, one session, one reviewable diff.</p>
+  <div class="promptbox">
+    <span class="copyhint">select all &amp; copy</span>
+<pre>You are working on TsuberMango — a Vue 3 + Express app managing mango pallet
+records (Hebrew UI, RTL). Read CLAUDE.md AND task 0 in redesign-plan.html first.
+CLAUDE.md is the architecture reference but is PARTIALLY STALE (wrong routes,
+a "broken" endpoint that was fixed, auth described as users.json when it's
+Firestore). Task 0 refreshes it. Until task 0 is done, trust this plan's file
+references and line numbers over CLAUDE.md wherever they conflict.
+
+The prioritized plan lives in redesign-plan.html. Tasks are numbered 0–35
+(task 21 was folded into task 16 on 2026-07-13 — now just task 16's Dashboard
+date fix — and no longer exists standalone).
+I will give you EXACTLY ONE task number to execute — this session is scoped to
+that task alone. Do not start, prepare for, or "while I'm here" any other task,
+even an adjacent one; if you hit a real dependency on another task, stop and
+tell me instead of doing it.
+
+Global rules for every task:
+1. Before writing code on any task with design ambiguity, use the
+   superpowers:brainstorming skill to lock the spec with me. For the small,
+   well-specified tasks (e.g. 2) you may proceed after restating the spec.
+   Task 14 needs re-scoping first — very likely fully obsolete, since task 23
+   now lands early (see priority context below) and removes the session-expiry
+   gap task 14 exists to patch.
+2. Use test-driven-development where logic is testable. If no harness exists yet,
+   prefer doing task 22 (bootstrap Vitest once) rather than scaffolding ad hoc.
+   The chunking (4) MUST have tests. (Task 16's old import/normalization script
+   is gone — fresh-start means no import to test; its date helper is trivial.)
+3. UI text stays Hebrew/RTL. All dev-facing content (commits, docs, comments,
+   logs) stays English.
+4. Respect the layout contracts in CLAUDE.md (PalletTable h-full chain,
+   pdfmake lazy-load, boolean coercion for sent/gidon/mark).
+5. Touch only the files listed under the task in redesign-plan.html unless you
+   discover a real dependency — call it out if so.
+6. After a task is done and verified, append a short entry to done.md and remove
+   the item from the board. Do not claim done without running the app / tests.
+
+Watch-outs the review surfaced (do not rediscover them the hard way):
+- Task 3: do NOT reuse PUT /records/updatemany for the bulk date — it 400s on
+  unweighed pallets and clobbers whole rows. Add a shipmentDate-only endpoint.
+  Date format is already canonical by the time this task runs (task 16 landed
+  first in the new sequencing).
+- Task 4: chunk by pallet-number GROUP (not raw rows) or the unique-pallet count
+  breaks; make label-create + record-update atomic (no orphan certificates);
+  reuse the per-farmer append lock (commit 94b2272) around the D7 number
+  increment to avoid duplicate certificate numbers; ASK the customer whether
+  mixed destinations hard-fail or auto-split. NOTE: task 20 now runs BEFORE
+  this task and its original spec assumed this task's chunking logic already
+  existed — flag that tension if you land here before 20 is resolved.
+- Task 5: already verified — nothing locks sent rows today; the work is only
+  the warning modal + the certificate-resync decision. Do not re-investigate.
+- Task 6: make getSpreadsheetIdByFarmer fail loudly on unknown farmer — it
+  currently falls back to Tsuberi's file (cross-customer data leak).
+- Task 16 is a FRESH-START standup, not a migration: the new season opens on an
+  empty Firestore store and last year's sheets are left as a read-only archive
+  (no export/import/normalize). Write dates as canonical ISO yyyy-mm-dd from the
+  first record, and update Dashboard.vue ("פעילות היום" compares dd/mm — an ISO
+  store silently re-breaks it unless Dashboard is updated too); that Dashboard
+  fix is all that remains of the old task 21. There is no import to test or roll
+  back — just flip writes to Firestore before the season's first intake.
+- Task 20: original spec assumed tasks 4 and 7 already existed (chunking +
+  config template). Under the new order they don't yet — build the logic
+  directly into 20, or flag it for a follow-up patch. See the priority-decision
+  box near the top of redesign-plan.html.
+
+Priority context (revised 2026-07-13 — getting off Google Sheets is now the
+top priority, ahead of the customer CRs):
+- Task 0 first, always.
+- Then the top-priority spine: 15 (repository interface) → 16 (fresh-start
+  Firestore records store — no import; new season opens directly on Firestore,
+  ex-task 21 shrinks to a Dashboard date fix) → 23 (Firebase Auth + Firestore
+  rules, pulled in alongside 16,
+  not parked) → 20 (shipping labels off Sheets — the second, bigger Sheets
+  tentacle). DB DECISION (binding): the target DB is FIRESTORE, not PostgreSQL
+  — see the green decision box in the P3 section. Do NOT provision Cloud SQL /
+  Prisma; Postgres is parked behind explicit triggers (settlement, cross-center
+  analytics, non-produce domain). "Fully off Google Sheets" = 16 AND 20; only
+  when both ship can the Sheets API and the SHIPPING_LABELS_ID_* env vars be
+  removed.
+- THEN tasks 1–5 (paying-customer CRs) — smallest-first (1 done → 2 → 3 → 4 →
+  5). These now build directly against the Firestore-backed repository, so
+  there's no throwaway Sheets-era work.
+- Tasks 6–8 make the app multi-tenant (today a new farmer requires a code edit
+  and redeploy). Do 6 before 7/8. Land 7 right after 4 so the shipping-label
+  code is reworked once, not twice.
+- Tasks 9–14, 22, 24–35 are backlog / feature ideas; task 9 (PalletTable
+  refactor) should follow the CRs that touch that file, and precede 10/13.
+- Tasks 17–19 (schema-as-data, schema-driven UI, centers + workflow + document
+  templating) are PARKED / DEPRIORITIZED — no driver reaches them until a
+  confirmed second customer exists. Do not start these without explicit sign-off.
+
+This session's task: <FILL IN ONE NUMBER>.
+Begin by reading the referenced files and confirming the spec back to me.</pre>
+  </div>
+
+  <p class="muted" style="margin-top:40px; font-size:13px">Generated for the season maintenance window · numbering is canonical — reference tasks by # in follow-ups.</p>
+
+</div>
+</body>
+</html>

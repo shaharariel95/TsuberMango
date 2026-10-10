@@ -2,26 +2,18 @@
 
 ## Project Overview
 
-TsuberMango is a full-stack web application for managing mango pallet records, weights, destinations, and shipping labels for farmers. The UI is in Hebrew, rendered right-to-left (`lang="he" dir="rtl"`).
-
----
-
-## Tech Stack
+TsuberMango is a full-stack web application for managing mango pallet records, weights,
+destinations, and shipping labels for farmers. The UI is in Hebrew, rendered right-to-left
+(`lang="he" dir="rtl"`).
 
 | Layer | Technology |
 |---|---|
 | Frontend | Vue 3.5 + Vite 5, Vue Router 4, Tailwind CSS 3, Axios |
 | Backend | Node.js + Express 5 |
-| Primary DB | Google Sheets API (googleapis) |
-| Config DB | Firebase Firestore |
-| Auth | Google OAuth 2.0 (passport-google-oauth20), session-based |
-| PDF | pdfmake |
-| Logging | winston |
+| Primary DB | Firebase Firestore — pallet records, audit, config, users, real-time events (all under `centers/{centerId}/…`) |
+| Auth | Firebase Auth (Google provider) — ID tokens; Firestore `users` collection for authorization |
+| PDF | pdfmake · **Logging** winston |
 | Hosting | Firebase Hosting (frontend), Google Cloud Run (backend) |
-
----
-
-## Repository Structure
 
 ```
 /
@@ -29,289 +21,62 @@ TsuberMango is a full-stack web application for managing mango pallet records, w
 └── backend/           # Express server
 ```
 
-### Frontend (`/frontend`)
+---
 
-- `src/main.js` — App entry point; initializes Vue, Router, Axios (`withCredentials: true`), and Firebase. Exports `db` (Firestore instance).
-- `src/router.js` — All routes + `beforeEach` guard (calls `/api/auth/me` to verify session).
-- `src/components/` — All page-level components (see Routes section).
-- `src/composables/useFarmerEvents.js` — Real-time update composable. Subscribes to `farmer_events/{farmer}` via `onSnapshot`, applies deltas to the caller's `pallets` ref in-place, and returns a reactive `highlightedIds` Set for flash animations. See Real-Time Updates section.
-- `src/data/data.js` — Static fallback data: mango kinds, sizes, destinations, farmerConfigs.
-- `src/data/printData.js` — Sticker PDF generation using pdfmake. **Lazy-loaded**: pdfmake and vfs_fonts are dynamically imported inside `createStickerPDF()` so they don't block initial page load.
-- `fonts/vfs_fonts.js` — Custom Rubik font embedded as a VFS blob for pdfmake (~750 kB). Exports the font map directly as default; assign with `pdfMake.vfs = pdfFonts` (not `pdfFonts.vfs`).
-- `vite.config.js` — Dev proxy: `/api` → `http://localhost:3000`. Credentials included.
-- `tailwind.config.js` — Custom `mango` color palette (yellow→brown) and `sidebar` dark theme.
+## Where to Look
 
-### Backend (`/backend`)
+Read these when the task touches them — don't guess from memory.
 
-- `server.js` — Express entry: CORS, sessions, Passport OAuth, dev-bypass route, Firebase Admin init.
-- `routes/sheetRoutes.js` — All `/api/*` sheet endpoints.
-- `controllers/sheetController.js` — Pallet record CRUD logic. Each write emits a fire-and-forget Firestore event after the Sheets write succeeds.
-- `controllers/labelController.js` — Shipping label generation logic.
-- `services/googleSheetsService.js` — Google Sheets API wrapper (primary data store).
-- `services/firestoreEventService.js` — Emits real-time events to `farmer_events/{farmer}` in Firestore. All functions are fire-and-forget (`emit().catch(logger.error)`). See Real-Time Updates section.
-- `services/shippingLabelsService.js` — Per-farmer shipping label spreadsheet management.
-- `models/sheetModel.js` — Pallet data model + validation + `toArray()` for Sheets.
-- `utils/logger.js` — Winston logger (`logger.info`, `logger.error`), console transport.
-- `users.json` — Hardcoded email → role mapping for authorization.
+| Need | Go to |
+|---|---|
+| File-by-file map, record fields, Firestore tree, env vars, caching | [docs/architecture.md](docs/architecture.md) |
+| Routes, API endpoints, full auth flow, claim model | [docs/api-reference.md](docs/api-reference.md) |
+| Real-time events, `useFarmerEvents`, per-view filters | [docs/realtime.md](docs/realtime.md) |
+| Shared UI primitives | [frontend/SHARED_COMPONENTS.md](frontend/SHARED_COMPONENTS.md) |
+| Scheduled backups | [backend/CLOUD_SCHEDULER.md](backend/CLOUD_SCHEDULER.md) |
+| **Deploying anything** | invoke the `deploy` skill |
+| **Running locally, testing (`npm test`, `npm run e2e`)** | invoke the `local-dev` skill |
 
 ---
 
-## Routes & Permissions
+## Core Invariants
 
-### Frontend Routes
+These correct assumptions that would otherwise be wrong. Everything else is discoverable in the code.
 
-| Path | Component | Access |
-|---|---|---|
-| `/login` | Login | Public |
-| `/` | PalletInput | Admin only |
-| `/Weight` | Weight | Admin only |
-| `/SentPallets` | SentPallets | Admin only |
-| `/Settings` | Settings | Admin only |
-| `/sentPalletsForMark` | sentPalletsForMark | Auth required |
-| `/Destination` | Destination | Auth required |
-| `/DestinationsSummary` | DestinationsSummary | Auth required |
-
-The `beforeEach` guard in `router.js` hits `/api/auth/me` on every navigation. Non-admins are redirected to `/Destination`. Unauthenticated users go to `/login`.
-
-### Backend API Endpoints
-
-All `/api/*` routes require `ensureAuthenticated`. Admin-only routes additionally require `ensureAdmin`.
-
-| Method | Path | Controller | Notes |
-|---|---|---|---|
-| POST | `/api/records` | `createRecord` | Create new pallet record |
-| GET | `/api/farmers/:farmer/records` | `getAllRecords` | All records for farmer |
-| GET | `/api/farmers/:farmer/records/destinations` | `getAllRecordsforDestinations` | Records with `mark=true` |
-| GET | `/api/farmers/:farmer/records/pallet/:palletNumber` | `getRecordsByPallet` | ⚠ Service method missing |
-| GET | `/api/farmers/:farmer/records/lastPallet` | `getLastPallet` | Highest pallet number |
-| PUT | `/api/farmers/:farmer/records/resetPallets` | `resetSentStatus` | Bulk reset sent=false |
-| PUT | `/api/farmers/:farmer/records/updatemany` | `updateMultipleRecords` | Batch update records |
-| PUT | `/api/farmers/:farmer/records/:id` | `updateRecord` | Single record update |
-| POST | `/api/shipping/newlabel/` | `createNewShippingLabel` | Create shipping label sheet |
-| POST | `/api/farmers/:farmer/destinations/toSend` | `sendToDestination` | Set mark=true |
-| POST | `/api/farmers/:farmer/destinations/Sent` | `removeFromDestination` | Set mark=false |
-| GET | `/api/auth/google` | — | OAuth initiation |
-| GET | `/api/auth/google/callback` | — | OAuth callback |
-| GET | `/api/auth/me` | — | Current user info |
-| GET | `/api/auth/logout` | — | Logout |
-| POST | `/api/admin/create-sheet` | — | Admin: create farmer sheet |
-| POST | `/api/admin/delete-sheet` | — | Admin: delete farmer sheet |
-| POST | `/api/admin/config` | — | Admin: save config to Firestore |
-| GET | `/api/admin/users` | — | Admin: list all users |
-| POST | `/api/admin/users` | — | Admin: add user |
-| DELETE | `/api/admin/users/:email` | — | Admin: remove user |
-| POST | `/api/admin/refresh-cache` | — | Admin: clear all in-memory caches |
-| GET | `/api/admin/backups` | — | Admin: list recent backups from Firestore |
-| POST | `/api/admin/backup` | — | Admin: trigger manual backup |
-
----
-
-## Authentication Flow
-
-1. User hits `/login` → clicks "Sign in with Google".
-2. Redirected to `GET /api/auth/google` (Passport initiates OAuth).
-3. Google redirects to `GET /api/auth/google/callback`.
-4. Backend checks email against `users.json`. If not found → redirected to `/api/auth/unauthorized` (session cleared).
-5. If authorized → session created `{email, role}` → redirected to frontend.
-6. Frontend router guard calls `/api/auth/me` on every navigation to verify.
-
-**Dev bypass**: When `DEV_BYPASS_AUTH=true`, `GET /api/auth/dev-login?role=admin&email=...` skips OAuth entirely. Never enable this in production.
-
----
-
-## Database: Google Sheets
-
-All pallet data lives in Google Sheets. There is **no SQL/NoSQL DB**. One sheet per farmer inside the main spreadsheet.
-
-### Main Spreadsheet Columns (A–O)
-
-| Col | Index | Field | Notes |
-|---|---|---|---|
-| A | 0 | ID | Auto-incremented |
-| B | 1 | תאריך משלוח | Shipment date |
-| C | 2 | מספר תעודה | Card ID |
-| D | 3 | תאריך קטיף | Harvest date |
-| E | 4 | מספר משטח | Pallet number |
-| F | 5 | זן | Kind/variety |
-| G | 6 | גודל | Size |
-| H | 7 | ארגזים | Boxes |
-| I | 8 | משקל | Weight |
-| J | 9 | יעד | Destination |
-| K | 10 | נשלח | Sent (boolean) |
-| L | 11 | גדעון | Gidon flag (boolean) |
-| M | 12 | סימון | Mark (boolean) |
-| N | 13 | editedBy | Last editor (user email) |
-| O | 14 | editedAt | Last edit timestamp (ISO string) |
-
-Columns 10 (`sent`) and 12 (`mark`) are the two bulk-update targets used most frequently.
-
-### Audit Log Sheets
-
-Each farmer has a companion sheet named `{farmerName}_audit`. `appendAuditLog()` in `googleSheetsService.js` auto-creates it on first use. Fields: ID, recordId, palletNumber, action (`קליטה` for create / `עדכון` for update), editedBy, editedAt. All writes are fire-and-forget and do not block the main response.
-
-### Shipping Labels Spreadsheets
-
-Each farmer has a dedicated spreadsheet for shipping labels (IDs in `.env`). Labels are created by:
-1. Copying the `"base"` sheet template.
-2. Auto-incrementing the ID from cell D7.
-3. Writing pallet data starting at row 11.
-4. Setting B6 (date), B8 (destination), C24 (unique pallet count formula).
-
----
-
-## Firebase
-
-- **Firebase Hosting**: Serves the built frontend (`dist/`) with SPA rewrite (`/* → /index.html`).
-- **Firebase Admin SDK** (backend): Initialized in `server.js` with `SheetsCred.env.json` service account. `const db = admin.firestore()` is available throughout the server.
-
-### Firestore Collections
-
-| Collection | Doc ID | Purpose | Written by |
-|---|---|---|---|
-| `config` | `global` | Dynamic lists: kinds, sizes, destinations, farmers + farmerConfigs | Admin SDK via `POST /api/admin/config` |
-| `users` | user email | Role map (`{ role: 'admin' \| 'user' }`). Seeded from `users.json` on startup if empty | Admin SDK (seed + user management endpoints) |
-| `backups` | auto-id | Backup metadata: timestamp, filename, farmerCount, rowCount, triggeredBy | `backupService.js` after each backup run |
-| `farmer_events` | farmer name | Real-time pallet update events. One document per farmer, overwritten on each write — no accumulation | `firestoreEventService.js` (Admin SDK, fire-and-forget) |
-
-**Firestore security rules** — `config` and `farmer_events` allow `read: if true` (cookie-based auth means `request.auth` is null for all client reads; Admin SDK writes bypass rules entirely). All other writes are `if false`.
-
-**Frontend Firestore usage:** `App.vue` and `Settings.vue` call `onSnapshot()` on `config/global` to keep dynamic config live. `App.vue` provides reactive values to all children:
-- `provide('config', config)` — kinds, sizes, destinations, farmerConfigs
-- `provide('selectedFarmer', selectedFarmer)` — currently selected farmer
-- `provide('currentUserEmail', computed(() => user.value?.email || ''))` — used by `useFarmerEvents` for echo suppression
-
-Children inject with `inject('config')`, `inject('selectedFarmer')`, `inject('currentUserEmail')`.
-
----
-
-## SheetModel
-
-`backend/models/sheetModel.js` — validates and serializes pallet data before writing to Sheets.
-
-Required fields: `harvestDate`, `palletNumber`, `boxes`, `kind`, `size`. Throws `Error` if any are missing.
-
-`toArray()` returns a 14-element array (columns B–O; ID in column A is auto-assigned by the service).
-
----
-
-## Caching
-
-`googleSheetsService.js` maintains four in-memory caches (reset on process restart):
-
-| Cache | Type | TTL | Purpose |
-|---|---|---|---|
-| `cachedSheetNames` | `Array` | None (manual) | Validated farmer sheet names — avoids metadata API call on every request |
-| `cachedFarmerRecords` | `Map<name, {records, timestamp}>` | 5 minutes | Per-farmer pallet records — primary read cache |
-| `cachedAuditSheetExists` | `Set<name>` | None (manual) | Tracks which audit sheets have been verified to exist |
-| `activeRecordFetches` | `Map<name, Promise>` | Per-request | Request coalescing — concurrent fetches for the same farmer share one in-flight Promise |
-
-`invalidateFarmerCache(farmerName)` clears `cachedFarmerRecords` for that farmer and is called by every write method (`appendRow`, `updateRowById`, `updateRowsByIds`, `updateSentStatusForPallets`, `updateSendToDestinationPallets`). `POST /api/admin/refresh-cache` clears all four caches and re-warms `cachedSheetNames`.
-
----
-
-## Real-Time Updates
-
-After every backend write, `firestoreEventService.js` writes an event document to `farmer_events/{farmerName}` in Firestore (fire-and-forget — never blocks the HTTP response). All connected clients hold an `onSnapshot` listener via `useFarmerEvents.js`. When the document changes, the composable applies the delta to the caller's `pallets` ref in-place and flashes affected rows yellow for 3 seconds.
-
-**Why Firestore instead of WebSockets:** Cloud Run scales to 0. Open WebSocket connections keep the instance alive and billed. Firestore's SDK manages all connection infrastructure externally — Cloud Run is only woken by actual HTTP requests.
-
-### Event Types
-
-| type | payload | What the composable does |
-|---|---|---|
-| `create` | `pallet` | Append to bottom if passes filter |
-| `update` | `pallet` | Update in-place if passes filter; remove if no longer qualifies |
-| `bulk_update` | `pallets[]` | Per-row: update in-place / remove / ignore |
-| `reset_sent` | `palletIds[]` | Set `sent: false` in-place; remove if view filters on sent |
-| `mark_destination` | `pallets[]`, `newValue` | Only updates `mark` field on existing rows; appends if view filters on mark |
-
-### `useFarmerEvents(farmer, pallets, options)` Composable
-
-- `farmer` — `Ref<string>` — reactive farmer name; composable re-subscribes automatically on change
-- `pallets` — `Ref<Array>` — the page's data array; mutated in-place (new rows appended, existing rows patched, removed rows spliced)
-- `options.currentUserEmail` — `Ref<string>` — echo suppression: events where `updatedBy === currentUserEmail` are skipped
-- `options.filter` — `(pallet) => boolean` — which rows belong in this view
-
-Returns `{ highlightedIds }` — a `ref(new Set())` of pallet IDs currently flashing.
-
-**Key implementation details:**
-- First `onSnapshot` fire is skipped (`isFirstSnapshot` guard) — prevents replaying a stale event from before the session opened
-- The snapshot callback wraps `applyEvent` in try-catch — a malformed event logs to console and exits without corrupting the array
-- `mark_destination` only updates the `mark` field on existing rows (other fields are not overwritten with potentially stale req.body data)
-
-### Per-View Filter
-
-| Component | pallets ref | filter |
-|---|---|---|
-| `Weight.vue` | `message` | none (all pallets) |
-| `SentPallets.vue` | `pallets` | `p => p.sent === true` |
-| `sentPalletsForMark.vue` | `pallets` | `p => p.sent === true` |
-| `Destination.vue` | `pallets` | `p => p.mark === true` |
-
-### PalletTable Flash Prop
-
-`PalletTable.vue` accepts a `highlightedIds` prop (type `Object`, default `new Set()`). Pass `highlightedIds` (not `highlightedIds.value`) — Vue auto-unwraps refs from `setup()` in templates. The `<tr>` receives class `pallet-flash` when `highlightedIds.has(pallet.id)` is true. The `@keyframes palletFlash` animation runs 3s ease-out and ends at `background-color: inherit` so missing-weight rows (amber-50) restore correctly.
-
----
+- **Records live in Firestore, not Sheets** — at `centers/{centerId}/farmers/{farmer}/records/{autoId}`, always through the `RecordRepository`. Sheets is only a cold archive of past seasons; the backend has no Sheets code.
+- **Every Firestore path is tenant-namespaced** under `centers/{centerId}/`. There is no top-level app data except `backups`.
+- **There is no records cache.** Reads go live to Firestore. The old per-farmer cache, request-coalescing, and append-lock are gone.
+- **Auth is Bearer ID tokens — no session, no cookie, no Passport.** An Axios interceptor attaches the token to every request; raw `fetch()` calls must use `authHeaders()` from `src/utils/auth.js` (token + `X-Client-Id`).
+- **Role is never in the custom claim.** The only claim is `{centers: [...]}`, for tenant gating. Role is read live from Firestore on every check, so revoking admin takes effect immediately.
+- **Every backend write emits a fire-and-forget Firestore event** to `centers/{centerId}/farmer_events/{farmer}` after the repository write succeeds. Skipping this silently breaks live updates on other clients.
+- **All Firestore writes are Admin-SDK-only.** Client SDK reads are limited to `config/**` and `farmer_events/{farmer}`, gated by the `centers` claim in `frontend/firestore.rules`. Everything else is default-deny.
 
 ## PalletTable Layout Contract
 
-`PalletTable.vue` uses `h-full flex flex-col` with an internal `overflow-auto` table wrapper so the toolbar, search bar, and `<thead>` all stay sticky while rows scroll. **Any page component that renders `<PalletTable>` must add `h-full` to its own root `<div>`**, otherwise the height chain breaks and scrolling stops working. Current pages that do this: `Destination.vue`, `Weight.vue`, `SentPallets.vue`, `sentPalletsForMark.vue`.
+`PalletTable.vue` uses `h-full flex flex-col` with an internal `overflow-auto` table wrapper so the
+toolbar, search bar, and `<thead>` all stay sticky while rows scroll. **Any page component that
+renders `<PalletTable>` must add `h-full` to its own root `<div>`**, otherwise the height chain
+breaks and scrolling stops working. Current pages that do this: `Destination.vue`, `Weight.vue`,
+`SentPallets.vue`, `sentPalletsForMark.vue`.
 
 ---
 
-## Known Issues
+## Known Issues / Deferrals
 
-- `sheetsService.getRowsByPallet()` is called in `sheetController.getRecordsByPallet()` but is **not implemented** in `googleSheetsService.js`. That endpoint is broken.
-
----
-
-## Environment Variables
-
-### Frontend (`.env.development` / `.env.production`)
-
-| Variable | Purpose |
-|---|---|
-| `VITE_API_BASE_URL` | Backend base URL (`http://localhost:3000` / `https://api.tsuberi.com`) |
-| `VITE_DEV_MODE` | Enables dev-specific UI behavior |
-| `VITE_FIREBASE_*` | Firebase SDK config (API key, project ID, etc.) |
-
-### Backend (`.env`)
-
-| Variable | Purpose |
-|---|---|
-| `PORT` | Express port (3000) |
-| `NODE_ENV` | `development` / `production` |
-| `DEV_BYPASS_AUTH` | `true` enables dev login bypass — never in production |
-| `SPREADSHEET_ID` | Main pallet data spreadsheet |
-| `SHIPPING_LABELS_ID_*` | Per-farmer shipping label spreadsheets |
-| `GOOGLE_CLIENT_ID/SECRET` | OAuth credentials |
-| `GOOGLE_CALLBACK_URL` | OAuth redirect URI |
-| `SESSION_SECRET` | Express session secret |
-| `FRONT_CORS` | Comma-separated allowed CORS origins |
-| `FIREBASE_PROJECT_ID` | Firebase project |
-
----
-
-## Running Locally
-
-```bash
-# Backend (port 3000)
-cd backend && npm run dev
-
-# Frontend (port 5173)
-cd frontend && npm run dev
-```
-
-The Vite dev server proxies `/api/*` to `localhost:3000`, so no CORS issues in dev.
+- **`centerId` is still the constant `'tsuberi'`** (env-resolved via `config/center.js`, not per-subdomain). Task 23 shipped the Firebase-Auth/claim side — client reads are authed + center-matched, and `ensureCenterAccess` gates every backend request — but real per-subdomain center *resolution* (hostname → `centerId`) is still not implemented. **Task 23 status: SHIPPED to production 2026-07-26**; see `done.md` for the cutover log.
+- **Deliberately deferred, not oversights:** putting `role` in the custom claim (it stays live-read from Firestore), and running staging on a separate Firebase project (still the same project as production — note this is the *only* way to rehearse a rules flip, since rules and Auth users are both project-scoped).
+- **`main` is deliberately stale — do not "fix" it.** `main` is pinned to the last state validated by a real customer (`94b2272`, 2026-06-11, pre-Firestore), kept as a fast rollback anchor. All redesign work lives on `arch-redesign` (~42 commits ahead, 0 behind), which is what production runs. This is safe right now because there is no active season: prod has no farmers on it and serves as a testing environment. The merge to `main` happens only after **all** redesign tasks are complete, tested, and a farmer has verified the existing functionality still works — verified by the local suites (`npm test` + `npm run e2e`). Do not propose merging or syncing `main` before then.
+- **Gaps left open after the task-23 cutover** (none blocking): the dead auth env vars are still set on the Cloud Run service; legacy top-level `users/{email}` docs from the 15/16 migration still exist but grant nothing; and `DELETE /api/admin/users/:email` recomputes the claim but does not revoke refresh tokens, so center-membership revocation lags up to an hour (admin *role* revocation is immediate).
+- **No GitHub CI, by owner decision.** The repo is public and must have nothing connected to it except the code (no Actions, secrets, or integrations). Task 22's CI half is dropped; tests run locally.
 
 ---
 
 ## Rules to Follow
 
-1. **No traditional DB** — all persistence goes through `googleSheetsService.js`. When adding fields, update `SheetModel`, the column mapping table, and the service.
-2. **Auth checks** — backend endpoints need `ensureAuthenticated`; admin ones also need `ensureAdmin`. Frontend routes use `meta: { requiresAuth, requiresAdmin }`.
+1. **Records go through the `RecordRepository`** (Firestore), not Sheets. Controllers depend on `require('../repositories')`, never on a storage SDK directly. When adding a record field, update `PalletRecord` (`models/palletRecord.js`) and the record-fields table in [docs/architecture.md](docs/architecture.md). Keep the repository interface storage-agnostic so the parked Postgres option stays a mechanical swap.
+2. **Auth checks** — backend endpoints need `verifyFirebaseToken` + `ensureCenterAccess`; admin ones also need `ensureAdmin`. Frontend routes use `meta: { requiresAuth, requiresAdmin }`.
 3. **Tailwind only** — use Tailwind utility classes; avoid scoped vanilla CSS unless truly necessary.
 4. **Logging** — add `logger.info` / `logger.error` calls in any new controller or service method.
-5. **users.json** — user authorization is static. Adding a user requires editing this file manually.
-6. **Hebrew / RTL** — the UI is Hebrew. Keep labels and messages in Hebrew where consistent with existing code.
+5. **Users live in Firestore** — the `users` collection is the authorization source. Add/remove users via the admin UI or the `/api/admin/users` endpoints. `users.json` is only a first-boot seed; editing it does not change an already-seeded database.
+6. **Hebrew / RTL** — the app UI is Hebrew. Keep labels and messages in Hebrew where consistent with existing code. **Everything dev-facing — docs, comments, logs, commit messages, planning — is English.**
+7. **Keep this file short.** It loads in full on every conversation. New reference material goes in `docs/`; new procedures go in `.claude/skills/`. Only add something here if getting it wrong is likely *and* costly.

@@ -1,64 +1,72 @@
-# TsuberMango - New Season Setup & Deployment Guide
+# TsuberMango - New Season Guide
 
-This document explains how the project works, how to set up the system for a new season, and how to deploy updates to both the frontend and the backend.
+## 1. How the data is laid out
+Everything lives in Firestore under `centers/tsuberi/…`:
+- `config/global` - kinds, sizes, destinations, and the farmers list (`{name, allowGidon, archived?}`).
+- `users` - authorization (email -> role).
+- `farmers/{name}` - holds `certificateProfile` (header lines, driver, next certificate number), with sub-collections `records` and `audit`.
+- `certificates/{farmer}__{number}` - issued shipping certificates, with a `versions` sub-collection.
+- `farmer_events` - real-time sync events (disposable).
 
-## 1. How The Project Works
-- **Frontend (Firebase)**: A Vue 3 + Vite Single Page Application styled with TailwindCSS.
-- **Backend (Google Cloud)**: A Node.js Express server that exposes an API for the frontend and enforces Admin/User roles (roles are statically defined in `backend/users.json`).
-- **Database (Google Sheets)**: The system doesn't use a traditional database. Instead, the backend uses the Google Sheets API to read and write directly to Google Sheets, effectively using them as database tables. 
+Google Sheets is only a cold archive of past seasons. There is no per-season spreadsheet any more.
 
----
+## 2. End of season
+1. Settings -> **ייצוא נתוני עונה** - downloads the Excel file used for the after-season calculations.
+2. Settings -> **גיבויים** - run a backup (stored in the GCS bucket). Confirm it appears in the list. The backup is complete: config, users, every farmer's certificate details, every farmer (including ones not in the farmers list), deleted pallets, edit history and all certificates. A failed read fails the whole backup, so a backup that appears in the list is complete. A nightly backup also runs on its own (Cloud Scheduler job `tsuberi-daily-backup`).
 
-## 2. Setting Up New Sheets for the New Season
-To transition to the new season, you need to point the backend to brand-new Google Sheets. Follow these steps carefully:
-
-1. **Duplicate the Old Sheets**
-   Go into your Google Drive and make a copy of last year's sheets. This is highly important as it ensures you keep the exact column structure and headers that the backend API expects.
-
-2. **Retrieve the New IDs**
-   Open the new Google Sheets and copy the **Spreadsheet ID** from the URL. 
-   *(Example: `https://docs.google.com/spreadsheets/d/`<THE_NEW_ID>`/edit`)*
-
-3. **Update Local Environment**
-   Open `backend/.env` and replace the old IDs with the new ones.
-   ```env
-   SPREADSHEET_ID=<NEW_ID>
-   SHIPPING_LABELS_ID_TSUBERI=<NEW_ID>
-   SHIPPING_LABELS_ID_AVNER=<NEW_ID>
-   SHIPPING_LABELS_ID_IDAN=<NEW_ID>
-   SHIPPING_LABELS_ID_PESAH=<NEW_ID>
-   SHIPPING_LABELS_ID_KOPLER=<NEW_ID>
-   SHIPPING_LABELS_ID_SHAHAK=<NEW_ID>
+## 3. Before the next season
+1. Take a fresh backup (Settings -> **גיבויים**). The reset refuses to run without a `backups` entry from the last 24 h.
+2. Dry run (deletes nothing, prints counts):
+   ```bash
+   cd backend
+   node scripts/clearSeason.js
    ```
+3. Compare the backup's row count (Settings -> **גיבויים**, column "שורות") with the dry run's `totalRecords`. They must be equal. If they differ, a pallet was added or changed after the backup: take a fresh backup and re-run the dry run. Do NOT execute until they match (unless the difference is known test data).
+4. Execute:
+   ```bash
+   node scripts/clearSeason.js --execute --center tsuberi
+   ```
+   `--center` must match the resolved `CENTER_ID`, otherwise the script falls back to a dry run.
+5. What it deletes: every farmer's records and audit, all certificates (with their versions), all `farmer_events`.
+   What it keeps: `config/**` (kinds, sizes, destinations, farmers list), `users/**`, `farmers/{name}` docs including `certificateProfile` (certificate numbering continues across seasons), and backup metadata + GCS backup files.
+6. Then in Settings:
+   - **ניהול חקלאים**: hide farmers who left (their data stays; restore them from **חקלאים מוסתרים**), add new farmers.
+   - For each farmer check **פרטי תעודה**: header lines, driver, next number.
+   - Review the kinds / sizes / destinations lists and the users list.
 
-4. **Update Production Environment**
-   Because the backend runs on Google Cloud, updating the local `.env` won't affect the live production server. 
-   - Log into the Google Cloud Console.
-   - Navigate to your service's settings (Cloud Run).
-   - Edit your deployment / revision and update the Environment Variables there with the new IDs.
-   - Deploy the new revision.
+## Restoring from a backup
+Use when data was lost or corrupted. The tool never overwrites records, audit or certificates: if a farmer already has records/audit, or a certificate id already exists, it reports a blocker and `--execute` writes nothing. Farmer details (certificate header, driver, next number) are merged, and the next certificate number never goes down (the dry run prints `profiles` with the current and backup numbers). **Stop intake on all devices during a restore.** Ids are preserved. It accepts old (records only) and new (complete) backup files.
 
----
+1. Do NOT take a new backup first: it would capture the damage. Backups are kept under unique names `backups/YYYY-MM-DD-HHmmss.json` (several per day are kept, nothing is overwritten; older files are just `YYYY-MM-DD.json`). **The date and time in a name are UTC**: the 02:00 Israel nightly backup carries the previous UTC date (23:00). Pick the file from BEFORE the damage: `--gcs YYYY-MM-DD` takes the newest backup of that UTC day and logs all candidates; use a full name (`--gcs backups/2027-06-14-230000.json`) for a specific one, or copy the file locally first (outside the repo, e.g. `gcloud storage cp gs://tsuberi-mangos-backups/backups/<name> $env:TEMP`) and use `--file`. `--gcs latest` is the newest file, which after the damage may be a backup of the damaged data.
+2. Dry run with that file (prints what would be restored and any blockers):
+   ```bash
+   cd backend
+   node scripts/restoreBackup.js --gcs 2027-06-14          # or --file <path>
+   ```
+3. If the target still holds (damaged) data, clear it once the good file is confirmed by the dry run: `node scripts/clearSeason.js --execute --center tsuberi --skip-backup-check` (the recent-backup guard would otherwise demand a new backup). **If only one farmer is damaged, do NOT clear the whole season**: run `node scripts/clearSeason.js --farmer <name> --execute --center tsuberi --skip-backup-check` (that farmer's records, audit and certificates only), then `restoreBackup.js --farmer <name>`.
+4. Execute:
+   ```bash
+   node scripts/restoreBackup.js --gcs 2027-06-14 --execute --center tsuberi
+   ```
+   `--center` must match the resolved `CENTER_ID`, otherwise it stays a dry run.
+5. One farmer only: add `--farmer <name>` (records, history, farmer details and that farmer's certificates).
+6. `--with-config` also restores settings (config) and users. Use it only when those were lost too; full restore of a complete backup only.
+7. After a restore, clients should reload (no live events are sent). A full restore without `--with-config` brings back farmers' data, but farmers missing from the Settings farmer list stay hidden until added or restored there.
 
-## 3. How to Deploy (Pushing Updates)
-
-### Deploying the Frontend (Firebase Hosting)
-Whenever you make changes to the Vue components in the `frontend/` directory, you need to build and deploy to Firebase.
-
-Open your terminal and run the following commands:
-```bash
-cd frontend
-npm run build
-npx firebase-tools deploy --only hosting
-```
-*(If you have `firebase-tools` installed globally, you can omit the `npx firebase-tools` prefix and just use `firebase deploy`)*
-
-### Deploying the Backend (Google Cloud)
-Thanks to the `Dockerfile` in the backend, the server is containerized and most likely runs on Google Cloud Run. Whenever you update Express routes, logic, or add dependencies, you must push to GCP.
-
-Open your terminal and run:
-```bash
+### Restore drill (rehearse before the April dry run, touches no production data)
+Download a backup and restore it into a throwaway center inside the Firestore emulator (the data vanishes when the emulator stops):
+```powershell
+gcloud storage cp gs://tsuberi-mangos-backups/backups/<name>.json $env:TEMP\drill-backup.json   # never into the repo (public)
 cd backend
-gcloud run deploy --source .
+$env:CENTER_ID='drill'
+npx firebase emulators:exec --only firestore --project demo-tsuber "node scripts/restoreBackup.js --file $env:TEMP/drill-backup.json --execute --center drill"
+Remove-Item Env:CENTER_ID
+Remove-Item $env:TEMP\drill-backup.json
 ```
-*Note: The gcloud CLI might prompt you for the Service Name and Region. Be sure to provide whatever name you picked previously for this server (e.g., `tsuberi-mango-backend`).*
+The output should show `"executed": true` and the counts you expect, and the log line `target: EMULATOR 127.0.0.1:8080`. If it says `REAL Firestore`, stop.
+
+## 4. First-time setup (2026-10-10 — DONE)
+Done once, before the first Firestore season: pre-season test data cleared with `clearSeason.js --skip-backup-check`; certificate profiles seeded from the old label sheets (Tsuberi 51466, Gamliel 90048, Shahak 507, Meltzer 3; the one-off seed script and the `googleapis` dependency were then removed); Avner / Idan / Kopler added to the farmer list. Still to finish by hand in Settings -> **פרטי תעודה**: the real profiles of Avner / Idan / Kopler, and header lines 4-5 (phone / VAT) of the seeded farmers. Printer check: **תצוגה מקדימה** - never issue a real certificate to test (it consumes a real number).
+
+## 5. Deploying
+See the `deploy` skill (`.claude/skills/deploy/SKILL.md`) for the exact commands and ordering. Backend: Cloud Run service `backend-service` (project `tsuberi-mangos`, region `europe-west1`). Frontend: Firebase Hosting (project `tsuberi-mangos-7e449`). There are no per-season env vars.

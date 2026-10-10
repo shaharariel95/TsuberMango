@@ -1,9 +1,13 @@
 import { ref, watch, onUnmounted, isRef } from 'vue'
 import { db } from '../main'
 import { doc, onSnapshot } from 'firebase/firestore'
+import { centerId } from './useCenter'
+import { isOwnEcho } from '../utils/echo'
+import { clientId } from '../utils/clientId'
+import { applyPallet } from '../utils/applyPallet'
 
 export function useFarmerEvents(farmer, pallets, options = {}) {
-  // options.currentUserEmail — Ref<string>, used for echo suppression
+  // options.currentUserEmail — Ref<string>; echo-suppression fallback for events without updatedByClient
   // options.filter          — (pallet) => boolean, rows this view should show
   const highlightedIds = ref(new Set())
   let unsubscribe = null
@@ -13,19 +17,8 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
     setTimeout(() => ids.forEach(id => highlightedIds.value.delete(id)), 3000)
   }
 
-  function applyOne(p, list) {
-    const { filter } = options
-    const idx = list.findIndex(x => x.id === p.id)
-    const passes = !filter || filter(p)
-    if (idx !== -1 && !passes) { list.splice(idx, 1); return null }
-    if (idx !== -1)             { list[idx] = { ...list[idx], ...p }; return p.id }
-    if (idx === -1 && passes)   { list.push(p); return p.id }
-    return null
-  }
-
   function applyEvent(event) {
-    if (options.currentUserEmail?.value &&
-        event.updatedBy === options.currentUserEmail.value) return
+    if (isOwnEcho(event, { clientId, email: options.currentUserEmail?.value })) return
 
     const list = pallets.value
     const flashed = []
@@ -33,13 +26,13 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
     switch (event.type) {
       case 'create':
       case 'update': {
-        const id = applyOne(event.pallet, list)
+        const id = applyPallet(list, event.pallet, options.filter)
         if (id != null) flashed.push(id)
         break
       }
       case 'bulk_update':
         event.pallets.forEach(p => {
-          const id = applyOne(p, list)
+          const id = applyPallet(list, p, options.filter)
           if (id != null) flashed.push(id)
         })
         break
@@ -50,6 +43,14 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
           const updated = { ...list[idx], sent: false }
           const keep = !options.filter || options.filter(updated)
           keep ? (list[idx] = updated) : list.splice(idx, 1)
+        })
+        break
+      case 'shipment_date':
+        event.palletIds.forEach(id => {
+          const idx = list.findIndex(x => x.id === id)
+          if (idx === -1) return
+          list[idx] = { ...list[idx], shipmentDate: event.shipmentDate }
+          flashed.push(id)
         })
         break
       case 'mark_destination':
@@ -69,7 +70,8 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
   function subscribe(farmerName) {
     if (unsubscribe) { unsubscribe(); unsubscribe = null }
     if (!farmerName) return
-    const docRef = doc(db, 'farmer_events', farmerName)
+    if (!centerId.value) return
+    const docRef = doc(db, 'centers', centerId.value, 'farmer_events', farmerName)
     let isFirstSnapshot = true
     unsubscribe = onSnapshot(
       docRef,
@@ -86,7 +88,7 @@ export function useFarmerEvents(farmer, pallets, options = {}) {
     )
   }
 
-  watch(() => isRef(farmer) ? farmer.value : farmer, subscribe, { immediate: true })
+  watch([() => isRef(farmer) ? farmer.value : farmer, centerId], ([f]) => subscribe(f), { immediate: true })
   onUnmounted(() => { if (unsubscribe) unsubscribe() })
 
   return { highlightedIds }

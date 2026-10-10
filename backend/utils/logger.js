@@ -8,7 +8,8 @@ const logFormat = winston.format.combine(
 );
 
 const logger = winston.createLogger({
-    level: 'info',
+    // Quiet under Vitest so test output stays readable (and cheap for agents to read).
+    level: process.env.VITEST ? 'warn' : 'info',
     format: logFormat,
     transports: []
 });

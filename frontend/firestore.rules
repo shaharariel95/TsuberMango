@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Client SDK reads only the tenant config doc and the real-time farmer_events.
+// Firebase Auth provides request.auth; the `centers` custom claim lists the
+// centers a user may read. Everything else is Admin-SDK-only (default deny).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /centers/{centerId}/config/{document=**} {
+      allow read: if request.auth != null && centerId in request.auth.token.centers;
+      allow write: if false; // Admin SDK only (POST /api/admin/config)
+    }
+    match /centers/{centerId}/farmer_events/{farmerId} {
+      allow read: if request.auth != null && centerId in request.auth.token.centers;
+      allow write: if false; // Admin SDK only (firestoreEventService)
+    }
+  }
+}
