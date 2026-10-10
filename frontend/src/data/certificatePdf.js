@@ -48,48 +48,78 @@ const COLUMNS = ['מחיר', 'כמות משטחים', 'משקל', 'כמות', '�
 const WIDTH_WEIGHTS = [45, 50, 50, 45, 65, 55, 35, 70, 60];
 const WIDTHS = WIDTH_WEIGHTS.map(w => w * (CONTENT_W - 9 * 9 - 2) / WIDTH_WEIGHTS.reduce((a, b) => a + b, 0)); // pdfmake adds 4+4pt padding and a 1pt border per column on top of the width
 
+const LINE_H = 13; // approx. Rubik 11pt line height; used to centre cell text vertically (pdfmake 0.2 has no valign)
+const HEAD_H = 32;
+const ROW_H = 22;
+const THICK = 2;
 const cell = (text, extra = {}) => txt(text, { alignment: 'center', ...extra });
+const vcell = (text, h, lines = 1, extra = {}) => cell(text, { margin: [0, Math.max(0, (h - lines * LINE_H) / 2), 0, 0], ...extra });
 
 function rowCells(row) {
-  if (!row) return COLUMNS.map(() => cell(''));
-  return [cell(''), cell(row.firstOfPallet ? 1 : ''), cell(row.weight), cell(row.boxes), cell(''), cell(''),
-    cell(row.size), cell(row.kind), cell(row.palletNumber)];
+  const c = (t) => vcell(t, ROW_H);
+  if (!row) return COLUMNS.map(() => c(''));
+  return [c(''), c(row.firstOfPallet ? 1 : ''), c(row.weight), c(row.boxes), c(''), c(''),
+    c(row.size), c(row.kind), c(row.palletNumber)];
 }
+
+const NB = [false, false, false, false];
+const BOX = [true, true, true, true];
+const LINE = [false, false, false, true];
+const blank = (extra = {}) => ({ text: '', border: NB, ...extra });
+const label = (t, extra = {}) => ({ ...txt(t, { fontSize: 10, alignment: 'right', ...extra }), border: NB });
+const fill = (text = '', extra = {}) => ({ ...(text ? txt(text, { fontSize: 11, alignment: 'center' }) : { text: '' }), border: LINE, ...extra });
+const noPad = { paddingLeft: () => 2, paddingRight: () => 2, paddingTop: () => 1, paddingBottom: () => 1 };
 
 function certificatePage(s, index) {
   if (s.rows.length > BODY_ROWS) throw new Error(`certificate ${s.number} has ${s.rows.length} rows; max ${BODY_ROWS}`);
-  const [title = '', ...lines] = s.headerLines || [];
-  const body = [COLUMNS.map((h, i) => cell(i === 1 ? h.replace(' ', '\n') : h, { bold: true, fillColor: '#f1f5f9' }))];
+  const [title = '', ...rest] = s.headerLines || [];
+  const lines = [...rest, '', '', '', ''].slice(0, 4); // lines 2-5, positional
+  const [l2, l3, l4, l5] = lines;
+  const head = [];
+  const push = (t, props, margin) => { if (t) head.push({ ...txt(t, props), alignment: 'center', margin }); };
+  const first = { ...txt(title, { fontSize: 30, bold: true }), alignment: 'center', margin: [0, 0, 0, 0] };
+  const body = [COLUMNS.map((h, i) => vcell(i === 1 ? h.replace(' ', '\n') : h, HEAD_H, i === 1 ? 2 : 1, { bold: true }))];
   for (let i = 0; i < BODY_ROWS; i++) body.push(rowCells(s.rows[i]));
-  return [
-    { ...txt(title, { fontSize: 30, bold: true }), alignment: 'center', ...(index > 0 ? { pageBreak: 'before' } : {}) },
-    ...lines.map((l, i) => ({ ...txt(l, { fontSize: i === 0 ? 11 : 9, bold: i === 0 }), alignment: 'center', margin: [0, 1, 0, 1] })),
-    { canvas: [{ type: 'line', x1: 0, y1: 4, x2: 515, y2: 4, lineWidth: 1 }, { type: 'line', x1: 0, y1: 7, x2: 515, y2: 7, lineWidth: 1 }], margin: [0, 2, 0, 8] },
-    { columns: [
-      { text: [{ text: s.shipmentDate || '' }, { text: '   ' }, txt('תאריך:', { bold: true })], alignment: 'left' },
-      txt("מגדל מס':", { bold: true, alignment: 'right' }),
-    ], margin: [0, 0, 0, 6] },
-    { text: [{ text: String(s.number), bold: true, color: RED, fontSize: 18 }, { text: '   ' }, txt("תעודת משלוח סמ'", { bold: true, fontSize: 14 })], alignment: 'center', margin: [0, 0, 0, 6] },
-    { text: [txt(s.destination || '', { bold: true, fontSize: 15, decoration: 'underline' }), { text: ' ' }, txt('עבור:', { fontSize: 10 })], alignment: 'right', margin: [0, 0, 0, 8] },
-    { table: { headerRows: 1, widths: WIDTHS, heights: (i) => (i === 0 ? 28 : 22), body }, layout: { hLineWidth: () => 1, vLineWidth: () => 1 } },
-    { table: { widths: [45, 50, 50, '*'], body: [[cell(''), cell(s.palletCount, { bold: true }), cell('סה"כ\nמשטחים', { fontSize: 9 }), cell('תוצרת מעושרת / נשלח מעשר', { alignment: 'right' })]] },
-      layout: 'noBorders', margin: [0, 4, 0, 4] },
-    { ...txt('כמות מעשר', { fontSize: 10 }), alignment: 'right', margin: [0, 2, 0, 6] },
-    { columns: [
-      txt('שעת יציאה', { fontSize: 10 }), txt('רכב מס', { fontSize: 10 }),
-      txt(s.driverName, { alignment: 'center', fontSize: 11 }), txt('שם המוביל', { alignment: 'right', fontSize: 10 }),
-    ], margin: [0, 6, 0, 6] },
-    { columns: [
-      txt('שעה', { fontSize: 10 }), txt('חתימה', { fontSize: 10 }), { text: '' }, txt('נפרק על-ידי', { alignment: 'right', fontSize: 10 }),
+  push(l2, { fontSize: 11, bold: true }, [0, 1, 0, 1]);
+  push(l3, { fontSize: 9 }, [0, 1, 0, 1]);
+  push(l4, { fontSize: 9 }, [0, 1, 0, 1]);
+  const rule = { canvas: [{ type: 'line', x1: 0, y1: 4, x2: CONTENT_W, y2: 4, lineWidth: 1 }, { type: 'line', x1: 0, y1: 7, x2: CONTENT_W, y2: 7, lineWidth: 1 }], margin: [0, 2, 0, 2] };
+  const vatLine = l5 ? [{ ...txt(l5, { fontSize: 7 }), alignment: 'center', margin: [0, 0, 0, 4] }] : [];
+  const totalsRow = COLUMNS.map(() => blank());
+  totalsRow[1] = { table: { widths: ['*'], body: [[{ ...cell(s.palletCount, { bold: true, margin: [0, 3, 0, 3] }) }]] }, layout: { hLineWidth: () => THICK, vLineWidth: () => THICK }, border: NB };
+  totalsRow[2] = { ...cell('סה"כ\nמשטחים', { fontSize: 8 }), border: NB };
+  totalsRow[4] = { ...txt('תוצרת מעושרת / נשלח מעשר', { alignment: 'right' }), colSpan: 5, border: NB, margin: [0, 8, 0, 0] };
+  const fills = { // physical left→right: [line, label, line, label, line, label]
+    table: { widths: [70, 50, 95, 55, '*', 70], heights: 24, body: [
+      [blank(), blank(), blank(), blank(), fill(), label('כמות מעשר')],
+      [fill(), label('שעת יציאה'), fill(), label('רכב מס'), fill(s.driverName), label('שם המוביל')],
+      [fill(), label('שעה'), fill(), label('חתימה'), fill(), label('נפרק על-ידי')],
     ] },
+    layout: { hLineWidth: () => 1, vLineWidth: () => 0, ...noPad }, margin: [0, 0, 0, 0],
+  };
+  return [
+    { ...first, ...(index > 0 ? { pageBreak: 'before' } : {}) },
+    ...head,
+    rule,
+    ...vatLine,
+    { table: { widths: [110, 45, '*', 110, 60], heights: 24, body: [[
+      fill(s.shipmentDate || '', { alignment: 'left' }), label('תאריך', { bold: true }), blank(), { text: '', border: BOX }, label("מגדל מס':", { bold: true }),
+    ]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, ...noPad }, margin: [0, 4, 0, 4] },
+    { text: [{ text: String(s.number), bold: true, color: RED, fontSize: 18 }, { text: '   ' }, txt("תעודת משלוח סמ'", { bold: true, fontSize: 14 })], alignment: 'center', margin: [0, 0, 0, 4] },
+    { text: [txt(s.destination || '', { bold: true, fontSize: 15, decoration: 'underline' }), { text: ' ' }, txt('עבור:', { fontSize: 10 })], alignment: 'right', margin: [0, 0, 0, 6] },
+    { table: { headerRows: 1, widths: WIDTHS, heights: (i) => (i === 0 ? HEAD_H : ROW_H), body },
+      layout: { hLineWidth: (i, n) => (i === 0 || i === n.table.body.length ? THICK : 1), vLineWidth: (i, n) => (i === 0 || i === n.table.widths.length ? THICK : 1), paddingTop: () => 0, paddingBottom: () => 0 } },
+    { table: { widths: WIDTHS, body: [totalsRow] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0 }, margin: [0, 4, 0, 4] },
+    fills,
   ];
 }
 
 export function buildCertificateDoc(snapshots) {
   return {
     pageSize: 'A4',
-    pageMargins: [40, 30, 40, 30],
+    pageMargins: [40, 36, 40, 36],
     defaultStyle: { font: 'Rubik', fontSize: 11, alignment: 'right' },
+    background: () => ({ absolutePosition: { x: 0, y: 0 }, alignment: 'left', canvas: [{ type: 'rect', x: 30, y: 26, w: 535, h: 672, lineWidth: 0.75 }] }),
     content: snapshots.flatMap((s, i) => certificatePage(s, i)),
   };
 }

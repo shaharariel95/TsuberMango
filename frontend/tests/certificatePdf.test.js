@@ -76,3 +76,59 @@ describe('buildCertificateDoc', () => {
     expect(() => buildCertificateDoc([s])).not.toThrow();
   });
 });
+
+describe('certificate layout (owner sample)', () => {
+  const doc = buildCertificateDoc([snap]);
+  const flat = (n) => pdfTextToString(n.text);
+  const idxOfText = (str) => doc.content.findIndex(n => JSON.stringify(n).includes(JSON.stringify(toPdfText(str)).slice(1, -1)));
+  it('puts the double rule after header line 4 and the small line 5 after the rule', () => {
+    const rule = doc.content.findIndex(n => n.canvas && n.canvas.length === 2);
+    expect(rule).toBeGreaterThan(0);
+    expect(idxOfText('נייד')).toBeLessThan(rule);
+    const vat = doc.content.findIndex(n => JSON.stringify(n).includes('054897764'));
+    expect(vat).toBe(rule + 1);
+    expect(JSON.stringify(doc.content[vat])).toContain('"fontSize":7');
+  });
+  it('skips empty header lines but still draws the rule once', () => {
+    const d = buildCertificateDoc([{ ...snap, headerLines: ['כותרת', '', '', '', ''] }]);
+    expect(d.content.filter(n => n.canvas).length).toBe(1);
+    expect(d.content.some(n => JSON.stringify(n).includes('054897764'))).toBe(false);
+  });
+  it('has an empty bordered מגדל box and the date row', () => {
+    const t = doc.content.find(n => n.table && n.table.widths?.length === 5);
+    const cells = t.table.body[0];
+    expect(cells[3]).toMatchObject({ text: '', border: [true, true, true, true] });
+    expect(JSON.stringify(cells[4])).toContain(JSON.stringify(toPdfText("מגדל מס'")[0]).slice(1, -1));
+    expect(flat(cells[0])).toBe('2025-07-09');
+  });
+  it('draws a thin page frame in the background', () => {
+    expect(doc.background().canvas[0].type).toBe('rect');
+  });
+  it('has no grey fill on header cells and a thick outer table border', () => {
+    const t = doc.content.find(n => n.table && n.table.widths?.length === 9 && n.table.headerRows === 1);
+    t.table.body[0].forEach(c => expect(c.fillColor).toBeUndefined());
+    const node = { table: { body: t.table.body, widths: t.table.widths } };
+    expect(t.layout.hLineWidth(0, node)).toBeGreaterThan(t.layout.hLineWidth(1, node));
+    expect(t.layout.vLineWidth(9, node)).toBeGreaterThan(t.layout.vLineWidth(4, node));
+  });
+  it('centers cell text vertically with a top margin', () => {
+    const t = doc.content.find(n => n.table && n.table.widths?.length === 9 && n.table.headerRows === 1);
+    expect(t.table.body[1][0].margin[1]).toBeGreaterThan(0);
+    expect(t.table.body[1][0].alignment).toBe('center');
+  });
+  it('shows the pallet total in a thick-bordered box', () => {
+    const t = doc.content.find(n => n.table && n.table.widths?.length === 9 && n.table.headerRows === undefined);
+    const box = t.table.body[0][1];
+    expect(flat(box.table.body[0][0])).toBe('1');
+    expect(box.layout.hLineWidth()).toBeGreaterThanOrEqual(2);
+  });
+  it('has the fill-in labels, each with an underline cell, and the driver on the line', () => {
+    const t = doc.content.find(n => n.table && n.table.widths?.length === 6);
+    const json = JSON.stringify(t);
+    ['כמות מעשר', 'שם המוביל', 'רכב מס', 'שעת יציאה', 'נפרק על-ידי', 'חתימה', 'שעה'].forEach(l => expect(json).toContain(JSON.stringify(toPdfText(l, { fontSize: 10, alignment: 'right' })[0].text).slice(1, -1)));
+    expect(JSON.stringify(doc.content)).toContain(JSON.stringify(toPdfText('תוצרת')[0]).slice(1, -1));
+    const underlined = t.table.body.flat().filter(c => JSON.stringify(c.border) === '[false,false,false,true]');
+    expect(underlined.length).toBe(7); // כמות מעשר + 3 + 3
+    expect(flat(t.table.body[1][4])).toBe(pdfTextToString(toPdfText('אדם')));
+  });
+});
