@@ -5,6 +5,9 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Merged to `main` — 2026-10-10 (PR #5)
+- `arch-redesign` merged into `main` (merge commit `7ae224e`); production already ran it. The Sheets-era `main` (`94b2272`) is kept as branch `sheets_db_backup`. Gates at merge: backend 186, frontend unit 40, e2e 30; production verified by hand (sign-in/out, users, intake, backups, certificate preview).
+
 ### ✅ Keyless Cloud Run (code + docs; cutover pending)
 - Service-account key no longer ships: `*.env.json` added to `.gcloudignore`/`.dockerignore`; `utils/gcpCredentials.js` uses the key file locally and Application Default Credentials (Cloud Run identity) otherwise; app, backup service and scripts use it.
 - Cutover (grant roles, deploy, verify, rotate key) is a manual checklist in the deploy skill -> Credentials; not yet executed.

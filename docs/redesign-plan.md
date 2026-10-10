@@ -14,7 +14,7 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 
 ## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season; season May–July 2027, farmer dry run April 2027
 1. **Pre-season ops:** DONE 2026-10-10 — test data cleared, profiles seeded, keyless Cloud Run cutover, dead env vars removed, seed script + `googleapis` removed. Remaining (owner, in Settings → פרטי תעודה): real Avner/Idan/Kopler profiles and header lines 4–5 of the seeded farmers; printer check via תצוגה מקדימה (never a real issue). Run a restore drill (`NEW_SEASON.md`) before the April dry run.
-2. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
+2. **Deployed and merged to `main` (2026-10-10, PR #5).** Farmer dry run in April 2027 before the season.
 3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
 
 ## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 12, 15+16, 20, 23, 25, 36 are in the reference doc / `done.md`)
