@@ -2,7 +2,7 @@
 // and any blockers). Source: --file <path> or --gcs <latest|YYYY-MM-DD|backups/…json> (bucket GCS_BACKUP_BUCKET).
 //   node scripts/restoreBackup.js --gcs latest
 //   node scripts/restoreBackup.js --gcs 2027-06-14 --execute --center <CENTER_ID> [--farmer <name>] [--with-config]
-// Refuses to overwrite existing data — clear first (scripts/clearSeason.js) or restore into an empty center.
+// Never overwrites records, audit or certificates (clear first with scripts/clearSeason.js [--farmer <name>]); farmer details are merged and nextNumber never goes down.
 // Restore drill (no production writes): run under the Firestore emulator with CENTER_ID=drill — see NEW_SEASON.md.
 require('dotenv').config();
 const fs = require('fs');
@@ -11,6 +11,7 @@ const admin = require('firebase-admin');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
 const { restoreBackup } = require('../services/backupRestore');
+const { resolveBackupName } = require('../services/backupNames');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -26,12 +27,11 @@ async function readSource() {
   const { Storage } = require('@google-cloud/storage');
   const bucket = new Storage(fs.existsSync(keyFile) ? { keyFilename: keyFile } : {}).bucket(bucketName);
   let name = which;
-  if (which === 'latest') {
-    const [files] = await bucket.getFiles({ prefix: 'backups/' });
-    if (!files.length) throw new Error('No backups in the bucket');
-    name = files.map(f => f.name).sort().pop();
-  } else if (/^\d{4}-\d{2}-\d{2}$/.test(which)) {
-    name = `backups/${which}.json`;
+  if (which === 'latest' || /^\d{4}-\d{2}-\d{2}$/.test(which)) {
+    const [files] = await bucket.getFiles({ prefix: 'backups/' }); // read-only listing
+    const r = resolveBackupName(files.map(f => f.name), which);
+    name = r.name;
+    logger.info(`[restoreBackup] candidates: ${r.candidates.join(', ')} -> using ${name}`);
   }
   logger.info(`[restoreBackup] reading gs://${bucketName}/${name}`);
   const [buf] = await bucket.file(name).download(); // read-only

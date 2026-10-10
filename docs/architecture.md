@@ -50,7 +50,8 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `controllers/certificateController.js` — Thin HTTP layer over the service (farmer validated with `assertKnownFarmer`).
 - `routes/certificateRoutes.js` — `/api/certificates/*`. Mounted in `app.js` **above** the global `/api` chain with its own `verifyFirebaseToken` + `ensureCenterAccess`. The admin profile and season-export endpoints are defined directly in `app.js`.
 - `services/backupService.js` — `buildBackupPayload` builds a complete, all-or-nothing v2 backup (config, users, every `farmers/{name}` doc incl. `certificateProfile`, all records incl. soft-deleted, audit, certificates + versions); `runBackup` uploads it to GCS (refused under emulators) and records metadata in the Firestore `backups` collection. Invoked by the manual admin endpoint and by Cloud Scheduler (see `backend/CLOUD_SCHEDULER.md`).
-- `services/backupRestore.js` — `restoreBackup(db, centerId, payload, {execute, farmer, withConfig})`: restores a v1 or v2 backup payload. Dry run unless `execute`; never overwrites (existing records/audit for a farmer or an existing certificate id are blockers and execute throws, writing nothing); preserves ids; writes no realtime events.
+- `services/backupNames.js` — Pure helpers: `backupFileName(iso)` (`backups/YYYY-MM-DD-HHmmss.json`, UTC) and `resolveBackupName(names, which)` (`latest` / `YYYY-MM-DD` / full name; old date-only names sort before same-day timestamped ones).
+- `services/backupRestore.js` — `restoreBackup(db, centerId, payload, {execute, farmer, withConfig})`: restores a v1 or v2 backup payload. Dry run unless `execute`; never overwrites records, audit or certificates (existing ones are blockers and execute throws, writing nothing); farmer docs are merged and `certificateProfile.nextNumber` never goes down; preserves ids; writes no realtime events.
 - `services/seasonReset.js` — Season reset: counts, then (on execute) deletes all records, audit, certificates and farmer events for a center; keeps config, users, farmer docs/`certificateProfile` and backups. Execute requires a `backups` doc from the last 24 h unless skipped.
 - `models/palletRecord.js` — Pallet data model + required-field validation + boolean coercion (see PalletRecord below).
 - `utils/requestContext.js` — per-request async context carrying the `X-Client-Id`, stamped on realtime events as `updatedByClient`.
@@ -61,7 +62,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 
 - `scripts/seedCertificateProfiles.js` — One-time seed of each farmer's `certificateProfile` (header lines, driver, next number) from the old shipping-label spreadsheets. Supports `--dry-run`. Farmers whose sheets aren't shared with the service account are entered manually in Settings.
 
-- `scripts/clearSeason.js` — CLI for `seasonReset`: dry run by default; `--execute --center <CENTER_ID>` deletes; `--skip-backup-check` bypasses the recent-backup guard. See `NEW_SEASON.md`.
+- `scripts/clearSeason.js` — CLI for `seasonReset`: dry run by default; `--execute --center <CENTER_ID>` deletes; `--farmer <name>` scopes to one farmer's records, audit and certificates; `--skip-backup-check` bypasses the recent-backup guard. See `NEW_SEASON.md`.
 - `scripts/restoreBackup.js` — CLI for `backupRestore`: dry run by default; `--execute --center <CENTER_ID>` writes; source `--file <path>` or `--gcs latest|YYYY-MM-DD|backups/…json` (read-only download); `--farmer <name>`, `--with-config`. See `NEW_SEASON.md`.
 - `scripts/seedCenterNamespace.js` — One-time idempotent carry-over: copies top-level `config/global` + `users/*` into `centers/{centerId}/`.
 - `scripts/addTestFarmers.js` — Appends test farmers to the namespaced config.
@@ -156,7 +157,7 @@ centers/{centerId}/
   certificates/{farmer}__{number}     certificate doc: farmer, number, status, shipmentDate, destination, recordIds, current snapshot
     versions/{n}                      immutable snapshots, one per issue/reprint/removal
   farmer_events/{farmer}        real-time delta doc, overwritten per write
-backups/{autoId}                backup metadata: timestamp, filename, farmerCount, rowCount, triggeredBy
+backups/{autoId}                backup metadata: timestamp, filename, centerId, version, farmerCount, rowCount, triggeredBy
 ```
 
 | Path | Purpose | Written by |

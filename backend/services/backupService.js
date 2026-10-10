@@ -5,6 +5,7 @@ const admin = require('firebase-admin');
 const FirestoreRepository = require('../repositories/FirestoreRepository');
 const { CENTER_ID } = require('../config/center');
 const logger = require('../utils/logger');
+const { backupFileName } = require('./backupNames');
 
 // GCS client — reuses the same service-account key already present for Firebase.
 // The key file lives in services/ (same one app.js uses).
@@ -81,7 +82,7 @@ async function runBackup(triggeredBy) {
     const db = admin.firestore();
     const payload = await buildBackupPayload(db, CENTER_ID);
     const timestamp = new Date(payload.timestamp);
-    const filename = `backups/${payload.timestamp.slice(0, 10)}.json`; // YYYY-MM-DD
+    const filename = backupFileName(payload.timestamp); // backups/YYYY-MM-DD-HHmmss.json (UTC); never reused
     const farmerCount = Object.keys(payload.farmers).length;
     const rowCount = Object.values(payload.farmers).reduce((n, rows) => n + rows.length, 0);
 
@@ -93,6 +94,7 @@ async function runBackup(triggeredBy) {
 
     await file.save(body, {
         contentType: 'application/json',
+        preconditionOpts: { ifGenerationMatch: 0 }, // never overwrite an existing backup object
         metadata: {
             cacheControl: 'no-cache',
         },
@@ -103,6 +105,8 @@ async function runBackup(triggeredBy) {
     await db.collection(BACKUPS_COLLECTION).add({
         timestamp: admin.firestore.Timestamp.fromDate(timestamp),
         filename,
+        centerId: CENTER_ID,
+        version: 2,
         farmerCount,
         rowCount,
         triggeredBy,

@@ -2,6 +2,7 @@
 // center in CENTER_ID. Keeps config, users, farmer certificate profiles and backups.
 // Dry run by default (prints counts). To delete:
 //   node scripts/clearSeason.js --execute --center <CENTER_ID> [--skip-backup-check]
+// One farmer only (records, audit, certificates; nothing else): add --farmer <name>.
 // Executing requires a backup from the last 24 h unless --skip-backup-check (pre-season test data).
 require('dotenv').config();
 const path = require('path');
@@ -24,7 +25,8 @@ if (!admin.apps.length) {
   if (flag('--execute') && !execute) {
     logger.error(`[clearSeason] --execute needs --center ${CENTER_ID} (the resolved CENTER_ID) — running as a dry run instead`);
   }
-  const out = await resetSeason(admin.firestore(), CENTER_ID, { execute, skipBackupCheck: flag('--skip-backup-check') });
+  const out = await resetSeason(admin.firestore(), CENTER_ID, { execute, skipBackupCheck: flag('--skip-backup-check'),
+    farmer: args.includes('--farmer') ? args[args.indexOf('--farmer') + 1] : null });
   console.log(JSON.stringify(out, null, 2));
   process.exit(0);
 })().catch((err) => { logger.error(`[clearSeason] ${err.message}`); process.exit(1); });

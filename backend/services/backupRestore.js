@@ -1,10 +1,14 @@
 // Restore a backup payload (v1: { timestamp, farmers }, v2: see backupService.buildBackupPayload)
-// into a center. Dry run unless { execute: true }. Never overwrites: a farmer whose records/audit
-// already exist, or a certificate id that exists, is a blocker and execute refuses.
+// into a center. Dry run unless { execute: true }. Never overwrites records, audit or certificates: a farmer
+// whose records/audit already exist, or a certificate id that exists, is a blocker and execute refuses.
+// Farmer docs (certificateProfile) are merged; certificateProfile.nextNumber never goes down.
 // Ids are preserved. No realtime events are written — clients reload.
 const logger = require('../utils/logger');
 
 function stripId({ id, ...rest }) { return rest; }
+
+const badId = (id) => id == null || id === '' || String(id).includes('/') || String(id) === '.' || String(id) === '..' || /^__.*__$/.test(String(id));
+const isInt = (n) => Number.isInteger(n);
 
 async function restoreBackup(db, centerId, payload, { execute = false, farmer = null, withConfig = false } = {}) {
   if (!payload || typeof payload !== 'object' || typeof payload.timestamp !== 'string'
@@ -23,25 +27,32 @@ async function restoreBackup(db, centerId, payload, { execute = false, farmer = 
 
   const blockers = [];
   const farmers = {};
+  const profiles = {};
+  const targetFarmerDocs = {};
   for (const name of names) {
     const recs = payload.farmers[name];
-    if (!Array.isArray(recs) || recs.some(r => !r || r.id == null || r.id === '')) throw new Error(`Record without id in farmer "${name}"`);
-    if ((audit[name] || []).some(e => !e || e.id == null || e.id === '')) throw new Error(`Audit entry without id in farmer "${name}"`);
+    if (!Array.isArray(recs) || recs.some(r => !r || badId(r.id))) throw new Error(`Record without id in farmer "${name}"`);
+    if ((audit[name] || []).some(e => !e || badId(e.id))) throw new Error(`Audit entry without id in farmer "${name}"`);
     const ref = center.collection('farmers').doc(name);
+    const cur = await ref.get();
+    targetFarmerDocs[name] = cur.exists ? cur.data() : null;
+    const curNext = targetFarmerDocs[name]?.certificateProfile?.nextNumber;
+    const bakNext = farmerDocs[name]?.certificateProfile?.nextNumber;
+    profiles[name] = { current: isInt(curNext) ? curNext : null, backup: isInt(bakNext) ? bakNext : null };
     farmers[name] = { records: recs.length, audit: (audit[name] || []).length };
     const [r, a] = await Promise.all([ref.collection('records').limit(1).get(), ref.collection('audit').limit(1).get()]);
     if (!r.empty) blockers.push(`farmer "${name}": records not empty`);
     if (!a.empty) blockers.push(`farmer "${name}": audit not empty`);
   }
   for (const c of certificates) {
-    if (!c || c.id == null || c.id === '') throw new Error('Certificate without id in backup');
+    if (!c || badId(c.id)) throw new Error('Certificate without a valid id in backup');
     if ((c.versions || []).some(v => !v || v.n == null || Number.isNaN(Number(v.n)))) throw new Error(`Certificate ${c.id} has a version without n`);
   }
   for (const c of certificates) {
     if ((await center.collection('certificates').doc(c.id).get()).exists) blockers.push(`certificate ${c.id} exists`);
   }
   const summary = {
-    executed: false, version, backupTimestamp: payload.timestamp, farmers,
+    executed: false, version, backupTimestamp: payload.timestamp, farmers, profiles,
     farmerDocs: names.filter(n => farmerDocs[n]).length,
     certificates: certificates.length,
     certificateVersions: certificates.reduce((s, c) => s + (c.versions || []).length, 0),
@@ -63,7 +74,12 @@ async function restoreBackup(db, centerId, payload, { execute = false, farmer = 
   try {
   for (const name of names) {
     const ref = center.collection('farmers').doc(name);
-    if (farmerDocs[name]) set(ref, farmerDocs[name], { merge: true });
+    if (farmerDocs[name]) {
+      const data = JSON.parse(JSON.stringify(farmerDocs[name]));
+      const { current, backup } = profiles[name];
+      if (current != null && backup != null && data.certificateProfile) data.certificateProfile.nextNumber = Math.max(current, backup);
+      set(ref, data, { merge: true });
+    }
     for (const rec of payload.farmers[name]) set(ref.collection('records').doc(String(rec.id)), stripId(rec));
     for (const e of audit[name] || []) set(ref.collection('audit').doc(String(e.id)), stripId(e));
   }

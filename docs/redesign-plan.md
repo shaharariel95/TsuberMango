@@ -37,7 +37,7 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 
 ## Open decisions / blockers
 - **Tasks 20 and 4: shipped** (certificates in Firestore, auto-split into ≤13-row certificates by pallet group) — see `done.md`. Not blockers any more.
-- **Season start:** season May–July 2027; farmer dry run April 2027 — everything ready before it. Everything needed for intake → certificate must be done and farmer-verified before the dry run.
+- **Season start:** season May–July 2027; farmer dry run April 2027. Everything needed for intake → certificate must be done and farmer-verified before the dry run.
 - **Device:** the packhouse uses one Samsung Galaxy Tab (model TBD) in landscape; may grow to more devices. Playwright runs a `tablet` project at 1280×800 alongside `desktop`.
 
 ## Task cards

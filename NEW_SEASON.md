@@ -21,7 +21,7 @@ Google Sheets is only a cold archive of past seasons. There is no per-season spr
    cd backend
    node scripts/clearSeason.js
    ```
-3. Compare the backup's row count (Settings -> **גיבויים**, column "שורות") with the dry run's total record count. They must be equal. If they differ, a pallet was added or changed after the backup: take a fresh backup and re-run the dry run. Do NOT execute until they match (unless the difference is known test data).
+3. Compare the backup's row count (Settings -> **גיבויים**, column "שורות") with the dry run's `totalRecords`. They must be equal. If they differ, a pallet was added or changed after the backup: take a fresh backup and re-run the dry run. Do NOT execute until they match (unless the difference is known test data).
 4. Execute:
    ```bash
    node scripts/clearSeason.js --execute --center tsuberi
@@ -35,15 +35,15 @@ Google Sheets is only a cold archive of past seasons. There is no per-season spr
    - Review the kinds / sizes / destinations lists and the users list.
 
 ## Restoring from a backup
-Use when data was lost or corrupted. The tool never overwrites: if a farmer already has records/audit, or a certificate id already exists, it reports a blocker and `--execute` writes nothing. Ids are preserved. It accepts old (records only) and new (complete) backup files.
+Use when data was lost or corrupted. The tool never overwrites records, audit or certificates: if a farmer already has records/audit, or a certificate id already exists, it reports a blocker and `--execute` writes nothing. Farmer details (certificate header, driver, next number) are merged, and the next certificate number never goes down (the dry run prints `profiles` with the current and backup numbers). **Stop intake on all devices during a restore.** Ids are preserved. It accepts old (records only) and new (complete) backup files.
 
-1. Do NOT take a new backup first: it could overwrite (the same date's file is replaced) or capture the damage. Pick the dated backup from BEFORE the damage. Backups are one file per date (`backups/YYYY-MM-DD.json`) and a manual backup on the same day overwrites that day's file, so `--gcs latest` after the damage may be a backup of the damaged data. Either use `--gcs YYYY-MM-DD` or copy the file locally first (outside the repo, e.g. `gcloud storage cp gs://tsuberi-mangos-backups/backups/2027-06-14.json $env:TEMP`) and use `--file`.
+1. Do NOT take a new backup first: it would capture the damage. Backups are kept under unique names `backups/YYYY-MM-DD-HHmmss.json` (several per day are kept, nothing is overwritten; older files are just `YYYY-MM-DD.json`). **The date and time in a name are UTC**: the 02:00 Israel nightly backup carries the previous UTC date (23:00). Pick the file from BEFORE the damage: `--gcs YYYY-MM-DD` takes the newest backup of that UTC day and logs all candidates; use a full name (`--gcs backups/2027-06-14-230000.json`) for a specific one, or copy the file locally first (outside the repo, e.g. `gcloud storage cp gs://tsuberi-mangos-backups/backups/<name> $env:TEMP`) and use `--file`. `--gcs latest` is the newest file, which after the damage may be a backup of the damaged data.
 2. Dry run with that file (prints what would be restored and any blockers):
    ```bash
    cd backend
    node scripts/restoreBackup.js --gcs 2027-06-14          # or --file <path>
    ```
-3. If the target still holds (damaged) data, clear it once the good file is confirmed by the dry run: `node scripts/clearSeason.js --execute --center tsuberi --skip-backup-check` (the recent-backup guard would otherwise demand a new backup). Or restore a single farmer whose data is empty.
+3. If the target still holds (damaged) data, clear it once the good file is confirmed by the dry run: `node scripts/clearSeason.js --execute --center tsuberi --skip-backup-check` (the recent-backup guard would otherwise demand a new backup). **If only one farmer is damaged, do NOT clear the whole season**: run `node scripts/clearSeason.js --farmer <name> --execute --center tsuberi --skip-backup-check` (that farmer's records, audit and certificates only), then `restoreBackup.js --farmer <name>`.
 4. Execute:
    ```bash
    node scripts/restoreBackup.js --gcs 2027-06-14 --execute --center tsuberi
@@ -56,7 +56,7 @@ Use when data was lost or corrupted. The tool never overwrites: if a farmer alre
 ### Restore drill (rehearse before the April dry run, touches no production data)
 Download a backup and restore it into a throwaway center inside the Firestore emulator (the data vanishes when the emulator stops):
 ```powershell
-gcloud storage cp gs://tsuberi-mangos-backups/backups/<date>.json $env:TEMP\drill-backup.json   # never into the repo (public)
+gcloud storage cp gs://tsuberi-mangos-backups/backups/<name>.json $env:TEMP\drill-backup.json   # never into the repo (public)
 cd backend
 $env:CENTER_ID='drill'
 npx firebase emulators:exec --only firestore --project demo-tsuber "node scripts/restoreBackup.js --file $env:TEMP/drill-backup.json --execute --center drill"

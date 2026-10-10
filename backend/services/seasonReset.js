@@ -15,19 +15,25 @@ async function assertRecentBackup(db, now) {
   }
 }
 
-async function resetSeason(db, centerId, { execute = false, skipBackupCheck = false, now = new Date() } = {}) {
+// { farmer } scopes the reset to one farmer: its records + audit and its certificates (farmer field), leaving
+// everything else (other farmers, farmer_events) alone.
+async function resetSeason(db, centerId, { execute = false, skipBackupCheck = false, now = new Date(), farmer = null } = {}) {
   const center = db.collection('centers').doc(centerId);
-  const farmerRefs = await center.collection('farmers').listDocuments();
+  let farmerRefs = await center.collection('farmers').listDocuments();
+  if (farmer) farmerRefs = farmerRefs.filter(r => r.id === farmer);
   const farmers = {};
   for (const ref of farmerRefs) {
     const [records, audit] = await Promise.all([ref.collection('records').count().get(), ref.collection('audit').count().get()]);
     farmers[ref.id] = { records: records.data().count, audit: audit.data().count };
   }
-  const certSnap = await center.collection('certificates').get();
+  const certSnap = farmer
+    ? await center.collection('certificates').where('farmer', '==', farmer).get()
+    : await center.collection('certificates').get();
   let certificateVersions = 0;
   for (const d of certSnap.docs) certificateVersions += (await d.ref.collection('versions').count().get()).data().count;
-  const farmerEvents = (await center.collection('farmer_events').count().get()).data().count;
-  const summary = { executed: false, farmers, certificates: certSnap.size, certificateVersions, farmerEvents };
+  const farmerEvents = farmer ? 0 : (await center.collection('farmer_events').count().get()).data().count;
+  const totalRecords = Object.values(farmers).reduce((n, f) => n + f.records, 0);
+  const summary = { executed: false, ...(farmer ? { farmer } : {}), totalRecords, farmers, certificates: certSnap.size, certificateVersions, farmerEvents };
   logger.info(`[seasonReset] ${centerId} ${execute ? 'EXECUTE' : 'dry run'}: ${JSON.stringify(summary)}`);
   if (!execute) return summary;
 
@@ -38,8 +44,12 @@ async function resetSeason(db, centerId, { execute = false, skipBackupCheck = fa
     await db.recursiveDelete(ref.collection('records'));
     await db.recursiveDelete(ref.collection('audit'));
   }
-  await db.recursiveDelete(center.collection('certificates'));
-  await db.recursiveDelete(center.collection('farmer_events'));
+  if (farmer) {
+    for (const d of certSnap.docs) await db.recursiveDelete(d.ref);
+  } else {
+    await db.recursiveDelete(center.collection('certificates'));
+    await db.recursiveDelete(center.collection('farmer_events'));
+  }
   logger.info(`[seasonReset] ${centerId}: season data cleared`);
   return { ...summary, executed: true };
 }

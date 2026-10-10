@@ -120,6 +120,26 @@ describe('restoreBackup', () => {
     await expect(restoreBackup(db, B, badCert, { execute: true })).rejects.toThrow(/without n/);
   });
 
+  it('never moves nextNumber backwards and reports both numbers in the dry run', async () => {
+    const payload = await asFile(A); // backup nextNumber 80
+    await resetSeason(db, A, { execute: true, skipBackupCheck: true });
+    await ca.collection('farmers').doc('א').update({ 'certificateProfile.nextNumber': 90 });
+    const dry = await restoreBackup(db, A, payload);
+    expect(dry.profiles['א']).toEqual({ current: 90, backup: 80 });
+    await restoreBackup(db, A, payload, { execute: true });
+    expect((await ca.collection('farmers').doc('א').get()).data().certificateProfile.nextNumber).toBe(90);
+    expect((await ca.collection('farmers').doc('א').get()).data().certificateProfile.driverName).toBe('אדם');
+  });
+
+  it('rejects ids that are invalid Firestore paths', async () => {
+    for (const id of ['a/b', '.', '..', '__x__']) {
+      const bad = { timestamp: 't', farmers: { 'ז': [{ id, a: 1 }] } };
+      await expect(restoreBackup(db, B, bad, { execute: true })).rejects.toThrow(/without id/);
+    }
+    const badCert = { timestamp: 't', farmers: {}, certificates: [{ id: 'a/b', farmer: 'x' }] };
+    await expect(restoreBackup(db, B, badCert, { execute: true })).rejects.toThrow(/valid id/);
+  });
+
   it('rejects a payload that is not a backup', async () => {
     await expect(restoreBackup(db, B, { hello: 1 })).rejects.toThrow(/not a backup/i);
   });

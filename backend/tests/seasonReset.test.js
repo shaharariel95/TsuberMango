@@ -24,7 +24,7 @@ async function seed() {
   // Parent-only farmer: records exist but no farmers/ב document
   await center.collection('farmers').doc('ב').collection('records').add({ palletNumber: 3 });
   const cert = center.collection('certificates').doc('א__76');
-  await cert.set({ number: 76 });
+  await cert.set({ number: 76, farmer: 'א' });
   await cert.collection('versions').doc('1').set({ n: 1 });
   await cert.collection('versions').doc('2').set({ n: 2 });
   await center.collection('farmer_events').doc('א').set({ type: 'create' });
@@ -38,7 +38,7 @@ afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
 describe('resetSeason', () => {
   it('dry run (default) reports counts and deletes nothing', async () => {
     const out = await resetSeason(db, C, { now: NOW });
-    expect(out).toEqual({ executed: false, farmers: { 'א': { records: 2, audit: 1 }, 'ב': { records: 1, audit: 0 } },
+    expect(out).toEqual({ executed: false, totalRecords: 3, farmers: { 'א': { records: 2, audit: 1 }, 'ב': { records: 1, audit: 0 } },
       certificates: 1, certificateVersions: 2, farmerEvents: 1 });
     expect(await count(center.collection('farmers').doc('א').collection('records'))).toBe(2);
     expect(await count(center.collection('certificates'))).toBe(1);
@@ -72,5 +72,18 @@ describe('resetSeason', () => {
     const out = await resetSeason(db, C, { execute: true, skipBackupCheck: true, now: NOW });
     expect(out.executed).toBe(true);
     expect(await count(center.collection('certificates'))).toBe(0);
+  });
+
+  it('farmer scope clears only that farmer (records, audit, its certificates) and leaves events and others', async () => {
+    const dry = await resetSeason(db, C, { farmer: 'א', now: NOW });
+    expect(dry).toEqual({ executed: false, farmer: 'א', totalRecords: 2, farmers: { 'א': { records: 2, audit: 1 } },
+      certificates: 1, certificateVersions: 2, farmerEvents: 0 });
+    await resetSeason(db, C, { farmer: 'א', execute: true, skipBackupCheck: true, now: NOW });
+    expect(await count(center.collection('farmers').doc('א').collection('records'))).toBe(0);
+    expect(await count(center.collection('farmers').doc('א').collection('audit'))).toBe(0);
+    expect(await count(center.collection('certificates'))).toBe(0);
+    expect(await count(center.collection('farmers').doc('ב').collection('records'))).toBe(1);
+    expect(await count(center.collection('farmer_events'))).toBe(1);
+    expect((await center.collection('farmers').doc('א').get()).data().certificateProfile.nextNumber).toBe(77);
   });
 });

@@ -8,7 +8,7 @@
 ### ✅ Backups you can restore
 - Nightly backup job (`tsuberi-daily-backup`) verified running since May.
 - Backup payload v2 is complete and all-or-nothing: config, users, every farmer doc and certificate profile (also farmers missing from the list), deleted pallets, audit, certificates with versions. Backups refuse the real GCS bucket under emulators.
-- `scripts/restoreBackup.js` + `services/backupRestore.js`: dry run by default, `--execute` needs `--center`, never overwrites (blockers abort with nothing written), ids preserved, no realtime events; scopes full / `--farmer` / `--with-config`; accepts v1 and v2 files.
+- `scripts/restoreBackup.js` + `services/backupRestore.js`: dry run by default, `--execute` needs `--center`, never overwrites records/audit/certificates (blockers abort with nothing written), ids preserved, no realtime events; scopes full / `--farmer` / `--with-config`; accepts v1 and v2 files.
 - Restore drill documented in `NEW_SEASON.md` (emulator, throwaway center `drill`), to run before the April 2027 dry run.
 
 ### ✅ Task 25 — Soft-delete + restore
