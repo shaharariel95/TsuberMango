@@ -20,7 +20,10 @@ async function assertRecentBackup(db, now) {
 async function resetSeason(db, centerId, { execute = false, skipBackupCheck = false, now = new Date(), farmer = null } = {}) {
   const center = db.collection('centers').doc(centerId);
   let farmerRefs = await center.collection('farmers').listDocuments();
-  if (farmer) farmerRefs = farmerRefs.filter(r => r.id === farmer);
+  if (farmer) {
+    farmerRefs = farmerRefs.filter(r => r.id === farmer);
+    if (!farmerRefs.length) throw new Error(`Farmer "${farmer}" not found`);
+  }
   const farmers = {};
   for (const ref of farmerRefs) {
     const [records, audit] = await Promise.all([ref.collection('records').count().get(), ref.collection('audit').count().get()]);

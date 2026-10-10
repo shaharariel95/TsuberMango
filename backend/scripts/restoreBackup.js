@@ -12,10 +12,14 @@ const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
 const { restoreBackup } = require('../services/backupRestore');
 const { resolveBackupName } = require('../services/backupNames');
+const { argValue } = require('./cliArgs');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
-const value = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+let parsed;
+try { parsed = Object.fromEntries(['--file', '--gcs', '--center', '--farmer'].map(n => [n, argValue(args, n)])); }
+catch (err) { logger.error(`[restoreBackup] ${err.message}`); process.exit(1); }
+const value = (name) => parsed[name];
 const keyFile = path.join(__dirname, '..', 'services', 'SheetsCred.env.json');
 
 async function readSource() {

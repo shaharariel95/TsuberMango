@@ -131,6 +131,15 @@ describe('restoreBackup', () => {
     expect((await ca.collection('farmers').doc('א').get()).data().certificateProfile.driverName).toBe('אדם');
   });
 
+  it('a string backup nextNumber cannot lower the current one', async () => {
+    const payload = await asFile(A);
+    payload.farmerDocs['א'].certificateProfile.nextNumber = '80';
+    await resetSeason(db, A, { execute: true, skipBackupCheck: true });
+    await ca.collection('farmers').doc('א').update({ 'certificateProfile.nextNumber': 90 });
+    await restoreBackup(db, A, payload, { execute: true });
+    expect((await ca.collection('farmers').doc('א').get()).data().certificateProfile.nextNumber).toBe(90);
+  });
+
   it('rejects ids that are invalid Firestore paths', async () => {
     for (const id of ['a/b', '.', '..', '__x__']) {
       const bad = { timestamp: 't', farmers: { 'ז': [{ id, a: 1 }] } };

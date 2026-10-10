@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 function stripId({ id, ...rest }) { return rest; }
 
 const badId = (id) => id == null || id === '' || String(id).includes('/') || String(id) === '.' || String(id) === '..' || /^__.*__$/.test(String(id));
-const isInt = (n) => Number.isInteger(n);
+const toInt = (n) => { const v = typeof n === 'string' && n.trim() === '' ? NaN : Number(n); return Number.isInteger(v) ? v : null; };
 
 async function restoreBackup(db, centerId, payload, { execute = false, farmer = null, withConfig = false } = {}) {
   if (!payload || typeof payload !== 'object' || typeof payload.timestamp !== 'string'
@@ -38,7 +38,7 @@ async function restoreBackup(db, centerId, payload, { execute = false, farmer = 
     targetFarmerDocs[name] = cur.exists ? cur.data() : null;
     const curNext = targetFarmerDocs[name]?.certificateProfile?.nextNumber;
     const bakNext = farmerDocs[name]?.certificateProfile?.nextNumber;
-    profiles[name] = { current: isInt(curNext) ? curNext : null, backup: isInt(bakNext) ? bakNext : null };
+    profiles[name] = { current: toInt(curNext), backup: toInt(bakNext) };
     farmers[name] = { records: recs.length, audit: (audit[name] || []).length };
     const [r, a] = await Promise.all([ref.collection('records').limit(1).get(), ref.collection('audit').limit(1).get()]);
     if (!r.empty) blockers.push(`farmer "${name}": records not empty`);
@@ -77,7 +77,7 @@ async function restoreBackup(db, centerId, payload, { execute = false, farmer = 
     if (farmerDocs[name]) {
       const data = JSON.parse(JSON.stringify(farmerDocs[name]));
       const { current, backup } = profiles[name];
-      if (current != null && backup != null && data.certificateProfile) data.certificateProfile.nextNumber = Math.max(current, backup);
+      if (current != null && data.certificateProfile) data.certificateProfile.nextNumber = backup != null ? Math.max(current, backup) : current;
       set(ref, data, { merge: true });
     }
     for (const rec of payload.farmers[name]) set(ref.collection('records').doc(String(rec.id)), stripId(rec));

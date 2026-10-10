@@ -74,6 +74,10 @@ describe('resetSeason', () => {
     expect(await count(center.collection('certificates'))).toBe(0);
   });
 
+  it('farmer scope throws for an unknown farmer (dry run too)', async () => {
+    await expect(resetSeason(db, C, { farmer: 'אין', now: NOW })).rejects.toThrow(/not found/);
+  });
+
   it('farmer scope clears only that farmer (records, audit, its certificates) and leaves events and others', async () => {
     const dry = await resetSeason(db, C, { farmer: 'א', now: NOW });
     expect(dry).toEqual({ executed: false, farmer: 'א', totalRecords: 2, farmers: { 'א': { records: 2, audit: 1 } },

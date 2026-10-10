@@ -10,11 +10,14 @@ const admin = require('firebase-admin');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
 const { resetSeason } = require('../services/seasonReset');
+const { argValue } = require('./cliArgs');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
-const centerArg = args[args.indexOf('--center') + 1];
-const execute = flag('--execute') && args.includes('--center') && centerArg === CENTER_ID;
+let centerArg, farmerArg;
+try { centerArg = argValue(args, '--center'); farmerArg = argValue(args, '--farmer'); }
+catch (err) { logger.error(`[clearSeason] ${err.message}`); process.exit(1); }
+const execute = flag('--execute') && centerArg === CENTER_ID;
 
 if (!admin.apps.length) {
   const keyFile = path.join(__dirname, '..', 'services', 'SheetsCred.env.json');
@@ -26,7 +29,7 @@ if (!admin.apps.length) {
     logger.error(`[clearSeason] --execute needs --center ${CENTER_ID} (the resolved CENTER_ID) — running as a dry run instead`);
   }
   const out = await resetSeason(admin.firestore(), CENTER_ID, { execute, skipBackupCheck: flag('--skip-backup-check'),
-    farmer: args.includes('--farmer') ? args[args.indexOf('--farmer') + 1] : null });
+    farmer: farmerArg || null });
   console.log(JSON.stringify(out, null, 2));
   process.exit(0);
 })().catch((err) => { logger.error(`[clearSeason] ${err.message}`); process.exit(1); });
