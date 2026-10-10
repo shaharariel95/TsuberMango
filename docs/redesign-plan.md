@@ -17,17 +17,16 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 2. **Deployed and merged to `main` (2026-10-10, PR #5).** Farmer dry run in April 2027 before the season.
 3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
 
-## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 12, 15+16, 20, 23, 25, 34, 36 are in the reference doc / `done.md`)
+## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 9, 12, 15+16, 20, 23, 25, 34, 36 are in the reference doc / `done.md`)
 Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-08 (`api.test.js` + Playwright e2e); CI half DROPPED. Optional leftover: frontend unit tests for `PalletInput` / `PalletTable` filter+sort.
 
 | # | Task | Priority | Effort | Depends on |
 |---|---|---|---|---|
 | 7 | Shipping-certificate table layout (only if a customer needs a different one) | P2 | 1–2d | 6 (shipped) |
 | 8 | Config-driven optional fields (generalize `gidon`) | P1 | 3–4d | 6 (shipped; builds on `config/global.farmers` entries `{name, allowGidon, archived?}`, not per-farmer registry docs) |
-| 9 | PalletTable refactor | P2 | 2–3d | after 1/3 land (34, 36 shipped) |
-| 10 | Pagination / virtual scrolling | P2 | 2–3d | 9 |
+| 10 | Pagination / virtual scrolling | P2 | 2–3d | 9 (shipped) |
 | 11 | Season management & archival | P2 | 5–7d | 6 (shipped; builds on `config/global.farmers` entries, not per-farmer registry docs) |
-| 13 | Mobile responsiveness audit | P2 | 2–3d | 9 |
+| 13 | Mobile responsiveness audit | P2 | 2–3d | 9 (shipped) |
 | 24 | Farmer-scoped roles & access | P2 | 4–5d | 6 (shipped; builds on `config/global.farmers` entries, not per-farmer registry docs) |
 | 25–33 | Feature ideas (below) | P2 | 0.5–2d each | — |
 | 35 | Remaining major bumps (maintenance) | P2 | 3–5d spread | anytime |
@@ -50,7 +49,6 @@ Header lines per farmer were delivered by task 20. Remaining scope: only if a cu
 Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInput.vue`, `PalletTable.vue`.
 
 ## P2 backlog (one-liners)
-- **9 PalletTable refactor** (~860 lines): extract `usePalletTableState` + `PalletTableToolbar.vue` + `PalletTableRow.vue`; start only after CRs 1/3/4 (34, 36 shipped) to avoid churn.
 - **10 Pagination / virtual scroll:** server-side pagination or `useVirtualList`; counter "מציג 50 מתוך 347".
 - **11 Season management:** Firestore `seasons`, close-season archive, season selector; replaces the manual `NEW_SEASON.md` ritual.
 - **12 Daily backup: shipped and verified** (Cloud Scheduler job `tsuberi-daily-backup`, nightly since May; complete v2 payload; restore tool `scripts/restoreBackup.js`, see `backend/CLOUD_SCHEDULER.md` and `NEW_SEASON.md`).

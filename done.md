@@ -5,6 +5,11 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 9 — PalletTable refactor
+- `PalletTable.vue` 933 → 394 lines: pure row logic in `utils/palletRows.js` (11 unit tests: filters, mixed-pallet context rows, sort, grouping/collapse, colours), toolbar in `PalletTableToolbar.vue`, rows in `PalletTableRow.vue` (edit mode keeps its own draft). Raw `fetch` calls moved to `api/records.js` (`updateRecord`, `markForShipment`, `setShipmentDate`, `resetSent`).
+- Same props/events for the four pages; scoped CSS replaced by Tailwind (row flash is now `animate-pallet-flash` in `@theme`). Dead code removed (`fetchLastPallet`, debug log). Columns now follow a farmer switch (was computed once).
+- Verified: unit 51, e2e 30/30, before/after screenshots identical apart from test data.
+
 ### ✅ Task 34 — Frontend toolchain majors (Vite 8, Tailwind 4)
 - Vite 5 → 8 (Rolldown) + plugin-vue 6; `build.rollupOptions` → `rolldownOptions`. Build time 15s → under 1s. Non-breaking audit fixes (axios, vue).
 - Tailwind 3 → 4 via the official upgrade tool: CSS-first config in `src/index.css` (`@theme`, `@utility`), `@tailwindcss/vite` instead of PostCSS/autoprefixer, renamed utilities across 18 components. v3-compat base rules kept: default border colour, pointer cursor on buttons, grey-400 placeholders.

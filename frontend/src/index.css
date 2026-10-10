@@ -32,6 +32,7 @@
   --animate-drawer-in: drawerIn 0.25s ease-out forwards;
   --animate-drawer-out: drawerOut 0.2s ease-in forwards;
   --animate-backdrop-in: backdropIn 0.25s ease-out forwards;
+  --animate-pallet-flash: palletFlash 3s ease-out forwards;
 
   @keyframes fadeIn {
     0% {
@@ -84,6 +85,18 @@
     }
     100% {
       transform: translateX(100%);
+    }
+  }
+  /* A row changed on another device (realtime highlight) */
+  @keyframes palletFlash {
+    0% {
+      background-color: #fef08a;
+    }
+    60% {
+      background-color: #fef9c3;
+    }
+    100% {
+      background-color: inherit;
     }
   }
   @keyframes backdropIn {

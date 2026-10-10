@@ -164,7 +164,7 @@ Animated overlay modal for confirmation dialogs with a colored icon, title, slot
 </ConfirmModal>
 ```
 
-### Usage in `PalletTable.vue`
+### Usage in `PalletTable.vue` (historical — PalletTable now uses `requestConfirm` from `composables/useDialogs`)
 
 ```vue
 <ConfirmModal
@@ -252,12 +252,12 @@ The `disabled` attribute from the parent is forwarded and OR-ed with `loading`.
 | `Settings.vue` | אשר מחיקה סופית | `isWorking` |
 | `PalletInput.vue` | הוסף (submit) | `isSubmitting` |
 | `DestinationsSummary.vue` | ייצוא לאקסל | `isLoading` |
-| `PalletTable.vue` | צור תעודת משלוח | `isCreatingLabel` |
-| `PalletTable.vue` | הפק מדבקה | `isCreatingLabel` |
-| `PalletTable.vue` | העבר למשלוח | `isCreatingLabel` |
-| `PalletTable.vue` | הורד ממשלוח | `isCreatingLabel` |
+| `PalletTableToolbar.vue` | צור תעודת משלוח | `busy` (PalletTable's `isCreatingLabel`) |
+| `PalletTableToolbar.vue` | הפק מדבקה | `busy` (PalletTable's `isCreatingLabel`) |
+| `PalletTableToolbar.vue` | העבר למשלוח | `busy` (PalletTable's `isCreatingLabel`) |
+| `PalletTableToolbar.vue` | הורד ממשלוח | `busy` (PalletTable's `isCreatingLabel`) |
 
-> **Not extracted:** The save/cancel row in `PalletTable` editing mode (`שמור`/spinner) swaps between two differently-colored buttons (emerald ↔ mango bg), not a single button toggling a spinner — leave as-is.
+> **Not extracted:** The save/cancel row in `PalletTableRow` editing mode (`שמור`/spinner) swaps between two differently-colored buttons (emerald ↔ mango bg), not a single button toggling a spinner — leave as-is.
 
 ---
 
