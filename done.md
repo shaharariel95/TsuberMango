@@ -5,6 +5,11 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 31 — Stale-pallet nudges
+- Dashboard card "N משטחים ממתינים יותר מ-X ימים מהקטיף": unsent pallets whose harvest date is more than X days ago, oldest first (top 10 + "ועוד"), a mixed pallet once; a click opens shipment prep for that farmer.
+- Settings → בדיקות ותזכורות: toggle (off by default) + days (default 3), stored as `config/global.stalePallets`; saved together with the weight range.
+- Tests: `stalePallets.test.js` (7: settings, date formats incl. year-less, day counting, mixed pallets), e2e `stale-pallets.spec.js`.
+
 ### ✅ Task 26 — Weight sanity checks
 - Saving a weight whose kg-per-box is outside the range asks first ("המשקל נראה חריג… לשמור בכל זאת?") — at intake and in the table editor (only when weight or boxes changed); cancel keeps the row in edit mode.
 - Range in Settings → בדיקות משקל (`config/global.weightCheck`), default 4–9 kg/box from the 2026 season data: median 5.6, נספק boxes ~8; 4–9 would have flagged 8 of 616 pallets, 7 of them clear typos (1 kg weights, 666 kg on 3 boxes).

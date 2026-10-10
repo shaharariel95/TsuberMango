@@ -135,10 +135,10 @@
       </div>
     </section>
 
-    <!-- 3b. Data checks (task 26) -->
+    <!-- 3b. Data checks (task 26) and reminders (task 31) -->
     <section class="card space-y-4" data-testid="checks-settings">
       <h2 class="text-xl font-bold text-slate-700 pb-2 border-b border-slate-100 flex items-center gap-2">
-        <span class="text-lg">⚖️</span> בדיקות משקל
+        <span class="text-lg">⚖️</span> בדיקות ותזכורות
       </h2>
       <p class="text-sm text-slate-500">משקל לארגז מחוץ לטווח מבקש אישור לפני שמירה (טעות הקלדה נפוצה). משטחים ללא משקל מוצגים באישור המשלוח.</p>
       <div class="flex flex-wrap items-end gap-4">
@@ -148,6 +148,18 @@
         <label class="text-sm text-slate-600">מקסימום ק״ג לארגז
           <input type="number" min="0" step="0.1" v-model.number="localConfig.weightCheck.maxKgPerBox" class="input-field w-28! mt-1" />
         </label>
+      </div>
+      <div class="flex flex-wrap items-center gap-4 pt-3 border-t border-slate-100">
+        <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+          <input type="checkbox" v-model="localConfig.stalePallets.enabled"
+            class="w-5 h-5 rounded-sm border-slate-300 text-mango-500 focus:ring-mango-400" />
+          הצג בלוח הבקרה משטחים שלא נשלחו יותר מ-
+        </label>
+        <input type="number" min="1" step="1" v-model.number="localConfig.stalePallets.days" aria-label="ימים מהקטיף"
+          class="input-field w-20!" />
+        <span class="text-sm text-slate-600">ימים מהקטיף</span>
+      </div>
+      <div class="flex justify-end">
         <SpinnerButton @click="saveChecks" :loading="isWorking" class="btn-primary min-h-[44px]">שמור</SpinnerButton>
       </div>
     </section>
@@ -285,6 +297,7 @@ import DeletedPallets from './DeletedPallets.vue';
 import { exportSeasonRecords } from '../api/certificates';
 import { safeSheetName } from '../utils/sheetName';
 import { DEFAULT_WEIGHT_RANGE } from '../utils/weightCheck';
+import { DEFAULT_STALE } from '../utils/stalePallets';
 
 
 
@@ -297,6 +310,7 @@ export default {
       sizes: [],
       destinations: [],
       weightCheck: { ...DEFAULT_WEIGHT_RANGE },
+      stalePallets: { ...DEFAULT_STALE },
     });
     const newFarmerName = ref('');
     const isWorking = ref(false);
@@ -453,10 +467,18 @@ export default {
         showStatus('טווח משקל לא תקין: המינימום חייב להיות גדול מ-0 וקטן מהמקסימום', 'error');
         return;
       }
+      const { enabled, days } = localConfig.stalePallets;
+      if (!Number.isInteger(days) || days < 1) {
+        showStatus('מספר הימים חייב להיות מספר שלם, 1 ומעלה', 'error');
+        return;
+      }
       try {
         isWorking.value = true;
-        await axios.post(`${baseUrl}/api/admin/config`, { weightCheck: { minKgPerBox, maxKgPerBox } });
-        showStatus('בדיקות המשקל נשמרו', 'success');
+        await axios.post(`${baseUrl}/api/admin/config`, {
+          weightCheck: { minKgPerBox, maxKgPerBox },
+          stalePallets: { enabled: !!enabled, days },
+        });
+        showStatus('הבדיקות והתזכורות נשמרו', 'success');
       } catch (err) {
         showStatus('שגיאה בשמירת הגדרות בשרת', 'error');
         console.error(err);

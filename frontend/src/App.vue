@@ -242,6 +242,7 @@ export default {
       destinations: [],
       farmerConfigs: {},
       weightCheck: null, // task 26 — kg-per-box range, see utils/weightCheck.js
+      stalePallets: null, // task 31 — Dashboard nudge, see utils/stalePallets.js
     });
     provide('config', config);
     provide('selectedFarmer', selectedFarmer);
@@ -368,6 +369,7 @@ export default {
               config.farmers = farmers.value;
               config.farmerConfigs = fConfigs;
               config.weightCheck = cfg.weightCheck || null;
+              config.stalePallets = cfg.stalePallets || null;
               // Also covers the selected farmer being hidden from another tab.
               if (!farmers.value.includes(selectedFarmer.value)) {
                 selectedFarmer.value = farmers.value[0] || '';

@@ -39,6 +39,29 @@
                 </div>
             </div>
 
+            <!-- Stale pallets (task 31, Settings → בדיקות ותזכורות) -->
+            <div v-if="stale.enabled && stalePallets.length" class="card border-amber-200 bg-amber-50/40" data-testid="stale-pallets">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                    <h3 class="text-sm font-bold text-slate-700">{{ stalePallets.length }} משטחים ממתינים יותר מ-{{ stale.days }} ימים מהקטיף</h3>
+                </div>
+                <div class="divide-y divide-amber-100 -mx-3 sm:-mx-4">
+                    <button v-for="p in stalePallets.slice(0, STALE_SHOWN)" :key="p.farmer + '|' + p.palletNumber"
+                        @click="goToDestination(p.farmer)"
+                        class="w-full flex items-center justify-between px-3 sm:px-4 py-2 text-sm hover:bg-amber-50 text-right">
+                        <span class="flex items-center gap-2 min-w-0">
+                            <span class="text-xs text-slate-400 font-medium bg-slate-100 rounded-sm px-1.5 py-0.5 shrink-0">{{ p.farmer }}</span>
+                            <span class="font-semibold text-slate-700">משטח {{ p.palletNumber }}</span>
+                            <span class="text-slate-500 hidden sm:inline">קטיף {{ p.harvestDate }}</span>
+                        </span>
+                        <span class="text-amber-700 font-semibold shrink-0 mr-2">{{ p.days }} ימים</span>
+                    </button>
+                </div>
+                <p v-if="stalePallets.length > STALE_SHOWN" class="text-xs text-slate-500 mt-2">ועוד {{ stalePallets.length - STALE_SHOWN }} משטחים</p>
+            </div>
+
             <!-- Recent Pallets -->
             <div class="card">
                 <div class="flex items-center gap-2 mb-3">
@@ -136,6 +159,9 @@ import { useRouter } from 'vue-router'
 import LoadingState from './shared/LoadingState.vue'
 import ErrorState from './shared/ErrorState.vue'
 import { authHeaders } from '../utils/auth'
+import { staleSettings, findStalePallets } from '../utils/stalePallets'
+
+const STALE_SHOWN = 10
 
 const baseUrl = new URL(import.meta.env.VITE_API_BASE_URL).toString().replace(/\/$/, '')
 
@@ -220,6 +246,16 @@ export default {
             isLoading.value = false
         }
 
+        const stale = computed(() => staleSettings(config))
+        const stalePallets = computed(() => stale.value.enabled
+            ? findStalePallets(farmerDataList.value, { days: stale.value.days })
+            : [])
+
+        const goToDestination = name => {
+            selectedFarmerRef.value = name
+            router.push('/Destination')
+        }
+
         const goToIntake = name => {
             selectedFarmerRef.value = name
             router.push('/Intake')
@@ -234,7 +270,8 @@ export default {
             if (farmers?.length && !farmerDataList.value.length) fetchAllFarmers()
         }, { immediate: true })
 
-        return { isLoading, fetchError, farmerDataList, globalStats, recentPallets, fetchAllFarmers, goToIntake, goToWeight }
+        return { isLoading, fetchError, farmerDataList, globalStats, recentPallets, fetchAllFarmers, goToIntake, goToWeight,
+            stale, stalePallets, goToDestination, STALE_SHOWN }
     }
 }
 </script>
