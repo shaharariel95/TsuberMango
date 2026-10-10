@@ -37,29 +37,31 @@ Google Sheets is only a cold archive of past seasons. There is no per-season spr
 ## Restoring from a backup
 Use when data was lost or corrupted. The tool never overwrites: if a farmer already has records/audit, or a certificate id already exists, it reports a blocker and `--execute` writes nothing. Ids are preserved. It accepts old (records only) and new (complete) backup files.
 
-1. Dry run (prints what would be restored and any blockers):
+1. Do NOT take a new backup first: it could overwrite (the same date's file is replaced) or capture the damage. Pick the dated backup from BEFORE the damage. Backups are one file per date (`backups/YYYY-MM-DD.json`) and a manual backup on the same day overwrites that day's file, so `--gcs latest` after the damage may be a backup of the damaged data. Either use `--gcs YYYY-MM-DD` or copy the file locally first (outside the repo, e.g. `gcloud storage cp gs://tsuberi-mangos-backups/backups/2027-06-14.json $env:TEMP`) and use `--file`.
+2. Dry run with that file (prints what would be restored and any blockers):
    ```bash
    cd backend
-   node scripts/restoreBackup.js --gcs latest          # or --gcs 2026-12-14, or --file <path>
+   node scripts/restoreBackup.js --gcs 2027-06-14          # or --file <path>
    ```
-2. If the target still holds (damaged) data, clear it first with `node scripts/clearSeason.js` (it needs a recent backup; see section 3), or restore a single farmer whose data is empty.
-3. Execute:
+3. If the target still holds (damaged) data, clear it once the good file is confirmed by the dry run: `node scripts/clearSeason.js --execute --center tsuberi --skip-backup-check` (the recent-backup guard would otherwise demand a new backup). Or restore a single farmer whose data is empty.
+4. Execute:
    ```bash
-   node scripts/restoreBackup.js --gcs latest --execute --center tsuberi
+   node scripts/restoreBackup.js --gcs 2027-06-14 --execute --center tsuberi
    ```
    `--center` must match the resolved `CENTER_ID`, otherwise it stays a dry run.
-4. One farmer only: add `--farmer <name>` (records, history, farmer details and that farmer's certificates).
-5. `--with-config` also restores settings (config) and users. Use it only when those were lost too; full restore of a complete backup only.
-6. After a restore, clients should reload (no live events are sent).
+5. One farmer only: add `--farmer <name>` (records, history, farmer details and that farmer's certificates).
+6. `--with-config` also restores settings (config) and users. Use it only when those were lost too; full restore of a complete backup only.
+7. After a restore, clients should reload (no live events are sent). A full restore without `--with-config` brings back farmers' data, but farmers missing from the Settings farmer list stay hidden until added or restored there.
 
 ### Restore drill (rehearse before the April dry run, touches no production data)
 Download a backup and restore it into a throwaway center inside the Firestore emulator (the data vanishes when the emulator stops):
 ```powershell
-gcloud storage cp gs://tsuberi-mangos-backups/backups/<date>.json .
+gcloud storage cp gs://tsuberi-mangos-backups/backups/<date>.json $env:TEMP\drill-backup.json   # never into the repo (public)
 cd backend
 $env:CENTER_ID='drill'
-npx firebase emulators:exec --only firestore --project demo-tsuber "node scripts/restoreBackup.js --file ../<date>.json --execute --center drill"
+npx firebase emulators:exec --only firestore --project demo-tsuber "node scripts/restoreBackup.js --file $env:TEMP/drill-backup.json --execute --center drill"
 Remove-Item Env:CENTER_ID
+Remove-Item $env:TEMP\drill-backup.json
 ```
 The output should show `"executed": true` and the counts you expect, and the log line `target: EMULATOR 127.0.0.1:8080`. If it says `REAL Firestore`, stop.
 

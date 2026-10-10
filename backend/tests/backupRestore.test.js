@@ -100,6 +100,26 @@ describe('restoreBackup', () => {
     await expect(restoreBackup(db, B, v1, { withConfig: true })).rejects.toThrow();
   });
 
+  it('restores Sheets-era v1 backups with numeric ids', async () => {
+    const v1 = { timestamp: '2026-07-14T23:00:00.000Z', farmers: { 'ד': [{ id: 1, palletNumber: 1 }, { id: 2, palletNumber: 2 }] } };
+    await restoreBackup(db, B, v1, { execute: true });
+    expect((await cb.collection('farmers').doc('ד').collection('records').doc('1').get()).data()).toEqual({ palletNumber: 1 });
+    expect((await cb.collection('farmers').doc('ד').collection('records').doc('2').get()).exists).toBe(true);
+  });
+
+  it('a failing write rejects with a partial-data message', async () => {
+    const v1 = { timestamp: '2026-07-14T23:00:00.000Z', farmers: { 'ה': [{ id: 'big', blob: 'x'.repeat(1_200_000) }] } };
+    await expect(restoreBackup(db, B, v1, { execute: true })).rejects.toThrow(/Restore failed — partial data may have been written/);
+  });
+
+  it('a corrupt payload (record without id) rejects on execute and writes nothing', async () => {
+    const bad = { timestamp: '2026-07-14T23:00:00.000Z', farmers: { 'ו': [{ id: 'ok', a: 1 }, { a: 2 }] } };
+    await expect(restoreBackup(db, B, bad, { execute: true })).rejects.toThrow(/without id/);
+    expect((await cb.collection('farmers').doc('ו').collection('records').get()).size).toBe(0);
+    const badCert = { timestamp: 't', farmers: {}, certificates: [{ id: 'c', farmer: 'x', versions: [{ rows: [] }] }] };
+    await expect(restoreBackup(db, B, badCert, { execute: true })).rejects.toThrow(/without n/);
+  });
+
   it('rejects a payload that is not a backup', async () => {
     await expect(restoreBackup(db, B, { hello: 1 })).rejects.toThrow(/not a backup/i);
   });

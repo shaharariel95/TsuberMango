@@ -17,7 +17,7 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 2. **Deploy → farmer verification → merge `arch-redesign` to `main`.**
 3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
 
-## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 15+16, 20, 23, 25, 36 are in the reference doc / `done.md`)
+## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 12, 15+16, 20, 23, 25, 36 are in the reference doc / `done.md`)
 Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-08 (`api.test.js` + Playwright e2e); CI half DROPPED. Optional leftover: frontend unit tests for `PalletInput` / `PalletTable` filter+sort.
 
 | # | Task | Priority | Effort | Depends on |

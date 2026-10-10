@@ -1,7 +1,7 @@
 // Restore a backup into the center in CENTER_ID. Dry run by default (prints what would be written
 // and any blockers). Source: --file <path> or --gcs <latest|YYYY-MM-DD|backups/…json> (bucket GCS_BACKUP_BUCKET).
 //   node scripts/restoreBackup.js --gcs latest
-//   node scripts/restoreBackup.js --gcs 2026-12-14 --execute --center <CENTER_ID> [--farmer <name>] [--with-config]
+//   node scripts/restoreBackup.js --gcs 2027-06-14 --execute --center <CENTER_ID> [--farmer <name>] [--with-config]
 // Refuses to overwrite existing data — clear first (scripts/clearSeason.js) or restore into an empty center.
 // Restore drill (no production writes): run under the Firestore emulator with CENTER_ID=drill — see NEW_SEASON.md.
 require('dotenv').config();
@@ -46,6 +46,9 @@ async function readSource() {
   }
   const target = process.env.FIRESTORE_EMULATOR_HOST ? `EMULATOR ${process.env.FIRESTORE_EMULATOR_HOST}` : 'REAL Firestore';
   logger.info(`[restoreBackup] target: ${target}, center: ${CENTER_ID}`);
+  if (flag('--execute') && !process.env.FIRESTORE_EMULATOR_HOST && CENTER_ID !== 'tsuberi') {
+    throw new Error('Real Firestore execute is only allowed for the production center (tsuberi); drills must run under the emulator (firebase emulators:exec)');
+  }
   const execute = flag('--execute') && value('--center') === CENTER_ID;
   if (flag('--execute') && !execute) {
     logger.error(`[restoreBackup] --execute needs --center ${CENTER_ID} (the resolved CENTER_ID) — running as a dry run instead`);

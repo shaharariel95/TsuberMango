@@ -9,3 +9,8 @@ ui-debug.log
 # Claude Code — local-only; skills and shared config are committed
 .claude/worktrees/
 .claude/settings.local.json
+
+# Safety net: never commit a downloaded backup
+/backups/
+/*backup*.json
+/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].json

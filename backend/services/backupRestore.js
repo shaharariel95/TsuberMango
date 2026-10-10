@@ -25,13 +25,17 @@ async function restoreBackup(db, centerId, payload, { execute = false, farmer = 
   const farmers = {};
   for (const name of names) {
     const recs = payload.farmers[name];
-    if (!Array.isArray(recs) || recs.some(r => !r || !r.id)) throw new Error(`Record without id in farmer "${name}"`);
-    if ((audit[name] || []).some(e => !e || !e.id)) throw new Error(`Audit entry without id in farmer "${name}"`);
+    if (!Array.isArray(recs) || recs.some(r => !r || r.id == null || r.id === '')) throw new Error(`Record without id in farmer "${name}"`);
+    if ((audit[name] || []).some(e => !e || e.id == null || e.id === '')) throw new Error(`Audit entry without id in farmer "${name}"`);
     const ref = center.collection('farmers').doc(name);
     farmers[name] = { records: recs.length, audit: (audit[name] || []).length };
     const [r, a] = await Promise.all([ref.collection('records').limit(1).get(), ref.collection('audit').limit(1).get()]);
     if (!r.empty) blockers.push(`farmer "${name}": records not empty`);
     if (!a.empty) blockers.push(`farmer "${name}": audit not empty`);
+  }
+  for (const c of certificates) {
+    if (!c || c.id == null || c.id === '') throw new Error('Certificate without id in backup');
+    if ((c.versions || []).some(v => !v || v.n == null || Number.isNaN(Number(v.n)))) throw new Error(`Certificate ${c.id} has a version without n`);
   }
   for (const c of certificates) {
     if ((await center.collection('certificates').doc(c.id).get()).exists) blockers.push(`certificate ${c.id} exists`);
@@ -50,25 +54,32 @@ async function restoreBackup(db, centerId, payload, { execute = false, farmer = 
 
   const writer = db.bulkWriter();
   let failed = null;
-  writer.onWriteError((err) => { failed = failed || err; return false; });
+  writer.onWriteError((err) => {
+    if (err.failedAttempts < 5 && [4, 8, 10, 13, 14].includes(err.code)) return true; // transient: retry
+    failed = failed || err;
+    return false;
+  });
+  const set = (ref, data, opts) => { writer.set(ref, data, opts).catch(() => {}); };
+  try {
   for (const name of names) {
     const ref = center.collection('farmers').doc(name);
-    if (farmerDocs[name]) writer.set(ref, farmerDocs[name], { merge: true });
-    for (const rec of payload.farmers[name]) writer.set(ref.collection('records').doc(rec.id), stripId(rec));
-    for (const e of audit[name] || []) writer.set(ref.collection('audit').doc(e.id), stripId(e));
+    if (farmerDocs[name]) set(ref, farmerDocs[name], { merge: true });
+    for (const rec of payload.farmers[name]) set(ref.collection('records').doc(String(rec.id)), stripId(rec));
+    for (const e of audit[name] || []) set(ref.collection('audit').doc(String(e.id)), stripId(e));
   }
   for (const c of certificates) {
     const { versions = [], ...cert } = stripId(c);
-    const certRef = center.collection('certificates').doc(c.id);
-    writer.set(certRef, cert);
-    for (const { n, ...v } of versions) writer.set(certRef.collection('versions').doc(String(n)), v);
+    const certRef = center.collection('certificates').doc(String(c.id));
+    set(certRef, cert);
+    for (const { n, ...v } of versions) set(certRef.collection('versions').doc(String(n)), v);
   }
   if (withConfig) {
-    if (payload.config) writer.set(center.collection('config').doc('global'), payload.config);
-    for (const [email, data] of Object.entries(payload.users || {})) writer.set(center.collection('users').doc(email), data);
+    if (payload.config) set(center.collection('config').doc('global'), payload.config);
+    for (const [email, data] of Object.entries(payload.users || {})) set(center.collection('users').doc(email), data);
   }
+  } catch (e) { failed = failed || e; } // synchronous validation error while queueing
   await writer.close();
-  if (failed) throw new Error(`Restore write failed (partial data may have been written): ${failed.message}`);
+  if (failed) throw new Error(`Restore failed — partial data may have been written: ${failed.message}`);
   logger.info(`[backupRestore] ${centerId}: restored backup from ${payload.timestamp}`);
   return { ...summary, executed: true };
 }
