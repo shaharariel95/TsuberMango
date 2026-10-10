@@ -39,6 +39,12 @@ Scripts prefer `FIREBASE_PROJECT_ID` over the key's `project_id` (the same proje
    gcloud projects add-iam-policy-binding tsuberi-mangos-7e449 --member=serviceAccount:380552578196-compute@developer.gserviceaccount.com --role=roles/firebaseauth.admin
    ```
    (Its storage access to `tsuberi-mangos-backups` is already in place.)
+   Also enable the Auth admin API **in the backend project** — with ADC, Firebase Auth admin calls are billed to the
+   caller's project, and without it `getUserByEmail`/`setCustomUserClaims`/`revokeRefreshTokens` fail with
+   "Identity Toolkit API has not been used in project 380552578196" (done 2026-10-10):
+   ```
+   gcloud services enable identitytoolkit.googleapis.com --project tsuberi-mangos
+   ```
 2. **Deploy the backend** (Commands below).
 3. **Verify** (sign-in alone cannot detect a broken `firebaseauth.admin` grant: it only uses `verifyIdToken`, and `syncUserClaims`/logout swallow IAM failures): sign in AND sign out; in Settings add then remove a test user (exercises `setCustomUserClaims`); intake one test pallet; run a backup from Settings -> גיבויים. Then check the Cloud Run logs contain the "Application Default Credentials" init line and NONE of: `[syncUserClaims] no auth user`, `[/api/auth/logout] revoke failed`, `Backup failed`.
 4. **Only then rotate the key**: the old key sits in every previous image. List keys, create a new one for local use, delete the old key id:
