@@ -81,12 +81,21 @@ app.post('/api/internal/backup', async (req, res) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.replace('Bearer ', '').trim();
 
+  const doBackup = async (triggeredBy) => {
+    try {
+      const result = await backupService.runBackup(triggeredBy);
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      logger.error(`[/api/internal/backup] Backup failed: ${err.message}`);
+      return res.status(500).json({ error: 'Backup failed', details: err.message });
+    }
+  };
+
   if (process.env.NODE_ENV !== 'production') {
     const devSecret = process.env.CRON_SECRET;
     if (devSecret && token === devSecret) {
       logger.info('[/api/internal/backup] Dev CRON_SECRET accepted');
-      const result = await backupService.runBackup('cloud-scheduler/dev');
-      return res.json({ success: true, ...result });
+      return doBackup('cloud-scheduler/dev');
     }
   }
 
@@ -94,20 +103,19 @@ app.post('/api/internal/backup', async (req, res) => {
     return res.status(401).json({ error: 'Missing Authorization header' });
   }
 
+  let triggeredBy;
   try {
     const ticket = await oidcClient.verifyIdToken({
       idToken: token,
       audience: process.env.CLOUD_RUN_SERVICE_URL,
     });
-    const payload = ticket.getPayload();
-    const triggeredBy = payload.email || 'cloud-scheduler';
+    triggeredBy = ticket.getPayload().email || 'cloud-scheduler';
     logger.info(`[/api/internal/backup] OIDC verified — triggeredBy: ${triggeredBy}`);
-    const result = await backupService.runBackup(triggeredBy);
-    return res.json({ success: true, ...result });
   } catch (err) {
     logger.error('[/api/internal/backup] OIDC verification failed:', err.message);
     return res.status(401).json({ error: 'Unauthorized' });
   }
+  return doBackup(triggeredBy);
 });
 
 // 📄 Shipping certificates (task 20) — mounted BEFORE the global /api chain, with its own

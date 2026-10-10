@@ -68,9 +68,15 @@ async function buildBackupPayload(db, centerId) {
  * @returns {{ filename: string, rowCount: number, farmerCount: number }}
  */
 async function runBackup(triggeredBy) {
+    // Guard: never let a test/emulator run reach the real bucket.
+    if ((process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST) && process.env.ALLOW_REAL_GCS !== 'true') {
+        throw new Error('Backup upload is disabled while running against the Firebase emulators');
+    }
     if (!BUCKET_NAME) {
         throw new Error('GCS_BACKUP_BUCKET environment variable is not set');
     }
+
+    logger.info(`[backupService] Starting backup — triggeredBy: ${triggeredBy}`);
 
     const db = admin.firestore();
     const payload = await buildBackupPayload(db, CENTER_ID);
@@ -79,7 +85,7 @@ async function runBackup(triggeredBy) {
     const farmerCount = Object.keys(payload.farmers).length;
     const rowCount = Object.values(payload.farmers).reduce((n, rows) => n + rows.length, 0);
 
-    logger.info(`[backupService] Starting backup — filename: ${filename}, triggeredBy: ${triggeredBy}, farmers: ${farmerCount}, rows: ${rowCount}`);
+    logger.info(`[backupService] Payload built — filename: ${filename}, farmers: ${farmerCount}, rows: ${rowCount}`);
 
     const body = JSON.stringify(payload, null, 2);
     const bucket = storage.bucket(BUCKET_NAME);
