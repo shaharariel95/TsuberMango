@@ -66,8 +66,8 @@ const NB = [false, false, false, false];
 const BOX = [true, true, true, true];
 const LINE = [false, false, false, true];
 const blank = (extra = {}) => ({ text: '', border: NB, ...extra });
-const label = (t, extra = {}) => ({ ...txt(t, { fontSize: 10, alignment: 'right', ...extra }), border: NB });
-const fill = (text = '', extra = {}) => ({ ...(text ? txt(text, { fontSize: 11, alignment: 'center' }) : { text: '' }), border: LINE, ...extra });
+const label = (t, extra = {}) => ({ ...txt(t, { fontSize: 10, alignment: 'right', margin: [0, 9, 0, 0], ...extra }), border: NB }); // margin: sit on the row's underline
+const fill = (text = '', extra = {}) => ({ ...(text ? txt(text, { fontSize: 11, alignment: 'center', margin: [0, 8, 0, 0] }) : { text: '' }), border: LINE, ...extra });
 const noPad = { paddingLeft: () => 2, paddingRight: () => 2, paddingTop: () => 1, paddingBottom: () => 1 };
 
 function certificatePage(s, index) {
