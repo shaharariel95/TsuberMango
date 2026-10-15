@@ -75,3 +75,31 @@ export async function navTo(page, label) {
   // immediate click lands on its (identical-looking) rows, which are then unmounted.
   if (href) await expect.poll(() => new URL(page.url()).pathname).toBe(href.split('?')[0]);
 }
+
+// --- Fridge map ---------------------------------------------------------------
+export async function openFridge(page) {
+  await navTo(page, 'מקרר');
+  await expect(page.getByRole('heading', { name: 'מקרר' })).toBeVisible();
+  await expect(page.locator('[data-slot]')).toHaveCount(40);
+}
+
+export const slotOf = (page, slot) => page.locator(`[data-slot="${slot}"]`);
+
+// Pick the pallet in the side panel, tap the first empty slot; returns that slot id.
+export async function placeOnFirstEmpty(page, palletNumber) {
+  await page.getByLabel('חקלאי').selectOption(FARMER);
+  await page.getByLabel('חיפוש משטח').fill(String(palletNumber));
+  await page.locator(`button[data-pallet="${palletNumber}"]`).click();
+  const empty = page.locator('[data-slot][data-state="empty"]').first();
+  const slot = await empty.getAttribute('data-slot');
+  await empty.click();
+  await expect(slotOf(page, slot)).toContainText(String(palletNumber));
+  return slot;
+}
+
+export async function clearSlot(page, slot) {
+  await slotOf(page, slot).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'פנה תא' }).click();
+  await page.getByRole('button', { name: 'אשר' }).click();
+  await expect(slotOf(page, slot)).toHaveAttribute('data-state', 'empty');
+}
