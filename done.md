@@ -8,7 +8,8 @@
 ### ✅ Task 35a — Backend dependency majors
 - `firebase-admin` 13 → 14 (needs Node ≥ 22): the namespaced API (`admin.firestore()`, `admin.auth()`, `admin.apps`, `admin.credential`) is gone, so 26 files moved to `firebase-admin/app|firestore|auth` (`getFirestore`, `getAuth`, `FieldValue`, `Timestamp`, `cert`). Auth middleware tests now spy on the cached `getAuth()` instance.
 - `@google-cloud/storage` 8, `dotenv` 18 (`{ quiet: true }`), express 5.3, vitest 5, firebase-tools 14.27 (15 needs JDK 21; this machine has 18). Docker image `node:20-alpine` (end of life April 2026) → `node:24-alpine`, `npm ci --omit=dev`; `engines.node >= 22`.
-- Production dependencies: 1 critical + 3 high + 9 moderate advisories → 0. Gates: backend 186, e2e 36/36.
+- Production dependencies: 1 critical + 3 high + 9 moderate advisories → 0. Gates: backend 187, e2e 36/36.
+- Review catch: `google-auth-library` (OIDC check on `/api/internal/backup`) was never declared — it was hoisted by storage 7. After the upgrade a production install (`npm ci --omit=dev`) lacked it and the container would crash at boot. Declared it; new `tests/prodDependencies.test.js` fails on any undeclared `require` in server code; verified a clean `--omit=dev` install loads `app.js`.
 
 ### ✅ Task 31 — Stale-pallet nudges
 - Dashboard card "N משטחים ממתינים יותר מ-X ימים מהקטיף": unsent pallets whose harvest date is more than X days ago, oldest first (top 10 + "ועוד"), a mixed pallet once; a click opens shipment prep for that farmer.

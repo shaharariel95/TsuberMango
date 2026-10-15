@@ -101,6 +101,10 @@ cd frontend
 - **Custom claims are not visible in the Firebase Console.** Verify them with
   `getAuth().getUserByEmail(email)` (from `firebase-admin/auth`) and read `.customClaims`.
 
+## Before deploying the backend after a dependency change
+
+Tests run with dev dependencies installed, so a package that is only hoisted by a dev tool passes every test and still crashes the container (`npm ci --omit=dev`). `tests/prodDependencies.test.js` guards `require`s in server code; for a full check, copy `backend/` without `node_modules` to a scratch folder, run `npm ci --omit=dev`, then `FIREBASE_PROJECT_ID=demo-x FRONT_CORS=http://a node -e "require('./app.js')"` — it must load.
+
 ## Verifying after deploy
 
 - Backend: confirm the new revision is actually serving traffic (`gcloud run services describe backend-service --region europe-west1 --project tsuberi-mangos`), not just built.
