@@ -12,7 +12,7 @@ class FridgeError extends Error {
 }
 
 function isValidSlot(roomId, slot) {
-  const room = ROOMS[roomId];
+  const room = Object.hasOwn(ROOMS, roomId) ? ROOMS[roomId] : null;
   if (!room || typeof slot !== 'string') return false;
   const m = /^([A-Z])([1-9][0-9]?)$/.exec(slot);
   return !!m && room.cols.includes(m[1]) && Number(m[2]) <= room.rows;
@@ -25,7 +25,7 @@ function findPallet(cells, farmer, palletNumber) {
 }
 
 function applyOp(roomId, cells, op, { actor, at }) {
-  if (!ROOMS[roomId]) throw new FridgeError(404, 'ROOM_NOT_FOUND');
+  if (!Object.hasOwn(ROOMS, roomId)) throw new FridgeError(404, 'ROOM_NOT_FOUND');
   const slotOk = (s) => { if (!isValidSlot(roomId, s)) throw new FridgeError(400, 'BAD_SLOT', { slot: s ?? null }); };
   const next = { ...cells };
   const log = (c, from, to) => ({ op: op.op, farmer: c.farmer, palletNumber: c.palletNumber, from, to, by: actor, at });

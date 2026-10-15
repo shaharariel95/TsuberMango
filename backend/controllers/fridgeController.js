@@ -44,7 +44,7 @@ async function handle(res, label, fn) {
 }
 
 function assertRoom(roomId) {
-  if (!ROOMS[roomId]) throw new FridgeError(404, 'ROOM_NOT_FOUND');
+  if (!Object.hasOwn(ROOMS, roomId)) throw new FridgeError(404, 'ROOM_NOT_FOUND');
 }
 
 module.exports = {

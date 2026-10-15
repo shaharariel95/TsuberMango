@@ -44,10 +44,17 @@ export default {
 
     async function load() {
       if (!farmer.value) { records.value = []; return; }
+      const f = farmer.value;
       loading.value = true;
-      try { records.value = await listRecords(farmer.value); }
-      catch (e) { notify(e.message || 'טעינת המשטחים נכשלה', 'error'); records.value = []; }
-      finally { loading.value = false; }
+      try {
+        const list = await listRecords(f);
+        if (f !== farmer.value) return; // farmer changed while loading
+        records.value = list;
+      } catch (e) {
+        if (f !== farmer.value) return;
+        notify(e.status ? (e.message || 'טעינת המשטחים נכשלה') : 'אין חיבור לשרת — נסה שוב', 'error');
+        records.value = [];
+      } finally { if (f === farmer.value) loading.value = false; }
     }
     watch(farmer, load, { immediate: true });
     watch(() => props.farmers, (list) => { if (!farmer.value && list.length) farmer.value = list[0]; });

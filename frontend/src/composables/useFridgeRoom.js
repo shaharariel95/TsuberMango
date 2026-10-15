@@ -18,11 +18,21 @@ export function useFridgeRoom(roomId = 'main') {
   let timer = null
   let disposed = false // set on unmount: late responses must not create listeners or timers
 
+  let cellsAt = null // updatedAt of the room state currently shown (ISO strings compare lexically; null = oldest)
+
+  function hasUnknown() {
+    return Object.values(cells.value).some(c => !pallets.value[palletKey(c.farmer, c.palletNumber)])
+  }
+
+  // GET / POST results can arrive after a newer snapshot: an older one must not put older cells back.
   function apply(room) {
     if (disposed) return
-    cells.value = room.cells || {}
-    pallets.value = room.pallets || {}
+    const at = room.updatedAt || null
+    const older = cellsAt !== null && (at === null || at < cellsAt)
+    if (!older) { cells.value = room.cells || {}; cellsAt = at }
+    pallets.value = older ? { ...pallets.value, ...(room.pallets || {}) } : (room.pallets || {})
     syncFarmerListeners()
+    if (hasUnknown()) scheduleRefresh()
   }
 
   async function refresh() {
@@ -66,17 +76,23 @@ export function useFridgeRoom(roomId = 'main') {
     stopFarmerListeners()
     if (!centerId.value) return
     unsubRoom = onSnapshot(doc(db, 'centers', centerId.value, 'fridge', roomId), snap => {
-      cells.value = snap.exists() ? (snap.data().cells || {}) : {}
+      const data = snap.exists() ? snap.data() : {}
+      const at = data.updatedAt || null
+      if (!(at && cellsAt && at < cellsAt)) { cells.value = data.cells || {}; cellsAt = at }
       syncFarmerListeners()
-      const unknown = Object.values(cells.value).some(c => !pallets.value[palletKey(c.farmer, c.palletNumber)])
-      if (unknown) scheduleRefresh()
-    }, e => { console.error('[useFridgeRoom] room listener', e); error.value = e })
+      if (hasUnknown()) scheduleRefresh()
+    }, e => { console.error('[useFridgeRoom] room listener', e); unsubRoom = null; error.value = e })
   }
 
   async function run(op) {
     const room = await postOp(roomId, op)
     apply(room)
     return room
+  }
+
+  function retry() {
+    subscribeRoom()
+    return refresh()
   }
 
   watch(centerId, subscribeRoom, { immediate: true })
@@ -89,5 +105,5 @@ export function useFridgeRoom(roomId = 'main') {
     clearTimeout(timer)
   })
 
-  return { cells, pallets, loading, error, refresh, run }
+  return { cells, pallets, loading, error, refresh, retry, run }
 }

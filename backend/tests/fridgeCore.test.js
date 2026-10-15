@@ -38,6 +38,7 @@ describe('applyOp place', () => {
   });
   it('rejects bad input with 400', () => {
     expect(codeOf(() => applyOp('main', {}, { op: 'place', slot: 'A9', farmer: 'א', palletNumber: 1 }, ctx))).toBe('400 BAD_SLOT');
+    expect(codeOf(() => applyOp('constructor', {}, { op: 'place', slot: 'A1', farmer: 'א', palletNumber: 1 }, ctx))).toBe('404 ROOM_NOT_FOUND');
     expect(codeOf(() => applyOp('main', {}, { op: 'place', slot: 'A1', farmer: '', palletNumber: 1 }, ctx))).toBe('400 BAD_OP');
     expect(codeOf(() => applyOp('main', {}, { op: 'place', slot: 'A1', farmer: 'א', palletNumber: '' }, ctx))).toBe('400 BAD_OP');
     expect(codeOf(() => applyOp('main', {}, { op: 'swap' }, ctx))).toBe('400 BAD_OP');

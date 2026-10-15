@@ -9,7 +9,7 @@
     </div>
 
     <LoadingState v-if="loading" message="טוען את המקרר..." />
-    <ErrorState v-else-if="error && !Object.keys(cells).length" title="טעינת המקרר נכשלה" :message="error.message || ''" @retry="refresh" />
+    <ErrorState v-else-if="error && !Object.keys(cells).length" title="טעינת המקרר נכשלה" :message="error.message || ''" @retry="retry" />
     <div v-else class="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_18rem] gap-3">
       <div class="min-h-0 rounded-2xl border border-slate-200 bg-slate-50 p-1">
         <FridgeGrid :cells="cells" :pallets="pallets" :tints="tints" :selected-slot="mode === 'moving' ? moveFrom : null"
@@ -46,7 +46,7 @@
 </template>
 
 <script>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, watch } from 'vue';
 import LoadingState from './shared/LoadingState.vue';
 import ErrorState from './shared/ErrorState.vue';
 import FridgeGrid from './fridge/FridgeGrid.vue';
@@ -63,7 +63,7 @@ export default {
     const config = inject('config');
     const selectedFarmer = inject('selectedFarmer', ref(''));
     const { notify } = useNotification();
-    const { cells, pallets, loading, error, refresh, run } = useFridgeRoom(ROOM_ID);
+    const { cells, pallets, loading, error, refresh, retry, run } = useFridgeRoom(ROOM_ID);
 
     const mode = ref('idle'); // 'idle' | 'placing' | 'moving'
     const picked = ref(null); // { farmer, palletNumber } while placing
@@ -78,6 +78,7 @@ export default {
     const detailSummary = computed(() => (detailCell.value ? pallets.value[palletKey(detailCell.value.farmer, detailCell.value.palletNumber)] : null));
     const statusLabel = computed(() => FLAG_LABELS[detailSummary.value?.status] || 'במקרר');
     const placedAtText = computed(() => (detailCell.value?.placedAt ? new Date(detailCell.value.placedAt).toLocaleString('he-IL') : ''));
+    watch(detailCell, (c) => { if (!c) detail.value = null; });
     const banner = computed(() => {
       if (mode.value === 'placing') return { text: `נבחר משטח ${picked.value.palletNumber} (${picked.value.farmer}) — הקש על תא פנוי`, cls: 'border-blue-200 bg-blue-50 text-blue-800' };
       if (mode.value === 'moving') return { text: `העברת משטח מתא ${moveFrom.value} — הקש על תא פנוי`, cls: 'border-amber-200 bg-amber-50 text-amber-800' };
@@ -95,7 +96,7 @@ export default {
         notify(okMessage, 'success');
         resetMode();
       } catch (e) {
-        notify(e.message || 'הפעולה נכשלה', 'error');
+        notify(e.status ? (e.message || 'הפעולה נכשלה') : 'אין חיבור לשרת — נסה שוב', 'error');
         resetMode();
         refresh();
         panel.value?.reload();
@@ -132,7 +133,7 @@ export default {
     }
 
     return {
-      cells, pallets, loading, error, refresh, mode, picked, moveFrom, detail, panel,
+      cells, pallets, loading, error, refresh, retry, mode, picked, moveFrom, detail, panel,
       farmers, tints, detailCell, detailSummary, statusLabel, placedAtText, banner, selectedFarmer,
       resetMode, onPick, onSlot, startMove, clearSlot,
     };
