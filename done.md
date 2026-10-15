@@ -5,6 +5,11 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 35b — Frontend dependency majors
+- `firebase` 11 → 13, `vue-router` 4 → 5 (guard already return-value style — no code change), vitest 5. npm `overrides` pins `@grpc/grpc-js` ^1.14.5 (used only by Firestore's Node build, never the browser bundle). Audit: only `xlsx` remains (we only write files; no npm fix).
+- `pdfmake` 0.3 deliberately skipped: no advisories on 0.2, and the certificate layout is tuned to 0.2.
+- Gates: unit 65, build OK, e2e 36/36 (on top of 35a).
+
 ### ✅ Task 35a — Backend dependency majors
 - `firebase-admin` 13 → 14 (needs Node ≥ 22): the namespaced API (`admin.firestore()`, `admin.auth()`, `admin.apps`, `admin.credential`) is gone, so 26 files moved to `firebase-admin/app|firestore|auth` (`getFirestore`, `getAuth`, `FieldValue`, `Timestamp`, `cert`). Auth middleware tests now spy on the cached `getAuth()` instance.
 - `@google-cloud/storage` 8, `dotenv` 18 (`{ quiet: true }`), express 5.3, vitest 5, firebase-tools 14.27 (15 needs JDK 21; this machine has 18). Docker image `node:20-alpine` (end of life April 2026) → `node:24-alpine`, `npm ci --omit=dev`; `engines.node >= 22`.

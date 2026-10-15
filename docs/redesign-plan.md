@@ -60,7 +60,6 @@ Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInp
 ### 35 — Remaining major bumps (one PR each, anytime)
 | Upgrade | Risk | Notes |
 |---|---|---|
-| `pdfmake` 0.2→0.3 | Med | vfs/build changes threaten the lazy-load `pdfMake.vfs = pdfFonts` pattern; QA sticker PDF |
-| `vue-router` 4→5 | Med | Rewrite the `beforeEach` guard, test every redirect |
-| `firebase` (frontend) 11→13 | Low-Med | Next PR |
+| `pdfmake` 0.2→0.3 | High | **Deferred (2026-10-15):** 0.2 has no advisories, and the certificate layout + our own bidi workaround are tuned to 0.2's text layout (matched to the owner's sample). Revisit only for a real need, with a printer check. |
+| ~~frontend: `firebase` 13, `vue-router` 5, vitest 5~~ | — | Done 2026-10-15 (`task-35b-frontend-deps`); grpc-js override; only `xlsx` left in audit (export only, no npm fix) |
 | ~~backend: `firebase-admin` 13→14, `@google-cloud/storage` 8, `dotenv` 18, vitest 5, Docker Node 24~~ | — | Done 2026-10-15 (branch `task-35a-backend-deps`); modular admin API; prod deps 0 advisories |
