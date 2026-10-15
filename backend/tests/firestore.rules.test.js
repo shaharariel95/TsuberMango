@@ -59,3 +59,17 @@ describe('writes are always denied to clients', () => {
     await assertFails(getDoc(doc(authed(['tsuberi']), 'centers/tsuberi/farmers/gabi/records/r1')));
   });
 });
+
+describe('fridge reads', () => {
+  it('allows a matching authed user to read the room doc', async () => {
+    await assertSucceeds(getDoc(doc(authed(['tsuberi']), 'centers/tsuberi/fridge/main')));
+  });
+  it('denies another center and unauthenticated users', async () => {
+    await assertFails(getDoc(doc(authed(['other']), 'centers/tsuberi/fridge/main')));
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), 'centers/tsuberi/fridge/main')));
+  });
+  it('denies the move log and any client write', async () => {
+    await assertFails(getDoc(doc(authed(['tsuberi']), 'centers/tsuberi/fridge/main/log/l1')));
+    await assertFails(setDoc(doc(authed(['tsuberi']), 'centers/tsuberi/fridge/main'), { cells: { A1: {} } }));
+  });
+});

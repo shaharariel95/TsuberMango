@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Client SDK reads only the tenant config doc and the real-time farmer_events.
+// Client SDK reads only the tenant config doc, the real-time farmer_events and the fridge room docs.
 // Firebase Auth provides request.auth; the `centers` custom claim lists the
 // centers a user may read. Everything else is Admin-SDK-only (default deny).
 service cloud.firestore {
@@ -12,6 +12,10 @@ service cloud.firestore {
     match /centers/{centerId}/farmer_events/{farmerId} {
       allow read: if request.auth != null && centerId in request.auth.token.centers;
       allow write: if false; // Admin SDK only (firestoreEventService)
+    }
+    match /centers/{centerId}/fridge/{roomId} {
+      allow read: if request.auth != null && centerId in request.auth.token.centers;
+      allow write: if false; // Admin SDK only (fridgeController); log/ has no rule (denied)
     }
   }
 }
