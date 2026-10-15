@@ -31,7 +31,7 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 | 25–33 | Feature ideas (below) | P2 | 0.5–2d each | — |
 | 35 | Remaining major bumps (maintenance) | P2 | 3–5d spread | anytime |
 | 17–19 | Schema / forms / tenant platform layer | P3 | — | parked, see reference |
-| — | Fridge layout (new feature; branch `feature/fridge-layout`, 2 unmerged commits from 2026-05-20) | last | ? | everything else; parked until then |
+| 37 | Fridge layout | — | — | BUILT on branch `fridge-layout` (2026-10-15), NOT merged or deployed; awaiting owner local testing. Delete this row once shipped. |
 
 ## Open decisions / blockers
 - **Tasks 20 and 4: shipped** (certificates in Firestore, auto-split into ≤13-row certificates by pallet group) — see `done.md`. Not blockers any more.

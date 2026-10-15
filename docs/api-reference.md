@@ -18,6 +18,7 @@ everyday work is in [CLAUDE.md](../CLAUDE.md).
 | `/sentPalletsForMark` | sentPalletsForMark | Auth required |
 | `/Destination` | Destination | Auth required |
 | `/DestinationsSummary` | DestinationsSummary | Auth required |
+| `/Fridge` | FridgeLayout | Auth required |
 
 There is no `/` route. The `beforeEach` guard in `router.js` first resolves Firebase's current auth
 state (`auth.currentUser`, or one `onAuthStateChanged` tick if it hasn't hydrated yet) — no Firebase
@@ -64,6 +65,24 @@ additionally require `ensureAdmin`.
 | GET | `/api/admin/backups` | — | Admin: list recent backups from Firestore |
 | POST | `/api/admin/backup` | — | Admin: trigger manual backup |
 | POST | `/api/internal/backup` | — | Cloud Scheduler backup trigger. **Not** token-auth'd — verifies a Google OIDC token (or `CRON_SECRET` in dev). Defined before the `verifyFirebaseToken`/`ensureCenterAccess` block. |
+
+---
+
+## Fridge API
+
+Mounted at `/api/fridge` above the global `/api` chain with its own `verifyFirebaseToken` +
+`ensureCenterAccess`. Errors are `{error: <Hebrew message>, code, ...details}`. Only room `main` exists
+(other ids: 404 `ROOM_NOT_FOUND`). Fridge writes change no records and emit no `farmer_events`.
+
+| Method | Path | Body | Success | Errors |
+|---|---|---|---|---|
+| GET | `/api/fridge/:roomId` | - | `200 {cells, updatedAt, updatedBy, pallets}` | 404 `ROOM_NOT_FOUND` |
+| POST | `/api/fridge/:roomId/ops` | `{op:'place', slot, farmer, palletNumber}`, `{op:'move', from, to}` or `{op:'clear', slot}` | `200`, same shape as GET (the new state) | 400 `UNKNOWN_FARMER` / `BAD_SLOT` / `BAD_OP`; 404 `NOT_FOUND` (no such pallet), `ROOM_NOT_FOUND`; 409 `SLOT_TAKEN {slot}`, `ALREADY_PLACED {slot}`, `SLOT_EMPTY {slot}`, `ALREADY_SENT` |
+
+`pallets` maps `{farmer}__{palletNumber}` keys (`palletKey`) to a live summary
+`{status, kinds[], sizes[], boxes, weightMissing, mark, hasCertificate}`. `status` is one of
+`ok`, `partly_sent`, `sent`, `deleted` (all records soft-deleted) or `missing` (no records). Sent,
+deleted and missing pallets are flagged red in the UI and can be cleared with "פנה תא".
 
 ---
 

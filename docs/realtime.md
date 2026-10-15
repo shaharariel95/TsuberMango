@@ -65,5 +65,9 @@ The `<tr>` receives class `pallet-flash` when `highlightedIds.has(pallet.id)` is
 `@keyframes palletFlash` animation runs 3s ease-out and ends at `background-color: inherit` so
 missing-weight rows (amber-50) restore correctly.
 
+## Fridge map
+
+The room doc is the live channel: `useFridgeRoom` runs `onSnapshot` on `centers/{c}/fridge/main`. Fridge writes emit **no** `farmer_events`. The composable also listens to `farmer_events/{farmer}` for each farmer on the map and refetches `GET /api/fridge/main` (debounced 400 ms), so a pallet that is sent or deleted elsewhere turns red without a reload. There is no echo suppression: replacing the state is idempotent.
+
 > See also: the **PalletTable Layout Contract** in [CLAUDE.md](../CLAUDE.md) — pages rendering
 > `<PalletTable>` must put `h-full` on their root div.

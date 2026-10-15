@@ -5,6 +5,12 @@
 
 ## October 2026 — Pre-season push
 
+### 🟡 Task 37 — Fridge layout (built 2026-10-15, NOT deployed)
+- Fridge map page `/Fridge` ("מקרר"): 5x8 grid + aisle, pick-list side panel, tap to place / move / clear a pallet; sent, deleted or missing pallets turn red and can be cleared with "פנה תא". Live between clients via the room doc (`centers/{c}/fridge/main`) plus `farmer_events` refetch. Backup, restore (`--with-fridge`) and season reset cover the fridge.
+- Spec: `docs/superpowers/specs/2026-10-15-fridge-layout-design.md`; plan and task briefs under `.superpowers/sdd/2026-10-15-fridge-layout/`. Branch `fridge-layout`, not merged.
+- Tests (final runs): backend 229, frontend unit 69, e2e 42/42 (21 tests x desktop + tablet, incl. 3 new fridge specs). Tablet 1280x800 fits without page scroll.
+- **Not deployed.** Awaiting the owner's local test session. Deploy order when asked: rules -> backend -> frontend (via the `deploy` skill); merge to `main` only then.
+
 ### ✅ Task 35b — Frontend dependency majors
 - `firebase` 11 → 13, `vue-router` 4 → 5 (guard already return-value style — no code change), vitest 5. npm `overrides` pins `@grpc/grpc-js` ^1.14.5 (used only by Firestore's Node build, never the browser bundle). Audit: only `xlsx` remains (we only write files; no npm fix).
 - `pdfmake` 0.3 deliberately skipped: no advisories on 0.2, and the certificate layout is tuned to 0.2.

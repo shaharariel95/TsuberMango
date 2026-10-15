@@ -28,6 +28,7 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `src/components/` — All page-level components (see [api-reference.md](api-reference.md)). `Dashboard.vue` is the admin landing page (cross-farmer season totals, recent pallets, today's-activity feed).
 - `src/components/shared/` — Reusable UI primitives: `ConfirmModal.vue`, `LoadingState.vue`, `ErrorState.vue`, `EmptyState.vue`, `SpinnerButton.vue`, `ErrorToast.vue`. See `frontend/SHARED_COMPONENTS.md`.
 - `src/composables/useFarmerEvents.js` — Real-time update composable. Subscribes to `centers/{centerId}/farmer_events/{farmer}` via `onSnapshot` (re-subscribes when either the farmer ref or `centerId` changes), applies deltas to the caller's `pallets` ref in-place, and returns a reactive `highlightedIds` Set for flash animations. See [realtime.md](realtime.md).
+- `src/components/FridgeLayout.vue` + `src/components/fridge/*` — fridge map page (5x8 grid + aisle, pick-list side panel, slot dialog). `src/composables/useFridgeRoom.js` (live room state), `src/utils/fridgeView.js` (view helpers), `src/api/fridge.js` (API client). See [realtime.md](realtime.md).
 - `src/composables/useCenter.js` — Module-level `centerId` ref + `setCenterId()`. Set once in `App.vue` from `/api/auth/me`; imported wherever a client Firestore path needs the tenant id (`Settings.vue`, `useFarmerEvents.js`).
 - `src/composables/useNotification.js` — Corner toast notifications (`NotificationList.vue` renders them).
 - `src/data/data.js` — Static fallback data: mango kinds, sizes, destinations, farmerConfigs.
@@ -53,10 +54,13 @@ non-obvious traps live in [CLAUDE.md](../CLAUDE.md) — this file is the "what i
 - `services/certificateService.js` — Orchestrates certificate operations: validation, repository transaction, then the side effects every write owes (audit entries + a `bulk_update` realtime event). `toHttpError` maps `CertificateError` to Hebrew messages.
 - `controllers/certificateController.js` — Thin HTTP layer over the service (farmer validated with `assertKnownFarmer`).
 - `routes/certificateRoutes.js` — `/api/certificates/*`. Mounted in `app.js` **above** the global `/api` chain with its own `verifyFirebaseToken` + `ensureCenterAccess`. The admin profile and season-export endpoints are defined directly in `app.js`.
-- `services/backupService.js` — `buildBackupPayload` builds a complete, all-or-nothing v2 backup (config, users, every `farmers/{name}` doc incl. `certificateProfile`, all records incl. soft-deleted, audit, certificates + versions); `runBackup` uploads it to GCS (refused under emulators) and records metadata in the Firestore `backups` collection. Invoked by the manual admin endpoint and by Cloud Scheduler (see `backend/CLOUD_SCHEDULER.md`).
+- `services/fridgeCore.js` — Pure fridge rules (no I/O): slot validation, `applyOp` (place / move / clear), per-pallet summaries (`summarizePallet`, `summarizeRoom`).
+- `repositories/FirestoreFridgeRepository.js` — Room doc + `log` subcollection, transactional ops, `clearFarmer`. Exported as `require('../repositories').fridge`.
+- `controllers/fridgeController.js` + `routes/fridgeRoutes.js` — `/api/fridge/*`. Mounted in `app.js` **above** the global `/api` chain with its own `verifyFirebaseToken` + `ensureCenterAccess`.
+- `services/backupService.js` — `buildBackupPayload` builds a complete, all-or-nothing v2 backup (config, users, every `farmers/{name}` doc incl. `certificateProfile`, all records incl. soft-deleted, audit, certificates + versions, and the fridge rooms + log in a `fridge` section); `runBackup` uploads it to GCS (refused under emulators) and records metadata in the Firestore `backups` collection. Invoked by the manual admin endpoint and by Cloud Scheduler (see `backend/CLOUD_SCHEDULER.md`).
 - `services/backupNames.js` — Pure helpers: `backupFileName(iso)` (`backups/YYYY-MM-DD-HHmmss.json`, UTC) and `resolveBackupName(names, which)` (`latest` / `YYYY-MM-DD` / full name; old date-only names sort before same-day timestamped ones).
-- `services/backupRestore.js` — `restoreBackup(db, centerId, payload, {execute, farmer, withConfig})`: restores a v1 or v2 backup payload. Dry run unless `execute`; never overwrites records, audit or certificates (existing ones are blockers and execute throws, writing nothing); farmer docs are merged and `certificateProfile.nextNumber` never goes down; preserves ids; writes no realtime events.
-- `services/seasonReset.js` — Season reset: counts, then (on execute) deletes all records, audit, certificates and farmer events for a center; keeps config, users, farmer docs/`certificateProfile` and backups. Execute requires a `backups` doc from the last 24 h unless skipped.
+- `services/backupRestore.js` — `restoreBackup(db, centerId, payload, {execute, farmer, withConfig})`: restores a v1 or v2 backup payload. Dry run unless `execute`; never overwrites records, audit or certificates (existing ones are blockers and execute throws, writing nothing); farmer docs are merged and `certificateProfile.nextNumber` never goes down; preserves ids; writes no realtime events. `withFridge` (CLI `--with-fridge`) also restores the fridge rooms + log.
+- `services/seasonReset.js` — Season reset: counts, then (on execute) deletes all records, audit, certificates, farmer events and the fridge rooms + log for a center (`--farmer` clears only that farmer's fridge cells); keeps config, users, farmer docs/`certificateProfile` and backups. Execute requires a `backups` doc from the last 24 h unless skipped.
 - `models/palletRecord.js` — Pallet data model + required-field validation + boolean coercion (see PalletRecord below).
 - `utils/requestContext.js` — per-request async context carrying the `X-Client-Id`, stamped on realtime events as `updatedByClient`.
 - `utils/logger.js` — Winston logger (`logger.info`, `logger.error`), console transport.
@@ -160,6 +164,8 @@ centers/{centerId}/
   certificates/{farmer}__{number}     certificate doc: farmer, number, status, shipmentDate, destination, recordIds, current snapshot
     versions/{n}                      immutable snapshots, one per issue/reprint/removal
   farmer_events/{farmer}        real-time delta doc, overwritten per write
+  fridge/{roomId}               { cells: {A1: {farmer, palletNumber, placedBy, placedAt}}, updatedAt, updatedBy }  (room 'main')
+    log/{autoId}                { op, farmer, palletNumber, from, to, by, at }
 backups/{autoId}                backup metadata: timestamp, filename, centerId, version, farmerCount, rowCount, triggeredBy
 ```
 
@@ -172,13 +178,14 @@ backups/{autoId}                backup metadata: timestamp, filename, centerId, 
 | `centers/{c}/farmer_events/{f}` | Real-time pallet update events, one doc per farmer, overwritten each write — no accumulation | `firestoreEventService.js` (fire-and-forget) |
 | `centers/{c}/farmers/{f}` `.certificateProfile` | Header lines, driver, next certificate number | Admin SDK via `PUT /api/admin/farmers/:farmer/certificate-profile` (and the seed script) |
 | `centers/{c}/certificates/{farmer}__{n}` (+ `versions/{n}`) | Shipping certificates; versions are immutable | Admin SDK via `FirestoreCertificateRepository` (transactions) |
+| `centers/{c}/fridge/{room}` (+ `log`) | Fridge map; client-readable room doc | Admin SDK via `FirestoreFridgeRepository` (transactions) |
 | `backups/{id}` | Backup metadata | `backupService.js` after each run |
 
 ### Security rules
 
 `frontend/firestore.rules` (version-controlled). The only client (SDK) reads are the tenant config
 doc and the real-time events: `centers/{centerId}/config/**` and
-`centers/{centerId}/farmer_events/{farmer}` require
+`centers/{centerId}/farmer_events/{farmer}` and `centers/{centerId}/fridge/{roomId}` require
 `request.auth != null && centerId in request.auth.token.centers` — an authed Firebase user whose
 `centers` custom claim includes the tenant being read. The legacy top-level `config`/`farmer_events`
 matches have been removed. Everything else is default-deny; all writes stay Admin-SDK-only
