@@ -12,3 +12,4 @@ export const setShipmentDate = (farmer, palletIds, shipmentDate) =>
   call('PUT', `/farmers/${f(farmer)}/records/shipmentDate`, { palletIds, shipmentDate });
 // Returns { updated: [stored state per pallet] } (certified rows also lose cardId).
 export const resetSent = (farmer, palletIds) => call('PUT', `/farmers/${f(farmer)}/records/resetPallets`, { palletIds });
+export const listRecords = async (farmer) => (await call('GET', `/farmers/${f(farmer)}/records`)).data || [];
