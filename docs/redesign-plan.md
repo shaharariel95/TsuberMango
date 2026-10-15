@@ -13,7 +13,7 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 8. When done **and verified** (tests/app actually run), append an entry to `done.md` and remove the task from this board.
 
 ## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season; season May–July 2027, farmer dry run April 2027
-1. **Pre-season ops:** DONE 2026-10-10 — test data cleared, profiles seeded, keyless Cloud Run cutover, dead env vars removed, seed script + `googleapis` removed. Remaining (owner, in Settings → פרטי תעודה): real Avner/Idan/Kopler profiles and header lines 4–5 of the seeded farmers; printer check via תצוגה מקדימה (never a real issue). Run a restore drill (`NEW_SEASON.md`) before the April dry run.
+1. **Pre-season ops:** DONE 2026-10-10 — test data cleared, profiles seeded, keyless Cloud Run cutover, dead env vars removed, seed script + `googleapis` removed. Remaining (owner, in Settings → פרטי תעודה): real Avner/Idan/Kopler profiles and header lines 4–5 of the seeded farmers; printer check via תצוגה מקדימה (never a real issue). Restore drill (`NEW_SEASON.md`): done by the owner, 2026-10.
 2. **Deployed and merged to `main` (2026-10-10, PR #5).** Farmer dry run in April 2027 before the season.
 3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
 
@@ -54,7 +54,7 @@ Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInp
 - **12 Daily backup: shipped and verified** (Cloud Scheduler job `tsuberi-daily-backup`, nightly since May; complete v2 payload; restore tool `scripts/restoreBackup.js`, see `backend/CLOUD_SCHEDULER.md` and `NEW_SEASON.md`).
 - **13 Mobile audit:** 390px / 768px, collapse low-priority columns, ≥44px tap targets; add a Playwright project at the packhouse tablet's resolution (≤1366px uses the drawer layout, so tests must open the ☰ menu first).
 - **24 Farmer-scoped roles:** `farmer` role linked to a farmer; `ensureOwnFarmerOrAdmin`; builds on the shipped task-6 `config/global.farmers` entries (an `ownerEmails` link would be added there).
-**27 QR on pallet sticker** (pallet id; covers L3). **28 Pallet timeline view** from the audit trail (H3 base). **29 Global pallet/certificate search.** **30 Batch sticker printing + preview** (covers M2). **32 Undo last bulk action** (30s toast). **33 Driver manifest PDF** per destination/truck.
+- **27 QR on pallet sticker** (pallet id; covers L3). **28 Pallet timeline view** from the audit trail (H3 base). **29 Global pallet/certificate search.** **30 Batch sticker printing + preview** (covers M2). **32 Undo last bulk action** (30s toast). **33 Driver manifest PDF** per destination/truck.
 - **17–19 platform layer:** parked until a confirmed second customer — see the reference doc.
 
 ### 35 — Remaining major bumps (one PR each, anytime)
