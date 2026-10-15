@@ -11,6 +11,7 @@ import Destination from "./components/Destination.vue";
 import Login from "./components/Login.vue";
 import DestinationsSummary from "./components/DestinationsSummary.vue";
 import Certificates from "./components/Certificates.vue";
+import FridgeLayout from "./components/FridgeLayout.vue";
 import Settings from "./components/Settings.vue";
 import Dashboard from "./components/Dashboard.vue";
 
@@ -61,6 +62,7 @@ const routes = [
     meta: { requiresAuth: true },
   },
   { path: "/Certificates", name: "Certificates", component: Certificates, meta: { requiresAuth: true } },
+  { path: "/Fridge", name: "Fridge", component: FridgeLayout, meta: { requiresAuth: true } },
   {
     path: "/Settings",
     name: "Settings",
