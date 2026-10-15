@@ -2,12 +2,13 @@
 // Idempotent: stand up centers/test with a small config + fake farmer/records,
 // and add the developer as an admin user of the test center.
 // Run: node scripts/seedTestCenter.js your-email@gmail.com
-const admin = require('firebase-admin');
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 const { adminInitOptions } = require('../utils/gcpCredentials');
 const logger = require('../utils/logger');
 
-if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));
-const db = admin.firestore();
+if (!getApps().length) initializeApp(adminInitOptions());
+const db = getFirestore();
 const CENTER = 'test';
 
 (async () => {

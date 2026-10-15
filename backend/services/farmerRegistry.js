@@ -2,11 +2,11 @@
 // Every mutation is a Firestore transaction that writes only the `farmers` field, so concurrent
 // edits (another admin tab, a config save) are never lost. Archiving hides a farmer from the app;
 // their records, audit, certificates and certificateProfile are never touched here.
-const admin = require('firebase-admin');
+const { getFirestore } = require('firebase-admin/firestore');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
 
-const configRef = () => admin.firestore().collection('centers').doc(CENTER_ID).collection('config').doc('global');
+const configRef = () => getFirestore().collection('centers').doc(CENTER_ID).collection('config').doc('global');
 
 class FarmerRegistryError extends Error {
   constructor(status, message) {
@@ -29,7 +29,7 @@ function validateFarmerName(raw) {
 }
 
 async function mutateFarmers(fn) {
-  return admin.firestore().runTransaction(async (t) => {
+  return getFirestore().runTransaction(async (t) => {
     const snap = await t.get(configRef());
     const farmers = ((snap.exists && snap.data().farmers) || []).map(f => ({ ...f }));
     const result = fn(farmers);

@@ -1,13 +1,14 @@
 // backend/scripts/backfillAuthClaims.js
 // One-time, idempotent: ensure every Firestore user has a correct `centers` claim.
 // Run: node scripts/backfillAuthClaims.js   (uses the same service account as the server)
-const admin = require('firebase-admin');
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 const { adminInitOptions } = require('../utils/gcpCredentials');
 const logger = require('../utils/logger');
 
-if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));
+if (!getApps().length) initializeApp(adminInitOptions());
 const { syncUserClaims } = require('../middleware/auth');
-const db = admin.firestore();
+const db = getFirestore();
 
 (async () => {
   // Discover users via a single `users` collection-group scan rather than

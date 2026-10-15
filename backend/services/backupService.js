@@ -1,7 +1,7 @@
 // services/backupService.js
 const { Storage } = require('@google-cloud/storage');
 const { storageOptions } = require('../utils/gcpCredentials');
-const admin = require('firebase-admin');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const FirestoreRepository = require('../repositories/FirestoreRepository');
 const { CENTER_ID } = require('../config/center');
 const logger = require('../utils/logger');
@@ -76,7 +76,7 @@ async function runBackup(triggeredBy) {
 
     logger.info(`[backupService] Starting backup — triggeredBy: ${triggeredBy}`);
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const payload = await buildBackupPayload(db, CENTER_ID);
     const timestamp = new Date(payload.timestamp);
     const filename = backupFileName(payload.timestamp); // backups/YYYY-MM-DD-HHmmss.json (UTC); never reused
@@ -100,7 +100,7 @@ async function runBackup(triggeredBy) {
     logger.info(`[backupService] Uploaded ${filename} to gs://${BUCKET_NAME} (${body.length} bytes)`);
 
     await db.collection(BACKUPS_COLLECTION).add({
-        timestamp: admin.firestore.Timestamp.fromDate(timestamp),
+        timestamp: Timestamp.fromDate(timestamp),
         filename,
         centerId: CENTER_ID,
         version: 2,
@@ -121,7 +121,7 @@ async function runBackup(triggeredBy) {
  * @returns {Promise<Array>}
  */
 async function getRecentBackups(limit = 7) {
-    const db = admin.firestore();
+    const db = getFirestore();
     const snap = await db
         .collection(BACKUPS_COLLECTION)
         .orderBy('timestamp', 'desc')

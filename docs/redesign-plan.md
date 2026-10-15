@@ -62,5 +62,5 @@ Files: `backend/models/palletRecord.js`, `frontend/src/data/data.js`, `PalletInp
 |---|---|---|
 | `pdfmake` 0.2→0.3 | Med | vfs/build changes threaten the lazy-load `pdfMake.vfs = pdfFonts` pattern; QA sticker PDF |
 | `vue-router` 4→5 | Med | Rewrite the `beforeEach` guard, test every redirect |
-| `firebase` 11→12 · `firebase-admin` 13→14 | Low-Med | Check Cloud Run Node version first |
-| `dotenv` 16→17 | Low | Trivial |
+| `firebase` (frontend) 11→13 | Low-Med | Next PR |
+| ~~backend: `firebase-admin` 13→14, `@google-cloud/storage` 8, `dotenv` 18, vitest 5, Docker Node 24~~ | — | Done 2026-10-15 (branch `task-35a-backend-deps`); modular admin API; prod deps 0 advisories |

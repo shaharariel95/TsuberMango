@@ -99,7 +99,7 @@ cd frontend
 - `gcloud run deploy` **preserves** existing env vars when you don't pass `--set-env-vars`; passing
   it *replaces* them all.
 - **Custom claims are not visible in the Firebase Console.** Verify them with
-  `admin.auth().getUserByEmail(email)` and read `.customClaims`.
+  `getAuth().getUserByEmail(email)` (from `firebase-admin/auth`) and read `.customClaims`.
 
 ## Verifying after deploy
 

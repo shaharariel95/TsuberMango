@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { createRequire } from 'node:module';
 
-if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
-const db = admin.firestore();
+if (!getApps().length) initializeApp({ projectId: 'demo-tsuber' });
+const db = getFirestore();
 const { resetSeason } = createRequire(import.meta.url)('../services/seasonReset');
 
 const C = 'resettest';
@@ -33,7 +34,7 @@ async function seed() {
 const count = async (ref) => (await ref.get()).size;
 
 beforeEach(seed);
-afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
+afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 
 describe('resetSeason', () => {
   it('dry run (default) reports counts and deletes nothing', async () => {
@@ -46,13 +47,13 @@ describe('resetSeason', () => {
 
   it('execute without a backup in the last 24h refuses and deletes nothing', async () => {
     await expect(resetSeason(db, C, { execute: true, now: NOW })).rejects.toThrow(/backup/i);
-    await db.collection('backups').add({ timestamp: admin.firestore.Timestamp.fromDate(new Date('2026-11-29T10:00:00Z')) });
+    await db.collection('backups').add({ timestamp: Timestamp.fromDate(new Date('2026-11-29T10:00:00Z')) });
     await expect(resetSeason(db, C, { execute: true, now: NOW })).rejects.toThrow(/backup/i);
     expect(await count(center.collection('farmers').doc('א').collection('records'))).toBe(2);
   });
 
   it('execute with a recent backup clears the season and keeps config, users, profiles and other centers', async () => {
-    await db.collection('backups').add({ timestamp: admin.firestore.Timestamp.fromDate(new Date('2026-12-01T08:00:00Z')) });
+    await db.collection('backups').add({ timestamp: Timestamp.fromDate(new Date('2026-12-01T08:00:00Z')) });
     const out = await resetSeason(db, C, { execute: true, now: NOW });
     expect(out.executed).toBe(true);
     expect(out.farmers['ב']).toEqual({ records: 1, audit: 0 });

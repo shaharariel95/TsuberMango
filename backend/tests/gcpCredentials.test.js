@@ -6,7 +6,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { adminInitOptions, storageOptions, keyFileIfPresent } = require('../utils/gcpCredentials');
 
-const admin = { credential: { cert: (sa) => ({ certOf: sa.project_id }) } };
+const cert = (sa) => ({ certOf: sa.project_id });
 const dirs = [];
 afterEach(() => { while (dirs.length) fs.rmSync(dirs.pop(), { recursive: true, force: true }); });
 const tmpKey = () => {
@@ -19,17 +19,17 @@ const tmpKey = () => {
 
 describe('gcpCredentials', () => {
   it('uses the key file and its project_id when present', () => {
-    expect(adminInitOptions({ keyFile: tmpKey(), projectId: undefined, admin }))
+    expect(adminInitOptions({ keyFile: tmpKey(), projectId: undefined, cert }))
       .toEqual({ credential: { certOf: 'key-project' }, projectId: 'key-project' });
   });
   it('prefers an explicit projectId over the key project_id', () => {
-    expect(adminInitOptions({ keyFile: tmpKey(), projectId: 'env-project', admin }).projectId).toBe('env-project');
+    expect(adminInitOptions({ keyFile: tmpKey(), projectId: 'env-project', cert }).projectId).toBe('env-project');
   });
   it('falls back to ADC with projectId when no key file', () => {
-    expect(adminInitOptions({ keyFile: null, projectId: 'env-project', admin })).toEqual({ projectId: 'env-project' });
+    expect(adminInitOptions({ keyFile: null, projectId: 'env-project', cert })).toEqual({ projectId: 'env-project' });
   });
   it('throws a clear error with neither key nor project id', () => {
-    expect(() => adminInitOptions({ keyFile: null, projectId: undefined, admin })).toThrow(/FIREBASE_PROJECT_ID/);
+    expect(() => adminInitOptions({ keyFile: null, projectId: undefined, cert })).toThrow(/FIREBASE_PROJECT_ID/);
   });
   it('storageOptions maps key presence', () => {
     expect(storageOptions({ keyFile: '/k.json' })).toEqual({ keyFilename: '/k.json' });

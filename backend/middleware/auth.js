@@ -1,8 +1,9 @@
-const admin = require('firebase-admin');
+const { getFirestore } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
 
-const db = () => admin.firestore();
+const db = () => getFirestore();
 
 // Verify the Firebase ID token carried in `Authorization: Bearer <token>`.
 async function verifyFirebaseToken(req, res, next) {
@@ -10,7 +11,7 @@ async function verifyFirebaseToken(req, res, next) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ message: 'Unauthorized' });
   try {
-    const decoded = await admin.auth().verifyIdToken(token);
+    const decoded = await getAuth().verifyIdToken(token);
     req.user = {
       email: decoded.email,
       uid: decoded.uid,
@@ -53,7 +54,7 @@ async function ensureAdmin(req, res, next) {
 async function syncUserClaims(email) {
   let userRecord;
   try {
-    userRecord = await admin.auth().getUserByEmail(email);
+    userRecord = await getAuth().getUserByEmail(email);
   } catch (err) {
     logger.error(`[syncUserClaims] no auth user for ${email}: ${err.message}`);
     return false;
@@ -70,7 +71,7 @@ async function syncUserClaims(email) {
   const current = userRecord.customClaims?.centers || [];
   const changed = current.length !== allowed.length || !allowed.every(c => current.includes(c));
   if (changed) {
-    await admin.auth().setCustomUserClaims(userRecord.uid, { centers: allowed });
+    await getAuth().setCustomUserClaims(userRecord.uid, { centers: allowed });
     logger.info(`[syncUserClaims] ${email} centers -> [${allowed.join(', ')}]`);
   }
   return changed;

@@ -1,9 +1,9 @@
-const admin = require('firebase-admin')
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const logger = require('../utils/logger')
 const { CENTER_ID } = require('../config/center')
 const { currentClientId } = require('../utils/requestContext')
 
-const db = () => admin.firestore()
+const db = () => getFirestore()
 const eventDoc = (farmer) =>
   db().collection('centers').doc(CENTER_ID).collection('farmer_events').doc(farmer)
 
@@ -13,7 +13,7 @@ function emit(farmer, payload) {
     ...payload,
     ...(clientId ? { updatedByClient: clientId } : {}),
     farmer,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }).catch(err =>
     logger.error(`[firestoreEventService] emit failed for "${farmer}": ${err.message}`)
   )

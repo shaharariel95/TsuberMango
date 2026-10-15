@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import CertRepoModule from '../repositories/FirestoreCertificateRepository.js';
 const { FirestoreCertificateRepository, CertificateError } = CertRepoModule;
 
@@ -19,11 +20,11 @@ async function addRecord(palletNumber, o = {}) {
 }
 
 beforeAll(() => {
-  if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
-  db = admin.firestore();
+  if (!getApps().length) initializeApp({ projectId: 'demo-tsuber' });
+  db = getFirestore();
   repo = new FirestoreCertificateRepository(db, CENTER);
 });
-afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
+afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 
 beforeEach(async () => {
   await db.recursiveDelete(db.collection('centers').doc(CENTER));
@@ -67,7 +68,7 @@ describe('issue', () => {
   });
 
   it('rejects a farmer with no profile without touching records', async () => {
-    await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).update({ certificateProfile: admin.firestore.FieldValue.delete() });
+    await db.collection('centers').doc(CENTER).collection('farmers').doc(FARMER).update({ certificateProfile: FieldValue.delete() });
     await expect(repo.issue({ farmer: FARMER, recordIds: records, actor: ACTOR }))
       .rejects.toMatchObject({ status: 400, code: 'NO_PROFILE' });
     expect((await recordsCol().doc(records[0]).get()).data().sent).toBe(false);

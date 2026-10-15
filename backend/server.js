@@ -1,6 +1,6 @@
 // Process entry point: startup side effects + listen. The Express app itself lives
 // in app.js so the API tests can import it without binding a port.
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 const logger = require("./utils/logger");
 const { app, db, usersCol } = require("./app");
 

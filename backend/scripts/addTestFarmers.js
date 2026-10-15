@@ -5,13 +5,14 @@
 // Usage:
 //   node scripts/addTestFarmers.js                       (adds the two defaults)
 //   node scripts/addTestFarmers.js "Name A" "Name B"     (custom names)
-require('dotenv').config();
-const admin = require('firebase-admin');
+require('dotenv').config({ quiet: true });
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 const { adminInitOptions } = require('../utils/gcpCredentials');
 const { CENTER_ID } = require('../config/center');
 
-if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));
-const db = admin.firestore();
+if (!getApps().length) initializeApp(adminInitOptions());
+const db = getFirestore();
 
 // { name, allowGidon } — matches the existing config.farmers shape.
 const TEST_FARMERS = [

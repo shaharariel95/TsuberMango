@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import FirestoreRepository from '../repositories/FirestoreRepository.js';
 
 const CENTER = 'test-center';
@@ -9,15 +10,15 @@ let repo;
 
 beforeAll(() => {
   // firebase emulators:exec sets FIRESTORE_EMULATOR_HOST for us.
-  if (!admin.apps.length) {
-    admin.initializeApp({ projectId: 'demo-tsuber' });
+  if (!getApps().length) {
+    initializeApp({ projectId: 'demo-tsuber' });
   }
-  db = admin.firestore();
+  db = getFirestore();
   repo = new FirestoreRepository(db, CENTER);
 });
 
 afterAll(async () => {
-  await Promise.all(admin.apps.map(app => app.delete()));
+  await Promise.all(getApps().map(app => deleteApp(app)));
 });
 
 beforeEach(async () => {

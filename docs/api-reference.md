@@ -104,7 +104,7 @@ Passport strategy.
 
 1. User hits `/login` → clicks "Sign in with Google" → `Login.vue` calls `signInWithPopup(auth, new GoogleAuthProvider())` (Firebase client SDK — still Google as the identity provider, just no server-side OAuth dance).
 2. On success, the frontend calls `GET /api/auth/me` to authorize. A global Axios request interceptor (`main.js`) attaches `Authorization: Bearer <idToken>` (from `auth.currentUser.getIdToken()`) to every outgoing request automatically; raw `fetch()` calls use `utils/auth.js`'s `authHeaders()` instead (token + `X-Client-Id`).
-3. Backend: `verifyFirebaseToken` middleware verifies the token via `admin.auth().verifyIdToken()` and sets `req.user = {email, uid, centers}` (`centers` comes from the token's custom claims). `ensureCenterAccess` then 403s unless `CENTER_ID` is in `req.user.centers`. The `/api/auth/me` handler looks up `centers/{CENTER_ID}/users/{email}` in Firestore — if the doc doesn't exist, 403 ("User not authorized"); otherwise it returns `{email, role, centerId, refreshToken}`, with **role read live from Firestore** (not from the token) so a role change takes effect on the next call, no re-login needed.
+3. Backend: `verifyFirebaseToken` middleware verifies the token via `getAuth().verifyIdToken()` and sets `req.user = {email, uid, centers}` (`centers` comes from the token's custom claims). `ensureCenterAccess` then 403s unless `CENTER_ID` is in `req.user.centers`. The `/api/auth/me` handler looks up `centers/{CENTER_ID}/users/{email}` in Firestore — if the doc doesn't exist, 403 ("User not authorized"); otherwise it returns `{email, role, centerId, refreshToken}`, with **role read live from Firestore** (not from the token) so a role change takes effect on the next call, no re-login needed.
 4. `/api/auth/me` also calls `syncUserClaims(email)` on every hit, which recomputes the user's `centers` claim from a live `users` collection-group scan and re-stamps it if it changed. `refreshToken: true` in the response tells the client a freshly-minted claim needs a token refresh before Firestore client reads (which check the claim in `firestore.rules`) will pass — `Login.vue` calls `auth.currentUser.getIdToken(true)` in that case.
 5. `ensureAdmin` (used on admin-only routes) does its own live Firestore role lookup rather than trusting a claim — same live-role guarantee as `/api/auth/me`.
 6. Frontend router guard (`router.js`) keys off Firebase's own auth state (`onAuthStateChanged`) for the signed-in/signed-out gate, and calls `/api/auth/me` only for the admin gate / role-home redirect (see Frontend Routes above).
@@ -120,12 +120,12 @@ refresh. `syncUserClaims(email)` is what stamps the claim: on `/api/auth/me` (se
 `scripts/backfillAuthClaims.js` for cutover.
 
 **Custom claims are not visible in the Firebase Console.** Verify them with
-`admin.auth().getUserByEmail(email)` and read `.customClaims`.
+`getAuth().getUserByEmail(email)` (`firebase-admin/auth`) and read `.customClaims`.
 
 ### Logout
 
 `App.vue`'s `logout()` calls `POST /api/auth/logout`, which revokes the user's Firebase refresh
-tokens server-side (`admin.auth().revokeRefreshTokens(uid)`) so the session can't be silently
+tokens server-side (`getAuth().revokeRefreshTokens(uid)`) so the session can't be silently
 resumed even if a stale ID token is replayed; the client then calls `signOut(auth)` and clears local
 state regardless of whether the revoke call succeeded.
 

@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { createRequire } from 'node:module';
 
-if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
-const db = admin.firestore();
+if (!getApps().length) initializeApp({ projectId: 'demo-tsuber' });
+const db = getFirestore();
 const require = createRequire(import.meta.url);
 const { buildBackupPayload } = require('../services/backupService');
 const FirestoreRepository = require('../repositories/FirestoreRepository');
@@ -26,7 +27,7 @@ beforeEach(async () => {
   await cert.collection('versions').doc('1').set({ issuedAt: '2026-10-01T00:00:00Z' });
   await cert.collection('versions').doc('2').set({ issuedAt: '2026-10-02T00:00:00Z' });
 });
-afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
+afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 
 describe('buildBackupPayload (v2)', () => {
   it('contains config, users, farmer docs, every farmer incl. unlisted + soft-deleted records, audit and certificates', async () => {

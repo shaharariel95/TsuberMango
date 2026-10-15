@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const RecordRepository = require('./RecordRepository');
 const { CENTER_ID } = require('../config/center');
 const logger = require('../utils/logger');
@@ -11,8 +11,8 @@ class FirestoreRepository extends RecordRepository {
     this.centerId = centerId;
   }
 
-  // Lazy so module load never runs before admin.initializeApp().
-  get db() { return this._db || admin.firestore(); }
+  // Lazy so module load never runs before initializeApp().
+  get db() { return this._db || getFirestore(); }
 
   centerDoc() { return this.db.collection('centers').doc(this.centerId); }
   farmerDoc(farmer) { return this.centerDoc().collection('farmers').doc(farmer); }
@@ -52,7 +52,6 @@ class FirestoreRepository extends RecordRepository {
 
   async restoreRecord(farmer, id, editedBy, editedAt) {
     const ref = this.recordsCol(farmer).doc(id);
-    const { FieldValue } = admin.firestore;
     const out = await this.db.runTransaction(async (t) => {
       const snap = await t.get(ref);
       if (!snap.exists || snap.data().deleted !== true) throw new RecordStateError(404, 'משטח מחוק לא נמצא');

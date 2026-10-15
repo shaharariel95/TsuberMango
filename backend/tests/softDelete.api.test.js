@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { clearCollection, tokenFor, waitFor, makeApi } from './helpers/apiHarness.js';
 
 const CENTER = 'softdel';
@@ -9,8 +10,8 @@ const USER = 'sd-user@test.local';
 
 process.env.CENTER_ID = CENTER;
 process.env.FRONT_CORS = 'http://localhost:5173';
-if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
-const db = admin.firestore();
+if (!getApps().length) initializeApp({ projectId: 'demo-tsuber' });
+const db = getFirestore();
 const { app } = await import('../app.js');
 
 const center = db.collection('centers').doc(CENTER);
@@ -35,7 +36,7 @@ beforeAll(async () => {
   tokens.admin = await tokenFor(ADMIN, { centers: [CENTER] });
   tokens.user = await tokenFor(USER, { centers: [CENTER] });
 });
-afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
+afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 beforeEach(async () => {
   await db.recursiveDelete(center.collection('certificates'));
   await clearCollection(farmerDoc.collection('records'));

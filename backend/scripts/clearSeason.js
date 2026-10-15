@@ -4,9 +4,10 @@
 //   node scripts/clearSeason.js --execute --center <CENTER_ID> [--skip-backup-check]
 // One farmer only (records, audit, certificates; nothing else): add --farmer <name>.
 // Executing requires a backup from the last 24 h unless --skip-backup-check (pre-season test data).
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { adminInitOptions } = require('../utils/gcpCredentials');
-const admin = require('firebase-admin');
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
 const { resetSeason } = require('../services/seasonReset');
@@ -19,13 +20,13 @@ try { centerArg = argValue(args, '--center'); farmerArg = argValue(args, '--farm
 catch (err) { logger.error(`[clearSeason] ${err.message}`); process.exit(1); }
 const execute = flag('--execute') && centerArg === CENTER_ID;
 
-if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));
+if (!getApps().length) initializeApp(adminInitOptions());
 
 (async () => {
   if (flag('--execute') && !execute) {
     logger.error(`[clearSeason] --execute needs --center ${CENTER_ID} (the resolved CENTER_ID) — running as a dry run instead`);
   }
-  const out = await resetSeason(admin.firestore(), CENTER_ID, { execute, skipBackupCheck: flag('--skip-backup-check'),
+  const out = await resetSeason(getFirestore(), CENTER_ID, { execute, skipBackupCheck: flag('--skip-backup-check'),
     farmer: farmerArg || null });
   console.log(JSON.stringify(out, null, 2));
   process.exit(0);

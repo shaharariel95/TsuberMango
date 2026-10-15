@@ -1,12 +1,12 @@
 // /api/internal/backup: backup failures must surface as 500, not be masked as auth failures.
 import { describe, it, expect } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps } from 'firebase-admin/app';
 import request from 'supertest';
 
 process.env.CENTER_ID = 'backupapitest';
 process.env.CRON_SECRET = 'dev-secret';
 process.env.GCS_BACKUP_BUCKET = ''; // empty (dotenv won't override it): runBackup throws before touching GCS
-if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
+if (!getApps().length) initializeApp({ projectId: 'demo-tsuber' });
 const { app } = await import('../app.js');
 
 describe('POST /api/internal/backup', () => {

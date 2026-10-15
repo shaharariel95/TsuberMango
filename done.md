@@ -5,6 +5,11 @@
 
 ## October 2026 — Pre-season push
 
+### ✅ Task 35a — Backend dependency majors
+- `firebase-admin` 13 → 14 (needs Node ≥ 22): the namespaced API (`admin.firestore()`, `admin.auth()`, `admin.apps`, `admin.credential`) is gone, so 26 files moved to `firebase-admin/app|firestore|auth` (`getFirestore`, `getAuth`, `FieldValue`, `Timestamp`, `cert`). Auth middleware tests now spy on the cached `getAuth()` instance.
+- `@google-cloud/storage` 8, `dotenv` 18 (`{ quiet: true }`), express 5.3, vitest 5, firebase-tools 14.27 (15 needs JDK 21; this machine has 18). Docker image `node:20-alpine` (end of life April 2026) → `node:24-alpine`, `npm ci --omit=dev`; `engines.node >= 22`.
+- Production dependencies: 1 critical + 3 high + 9 moderate advisories → 0. Gates: backend 186, e2e 36/36.
+
 ### ✅ Task 31 — Stale-pallet nudges
 - Dashboard card "N משטחים ממתינים יותר מ-X ימים מהקטיף": unsent pallets whose harvest date is more than X days ago, oldest first (top 10 + "ועוד"), a mixed pallet once; a click opens shipment prep for that farmer.
 - Settings → בדיקות ותזכורות: toggle (off by default) + days (default 3), stored as `config/global.stalePallets`; saved together with the weight range.

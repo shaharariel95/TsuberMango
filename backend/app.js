@@ -1,8 +1,10 @@
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 const express = require("express");
 const cors = require("cors");
 const recordRoutes = require("./routes/recordRoutes");
-const admin = require("firebase-admin");
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
 const { adminInitOptions } = require("./utils/gcpCredentials");
 const logger = require("./utils/logger");
 const { verifyFirebaseToken, ensureCenterAccess, ensureAdmin, syncUserClaims } = require('./middleware/auth');
@@ -12,17 +14,17 @@ const { verifyFirebaseToken, ensureCenterAccess, ensureAdmin, syncUserClaims } =
 
 // 🔒 Initialize Firebase Admin. Skipped when a caller (e.g. the API tests) has
 // already initialized it against the emulators.
-if (!admin.apps.length) {
+if (!getApps().length) {
   try {
-    const opts = adminInitOptions({ admin });
-    admin.initializeApp(opts);
+    const opts = adminInitOptions();
+    initializeApp(opts);
     logger.info(`Firebase Admin initialized for project ${opts.projectId} using ${opts.credential ? 'service-account key file' : 'Application Default Credentials'}`);
   } catch (error) {
     logger.error(`Firebase Admin initialization failed: ${error.message}`);
     throw error;
   }
 }
-const db = admin.firestore();
+const db = getFirestore();
 
 if (!process.env.FRONT_CORS) {
   throw new Error("FRONT_CORS env var is required (comma-separated list of allowed frontend origins)");
@@ -61,7 +63,7 @@ app.get("/api/auth/me", verifyFirebaseToken, async (req, res) => {
 // Logout — revoke refresh tokens so the session cannot be silently resumed.
 app.post("/api/auth/logout", verifyFirebaseToken, async (req, res) => {
   try {
-    await admin.auth().revokeRefreshTokens(req.user.uid);
+    await getAuth().revokeRefreshTokens(req.user.uid);
     res.json({ success: true });
   } catch (err) {
     logger.error("[/api/auth/logout] revoke failed:", err.message);

@@ -2,6 +2,7 @@
 // machines, scripts); otherwise Application Default Credentials (the Cloud Run service identity).
 const fs = require('fs');
 const path = require('path');
+const { cert: adminCert } = require('firebase-admin/app');
 
 const KEY_FILE = path.join(__dirname, '..', 'services', 'SheetsCred.env.json');
 
@@ -9,12 +10,12 @@ function keyFileIfPresent(file = KEY_FILE) {
   return fs.existsSync(file) ? file : null;
 }
 
-// Options for admin.initializeApp(). `admin` is injected so this module stays side-effect free.
-function adminInitOptions({ keyFile = keyFileIfPresent(), projectId = process.env.FIREBASE_PROJECT_ID, admin } = {}) {
+// Options for initializeApp() from firebase-admin/app. `cert` is injectable for tests.
+function adminInitOptions({ keyFile = keyFileIfPresent(), projectId = process.env.FIREBASE_PROJECT_ID, cert = adminCert } = {}) {
   if (keyFile) {
     const serviceAccount = JSON.parse(fs.readFileSync(keyFile, 'utf8'));
     return {
-      credential: admin.credential.cert(serviceAccount),
+      credential: cert(serviceAccount),
       projectId: projectId || serviceAccount.project_id,
     };
   }

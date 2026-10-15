@@ -2,7 +2,9 @@
 // Real ID tokens are minted by the auth emulator, so the full middleware chain
 // (verifyFirebaseToken → ensureCenterAccess → ensureAdmin) runs unmocked.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { clearCollection, tokenFor as rawTokenFor, waitFor, makeApi } from './helpers/apiHarness.js';
 
 const CENTER = 'apitest';
@@ -14,8 +16,8 @@ const OUTSIDER = 'outsider@test.local';
 // Pin env before the app (and config/center.js) load.
 process.env.CENTER_ID = CENTER;
 process.env.FRONT_CORS = 'http://localhost:5173';
-if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
-const db = admin.firestore();
+if (!getApps().length) initializeApp({ projectId: 'demo-tsuber' });
+const db = getFirestore();
 const { app } = await import('../app.js');
 
 const center = db.collection('centers').doc(CENTER);
@@ -46,7 +48,7 @@ beforeAll(async () => {
   tokens.claimless = await tokenFor('newcomer@test.local', { centers: null });
 });
 
-afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
+afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 
 describe('auth gates', () => {
   it('401s without a token', async () => {
@@ -75,7 +77,7 @@ describe('auth gates', () => {
     const res = await api('get', '/api/auth/me', 'claimless');
     expect(res.status).toBe(200);
     expect(res.body.refreshToken).toBe(true);
-    const u = await admin.auth().getUserByEmail('newcomer@test.local');
+    const u = await getAuth().getUserByEmail('newcomer@test.local');
     expect(u.customClaims).toEqual({ centers: [CENTER] });
   });
 

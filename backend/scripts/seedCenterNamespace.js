@@ -1,17 +1,18 @@
 // One-time carry-over: copy top-level config/global and users/* into
 // centers/{CENTER_ID}/. Idempotent — safe to re-run. Records/audit are NOT
 // touched (fresh-start). Run: node scripts/seedCenterNamespace.js
-require('dotenv').config();
-const admin = require('firebase-admin');
+require('dotenv').config({ quiet: true });
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { adminInitOptions } = require('../utils/gcpCredentials');
 const { CENTER_ID } = require('../config/center');
 
-if (!admin.apps.length) admin.initializeApp(adminInitOptions({ admin }));
-const db = admin.firestore();
+if (!getApps().length) initializeApp(adminInitOptions());
+const db = getFirestore();
 
 async function run() {
   const center = db.collection('centers').doc(CENTER_ID);
-  await center.set({ name: CENTER_ID, createdAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  await center.set({ name: CENTER_ID, createdAt: FieldValue.serverTimestamp() }, { merge: true });
 
   const cfg = await db.collection('config').doc('global').get();
   if (cfg.exists) {

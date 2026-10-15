@@ -1,4 +1,4 @@
-import admin from 'firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
 import request from 'supertest';
 
 export async function clearCollection(ref) {
@@ -11,9 +11,9 @@ export async function clearCollection(ref) {
 export async function tokenFor(email, { centers } = {}) {
   const password = 'secret123';
   let user;
-  try { user = await admin.auth().getUserByEmail(email); }
-  catch { user = await admin.auth().createUser({ email, password }); }
-  await admin.auth().setCustomUserClaims(user.uid, centers ? { centers } : null);
+  try { user = await getAuth().getUserByEmail(email); }
+  catch { user = await getAuth().createUser({ email, password }); }
+  await getAuth().setCustomUserClaims(user.uid, centers ? { centers } : null);
   const host = process.env.FIREBASE_AUTH_EMULATOR_HOST;
   const res = await fetch(`http://${host}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) });

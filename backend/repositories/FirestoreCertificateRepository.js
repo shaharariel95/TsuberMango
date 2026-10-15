@@ -1,7 +1,7 @@
 // Firestore storage for shipping certificates and per-farmer certificate profiles.
 // Owns the transactions that update certificates AND pallet records together, so a
 // certificate and its pallets can never disagree (no orphans, no duplicate numbers).
-const admin = require('firebase-admin');
+const { getFirestore } = require('firebase-admin/firestore');
 const { CENTER_ID } = require('../config/center');
 const logger = require('../utils/logger');
 const core = require('../services/certificateCore');
@@ -23,7 +23,7 @@ class FirestoreCertificateRepository {
     this.centerId = centerId;
   }
 
-  get db() { return this._db || admin.firestore(); }
+  get db() { return this._db || getFirestore(); }
   centerDoc() { return this.db.collection('centers').doc(this.centerId); }
   farmerDoc(farmer) { return this.centerDoc().collection('farmers').doc(farmer); }
   recordsCol(farmer) { return this.farmerDoc(farmer).collection('records'); }

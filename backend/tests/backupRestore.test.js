@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { createRequire } from 'node:module';
 
-if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
-const db = admin.firestore();
+if (!getApps().length) initializeApp({ projectId: 'demo-tsuber' });
+const db = getFirestore();
 const require = createRequire(import.meta.url);
 const { buildBackupPayload } = require('../services/backupService');
 const { restoreBackup } = require('../services/backupRestore');
@@ -46,14 +47,14 @@ async function snapshot(center) {
 const asFile = async (center) => JSON.parse(JSON.stringify(await buildBackupPayload(db, center)));
 
 beforeEach(seed);
-afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
+afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 
 describe('restoreBackup', () => {
   it('backup → wipe → restore brings back records (incl. deleted and unlisted farmers), audit, certificates and profiles', async () => {
     const before = await snapshot(ca);
     const payload = await asFile(A);
     await resetSeason(db, A, { execute: true, skipBackupCheck: true });
-    await ca.collection('farmers').doc('א').update({ certificateProfile: admin.firestore.FieldValue.delete() });
+    await ca.collection('farmers').doc('א').update({ certificateProfile: FieldValue.delete() });
 
     const dry = await restoreBackup(db, A, payload);
     expect(dry).toMatchObject({ executed: false, version: 2, blockers: [], certificates: 1, certificateVersions: 2, farmerDocs: 1, config: false, users: 0 });

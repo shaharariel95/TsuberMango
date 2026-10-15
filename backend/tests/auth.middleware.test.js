@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 
 // CENTER_ID is read at module load from env; pin it before importing the SUT.
 process.env.CENTER_ID = 'tsuberi';
@@ -8,10 +10,16 @@ const { verifyFirebaseToken, ensureCenterAccess, ensureAdmin, syncUserClaims } =
 
 let db;
 beforeAll(() => {
-  if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-tsuber' });
-  db = admin.firestore();
+  if (!getApps().length) initializeApp({ projectId: 'demo-tsuber' });
+  db = getFirestore();
 });
-afterAll(async () => { await Promise.all(admin.apps.map(a => a.delete())); });
+afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
+
+// getAuth() returns one cached Auth per app, so spying on its methods reaches the middleware.
+function mockAuth(methods) {
+  const auth = getAuth();
+  for (const [name, fn] of Object.entries(methods)) vi.spyOn(auth, name).mockImplementation(fn);
+}
 
 // Minimal Express res double.
 function mockRes() {
@@ -44,7 +52,7 @@ describe('verifyFirebaseToken', () => {
   });
 
   it('sets req.user from a verified token', async () => {
-    vi.spyOn(admin, 'auth').mockReturnValue({
+    mockAuth({
       verifyIdToken: vi.fn().mockResolvedValue({ email: 'a@b.com', uid: 'u1', centers: ['tsuberi'] }),
     });
     const req = { headers: { authorization: 'Bearer good' } }; const res = mockRes(); let nexted = false;
@@ -54,7 +62,7 @@ describe('verifyFirebaseToken', () => {
   });
 
   it('401s when verifyIdToken throws', async () => {
-    vi.spyOn(admin, 'auth').mockReturnValue({
+    mockAuth({
       verifyIdToken: vi.fn().mockRejectedValue(new Error('bad token')),
     });
     const req = { headers: { authorization: 'Bearer bad' } }; const res = mockRes(); let nexted = false;
@@ -100,7 +108,7 @@ describe('syncUserClaims', () => {
     await db.collection('centers').doc('tsuberi').collection('users').doc('a@b.com').set({ role: 'admin' });
     await db.collection('centers').doc('test').collection('users').doc('a@b.com').set({ role: 'admin' });
     const setClaims = vi.fn().mockResolvedValue();
-    vi.spyOn(admin, 'auth').mockReturnValue({
+    mockAuth({
       getUserByEmail: vi.fn().mockResolvedValue({ uid: 'u1', customClaims: {} }),
       setCustomUserClaims: setClaims,
     });
@@ -113,7 +121,7 @@ describe('syncUserClaims', () => {
   it('returns false and does not rewrite when the claim already matches', async () => {
     await db.collection('centers').doc('tsuberi').collection('users').doc('a@b.com').set({ role: 'admin' });
     const setClaims = vi.fn().mockResolvedValue();
-    vi.spyOn(admin, 'auth').mockReturnValue({
+    mockAuth({
       getUserByEmail: vi.fn().mockResolvedValue({ uid: 'u1', customClaims: { centers: ['tsuberi'] } }),
       setCustomUserClaims: setClaims,
     });
@@ -130,7 +138,7 @@ describe('syncUserClaims', () => {
     await db.collection('users').doc('a@b.com').set({ role: 'admin' });
     await db.collection('centers').doc('tsuberi').collection('users').doc('a@b.com').set({ role: 'admin' });
     const setClaims = vi.fn().mockResolvedValue();
-    vi.spyOn(admin, 'auth').mockReturnValue({
+    mockAuth({
       getUserByEmail: vi.fn().mockResolvedValue({ uid: 'u1', customClaims: {} }),
       setCustomUserClaims: setClaims,
     });

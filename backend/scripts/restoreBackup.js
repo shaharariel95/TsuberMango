@@ -4,10 +4,11 @@
 //   node scripts/restoreBackup.js --gcs 2027-06-14 --execute --center <CENTER_ID> [--farmer <name>] [--with-config]
 // Never overwrites records, audit or certificates (clear first with scripts/clearSeason.js [--farmer <name>]); farmer details are merged and nextNumber never goes down.
 // Restore drill (no production writes): run under the Firestore emulator with CENTER_ID=drill — see NEW_SEASON.md.
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const fs = require('fs');
 const { adminInitOptions, keyFileIfPresent, storageOptions } = require('../utils/gcpCredentials');
-const admin = require('firebase-admin');
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 const logger = require('../utils/logger');
 const { CENTER_ID } = require('../config/center');
 const { restoreBackup } = require('../services/backupRestore');
@@ -43,9 +44,9 @@ async function readSource() {
 }
 
 (async () => {
-  if (!admin.apps.length) {
+  if (!getApps().length) {
     // No key file and no FIREBASE_PROJECT_ID (emulator drills): fall back to demo-tsuber.
-    admin.initializeApp(adminInitOptions({ admin, keyFile, projectId: process.env.FIREBASE_PROJECT_ID || (keyFile ? undefined : 'demo-tsuber') }));
+    initializeApp(adminInitOptions({ keyFile, projectId: process.env.FIREBASE_PROJECT_ID || (keyFile ? undefined : 'demo-tsuber') }));
   }
   const target = process.env.FIRESTORE_EMULATOR_HOST ? `EMULATOR ${process.env.FIRESTORE_EMULATOR_HOST}` : 'REAL Firestore';
   logger.info(`[restoreBackup] target: ${target}, center: ${CENTER_ID}`);
@@ -57,7 +58,7 @@ async function readSource() {
     logger.error(`[restoreBackup] --execute needs --center ${CENTER_ID} (the resolved CENTER_ID) — running as a dry run instead`);
   }
   const payload = await readSource();
-  const out = await restoreBackup(admin.firestore(), CENTER_ID, payload,
+  const out = await restoreBackup(getFirestore(), CENTER_ID, payload,
     { execute, farmer: value('--farmer') || null, withConfig: flag('--with-config') });
   console.log(JSON.stringify(out, null, 2));
   process.exit(0);

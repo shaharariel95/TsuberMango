@@ -5,7 +5,7 @@ const backupService = require("../services/backupService");
 const logger = require("../utils/logger");
 const certificateService = require("../services/certificateService");
 const firestoreEventService = require("../services/firestoreEventService");
-const admin = require("firebase-admin");
+const { getFirestore } = require('firebase-admin/firestore');
 const { CENTER_ID } = require("../config/center");
 const { RecordStateError } = require("../repositories/errors");
 
@@ -29,7 +29,7 @@ async function getKnownFarmerNames() {
   }
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const snap = await db.collection('centers').doc(CENTER_ID).collection('config').doc('global').get();
     if (!snap.exists) {
       knownFarmersCache = { names: [], fetchedAt: now };
