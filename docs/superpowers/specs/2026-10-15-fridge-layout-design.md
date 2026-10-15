@@ -79,7 +79,7 @@ The room doc is created on first write; reading a missing doc returns empty cell
 
 | Method | Path | Behaviour |
 |---|---|---|
-| GET | `/api/fridge/:roomId` | `{ cells, updatedAt, updatedBy, pallets }`. `pallets` is keyed `${farmer}__${palletNumber}` and resolved live through `RecordRepository`: one `getRecords(farmer)` per distinct farmer on the map, plus `getDeletedRecords(farmer)` to tell deleted from renumbered. |
+| GET | `/api/fridge/:roomId` | `{ cells, updatedAt, updatedBy, pallets }`. `pallets` is keyed `${farmer}__${palletNumber}` and resolved live through `RecordRepository`: one `getRecords(farmer, { includeDeleted: true })` per distinct farmer on the map (the deleted ones tell deleted from renumbered). |
 | POST | `/api/fridge/:roomId/ops` | Body `{op:'place', slot, farmer, palletNumber}` \| `{op:'move', from, to}` \| `{op:'clear', slot}`. Returns the same shape as GET. |
 
 **Pallet summary:** `{ kinds[], sizes[], boxes, weightMissing, mark, hasCertificate, status }`, where
@@ -103,7 +103,7 @@ the live channel (see §2). Record writes keep emitting exactly as today.
 
 ## 2. Frontend
 
-Route `/fridge`, `meta: { requiresAuth }`, menu entry "מקרר". Layout for 1280×800 landscape (the drawer
+Route `/Fridge` (PascalCase like the other routes), `meta: { requiresAuth }`, menu entry "מקרר". Layout for 1280×800 landscape (the drawer
 layout):
 
 ```
@@ -127,8 +127,8 @@ layout):
    pallets are included. Source: the existing `GET /api/farmers/:farmer/records`. Tap a pallet, then an
    empty slot. A banner shows the selection with "ביטול".
 2. **Tap an occupied slot:** a sheet with the pallet's details and **העבר** (then tap the target slot)
-   and **פנה תא** (through `ConfirmModal`).
-3. **Errors:** a 409 or network failure shows a Hebrew `ErrorToast` and the map shows the server state.
+   and **פנה תא** (confirmed through `requestConfirm` from `composables/useDialogs`).
+3. **Errors:** a 409 or network failure shows a Hebrew corner toast (`useNotification().notify(msg, 'error')`) and the map re-reads the server state.
    No offline / localStorage fallback — the server is the source of truth.
 
 **Live data:** `useFridgeRoom(roomId)`:
@@ -150,7 +150,7 @@ layout):
 | `composables/useFridgeRoom.js` | Listeners + refetch |
 | `utils/fridgeView.js` | Pure: eligible-pallets filter, stats, farmer colours |
 
-Reuses the shared `ConfirmModal`, `LoadingState`, `ErrorState`, `ErrorToast`. Tailwind only; Hebrew UI.
+Reuses `LoadingState`, `ErrorState`, `useDialogs` and `useNotification`. Tailwind only; Hebrew UI.
 
 ## 3. Rules, backup, restore, season reset
 
@@ -168,7 +168,7 @@ The payload stays version 2; the section is optional, so older backups without i
 **Restore** (`backupRestore`, CLI `scripts/restoreBackup.js`): the fridge is restored only with
 `withFridge` / `--with-fridge` (mirrors `withConfig`) and never in a `--farmer` restore. An existing
 room doc with non-empty `cells` is a blocker (like existing records); an empty or missing one is
-written. Log entries keep their ids; existing ids are blockers. The dry run reports the counts.
+written. Log entries keep their ids; a non-empty target log is a blocker (the same rule as audit). The dry run reports the counts.
 
 **Season reset** (`seasonReset`): a full reset `recursiveDelete`s `centers/{c}/fridge` and reports
 `fridgeCells` / `fridgeLog` in the summary. `--farmer X` removes only X's cells (one transaction per
