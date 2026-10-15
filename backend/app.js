@@ -122,6 +122,9 @@ app.post('/api/internal/backup', async (req, res) => {
 // auth chain, so token verification does not run twice per request.
 app.use("/api/certificates", verifyFirebaseToken, ensureCenterAccess, require("./routes/certificateRoutes"));
 
+// 🧊 Fridge map — same pattern: own auth chain, mounted above the global /api chain.
+app.use("/api/fridge", verifyFirebaseToken, ensureCenterAccess, require("./routes/fridgeRoutes"));
+
 app.use(
   "/api",
   verifyFirebaseToken,
