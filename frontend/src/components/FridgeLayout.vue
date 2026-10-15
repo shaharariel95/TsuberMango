@@ -1,7 +1,7 @@
 <template>
-  <div class="h-full flex flex-col gap-2 text-right" dir="rtl">
+  <div class="h-full flex flex-col gap-1.5 text-right" dir="rtl">
     <div class="flex shrink-0 items-center justify-between gap-3">
-      <h1 class="text-xl font-bold text-slate-800">מקרר</h1>
+      <h1 class="text-lg font-bold leading-7 text-slate-800">מקרר</h1>
       <div v-if="banner" :class="['flex items-center gap-2 rounded-xl border px-3 py-1 text-sm font-bold', banner.cls]">
         <span>{{ banner.text }}</span>
         <button type="button" @click="resetMode" class="rounded border bg-white px-2 py-0.5 text-xs">ביטול</button>
@@ -11,7 +11,7 @@
     <LoadingState v-if="loading" message="טוען את המקרר..." />
     <ErrorState v-else-if="error && !Object.keys(cells).length" title="טעינת המקרר נכשלה" :message="error.message || ''" @retry="refresh" />
     <div v-else class="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_18rem] gap-3">
-      <div class="min-h-0 rounded-2xl border border-slate-200 bg-slate-50 p-2">
+      <div class="min-h-0 rounded-2xl border border-slate-200 bg-slate-50 p-1">
         <FridgeGrid :cells="cells" :pallets="pallets" :tints="tints" :selected-slot="mode === 'moving' ? moveFrom : null"
           :targeting="mode !== 'idle'" @select="onSlot" @clear="clearSlot" />
       </div>

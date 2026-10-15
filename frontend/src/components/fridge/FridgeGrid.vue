@@ -4,7 +4,7 @@
       <div></div>
       <div v-for="c in cols" :key="c">{{ c }}</div>
     </div>
-    <div class="flex-1 min-h-0 grid grid-rows-8 gap-1.5">
+    <div class="flex-1 min-h-0 grid grid-rows-8 gap-1">
       <div v-for="r in rows" :key="r" class="grid grid-cols-[2rem_repeat(5,minmax(0,1fr))] gap-1.5 min-h-0">
         <div class="flex items-center justify-center text-sm font-bold text-slate-500">{{ r }}</div>
         <FridgeSlot v-for="c in cols" :key="c + r" :slot-id="c + r" :cell="cells[c + r] || null"
@@ -13,7 +13,7 @@
           @select="$emit('select', $event)" @clear="$emit('clear', $event)" />
       </div>
     </div>
-    <div class="rounded-xl bg-slate-200 py-1 text-center text-xs font-bold tracking-widest text-slate-500">מעבר</div>
+    <div class="rounded-xl bg-slate-200 py-0.5 text-center text-xs font-bold tracking-widest text-slate-500">מעבר</div>
   </div>
 </template>
 

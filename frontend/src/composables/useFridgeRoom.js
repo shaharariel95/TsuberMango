@@ -16,8 +16,10 @@ export function useFridgeRoom(roomId = 'main') {
   let unsubRoom = null
   const farmerUnsubs = new Map()
   let timer = null
+  let disposed = false // set on unmount: late responses must not create listeners or timers
 
   function apply(room) {
+    if (disposed) return
     cells.value = room.cells || {}
     pallets.value = room.pallets || {}
     syncFarmerListeners()
@@ -36,6 +38,7 @@ export function useFridgeRoom(roomId = 'main') {
   }
 
   function scheduleRefresh() {
+    if (disposed) return
     clearTimeout(timer)
     timer = setTimeout(refresh, 400)
   }
@@ -46,7 +49,7 @@ export function useFridgeRoom(roomId = 'main') {
   }
 
   function syncFarmerListeners() {
-    if (!centerId.value) return
+    if (disposed || !centerId.value) return
     const wanted = new Set(Object.values(cells.value).map(c => c.farmer))
     for (const [f, unsub] of farmerUnsubs) if (!wanted.has(f)) { unsub(); farmerUnsubs.delete(f) }
     for (const f of wanted) {
@@ -80,6 +83,7 @@ export function useFridgeRoom(roomId = 'main') {
   refresh()
 
   onUnmounted(() => {
+    disposed = true
     if (unsubRoom) unsubRoom()
     stopFarmerListeners()
     clearTimeout(timer)
