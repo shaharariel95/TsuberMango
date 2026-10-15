@@ -2,6 +2,7 @@
 // into a center. Dry run unless { execute: true }. Never overwrites records, audit or certificates: a farmer
 // whose records/audit already exist, or a certificate id that exists, is a blocker and execute refuses.
 // Farmer docs (certificateProfile) are merged; certificateProfile.nextNumber never goes down.
+// Fridge rooms (+ move log) only with { withFridge } (full restores only); a non-empty target room or log is a blocker.
 // Ids are preserved. No realtime events are written — clients reload.
 const logger = require('../utils/logger');
 
@@ -10,13 +11,14 @@ function stripId({ id, ...rest }) { return rest; }
 const badId = (id) => id == null || id === '' || String(id).includes('/') || String(id) === '.' || String(id) === '..' || /^__.*__$/.test(String(id));
 const toInt = (n) => { const v = typeof n === 'string' && n.trim() === '' ? NaN : Number(n); return Number.isInteger(v) ? v : null; };
 
-async function restoreBackup(db, centerId, payload, { execute = false, farmer = null, withConfig = false } = {}) {
+async function restoreBackup(db, centerId, payload, { execute = false, farmer = null, withConfig = false, withFridge = false } = {}) {
   if (!payload || typeof payload !== 'object' || typeof payload.timestamp !== 'string'
       || !payload.farmers || typeof payload.farmers !== 'object') {
     throw new Error('Input is not a backup (needs timestamp + farmers)');
   }
   const version = payload.version === 2 ? 2 : 1;
   if (withConfig && (farmer || version !== 2)) throw new Error('--with-config needs a full (no --farmer) restore of a v2 backup');
+  if (withFridge && farmer) throw new Error('--with-fridge needs a full (no --farmer) restore');
   if (farmer && !(farmer in payload.farmers)) throw new Error(`Farmer "${farmer}" is not in this backup`);
 
   const center = db.collection('centers').doc(centerId);
@@ -51,12 +53,26 @@ async function restoreBackup(db, centerId, payload, { execute = false, farmer = 
   for (const c of certificates) {
     if ((await center.collection('certificates').doc(c.id).get()).exists) blockers.push(`certificate ${c.id} exists`);
   }
+  const fridgeRooms = withFridge ? Object.entries(payload.fridge || {}) : [];
+  for (const [roomId, r] of fridgeRooms) {
+    if (badId(roomId)) throw new Error(`Fridge room with an invalid id in backup: ${roomId}`);
+    if ((r.log || []).some(e => !e || badId(e.id))) throw new Error(`Fridge log entry without id in room "${roomId}"`);
+    const ref = center.collection('fridge').doc(roomId);
+    const cur = await ref.get();
+    if (cur.exists && Object.keys(cur.data().cells || {}).length) blockers.push(`fridge room "${roomId}": cells not empty`);
+    if (!(await ref.collection('log').limit(1).get()).empty) blockers.push(`fridge room "${roomId}": log not empty`);
+  }
   const summary = {
     executed: false, version, backupTimestamp: payload.timestamp, farmers, profiles,
     farmerDocs: names.filter(n => farmerDocs[n]).length,
     certificates: certificates.length,
     certificateVersions: certificates.reduce((s, c) => s + (c.versions || []).length, 0),
     config: withConfig, users: withConfig ? Object.keys(payload.users || {}).length : 0,
+    fridge: withFridge ? {
+      rooms: fridgeRooms.length,
+      cells: fridgeRooms.reduce((n, [, r]) => n + Object.keys(r.doc?.cells || {}).length, 0),
+      log: fridgeRooms.reduce((n, [, r]) => n + (r.log || []).length, 0),
+    } : null,
     blockers,
   };
   logger.info(`[backupRestore] ${centerId} ${execute ? 'EXECUTE' : 'dry run'} from ${payload.timestamp}: ${JSON.stringify(summary)}`);
@@ -92,6 +108,11 @@ async function restoreBackup(db, centerId, payload, { execute = false, farmer = 
   if (withConfig) {
     if (payload.config) set(center.collection('config').doc('global'), payload.config);
     for (const [email, data] of Object.entries(payload.users || {})) set(center.collection('users').doc(email), data);
+  }
+  for (const [roomId, r] of fridgeRooms) {
+    const ref = center.collection('fridge').doc(roomId);
+    if (r.doc) set(ref, r.doc);
+    for (const e of r.log || []) set(ref.collection('log').doc(String(e.id)), stripId(e));
   }
   } catch (e) { failed = failed || e; } // synchronous validation error while queueing
   await writer.close();

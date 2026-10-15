@@ -26,10 +26,18 @@ beforeEach(async () => {
   await cert.set({ farmer: 'א', number: 79, currentVersion: 2, recordIds: ['r1'] });
   await cert.collection('versions').doc('1').set({ issuedAt: '2026-10-01T00:00:00Z' });
   await cert.collection('versions').doc('2').set({ issuedAt: '2026-10-02T00:00:00Z' });
+  await center.collection('fridge').doc('main').set({ cells: { A1: { farmer: 'א', palletNumber: 1, placedBy: 'a@x', placedAt: '2027-05-01T00:00:00Z' } }, updatedAt: '2027-05-01T00:00:00Z', updatedBy: 'a@x' });
+  await center.collection('fridge').doc('main').collection('log').doc('l1').set({ op: 'place', farmer: 'א', palletNumber: 1, from: null, to: 'A1', by: 'a@x', at: '2027-05-01T00:00:00Z' });
 });
 afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 
 describe('buildBackupPayload (v2)', () => {
+  it('includes the fridge rooms with their logs', async () => {
+    const p = await buildBackupPayload(db, C);
+    expect(p.fridge.main.doc.cells.A1).toMatchObject({ farmer: 'א', palletNumber: 1 });
+    expect(p.fridge.main.log).toEqual([{ id: 'l1', op: 'place', farmer: 'א', palletNumber: 1, from: null, to: 'A1', by: 'a@x', at: '2027-05-01T00:00:00Z' }]);
+  });
+
   it('contains config, users, farmer docs, every farmer incl. unlisted + soft-deleted records, audit and certificates', async () => {
     const p = await buildBackupPayload(db, C);
     expect(p.version).toBe(2);

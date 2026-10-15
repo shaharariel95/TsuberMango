@@ -29,6 +29,9 @@ async function seed() {
   await cert.collection('versions').doc('1').set({ n: 1 });
   await cert.collection('versions').doc('2').set({ n: 2 });
   await center.collection('farmer_events').doc('א').set({ type: 'create' });
+  await center.collection('fridge').doc('main').set({ cells: {
+    A1: { farmer: 'א', palletNumber: 1 }, A2: { farmer: 'ב', palletNumber: 3 } } });
+  await center.collection('fridge').doc('main').collection('log').doc('l1').set({ op: 'place' });
   await db.collection('centers').doc(OTHER).collection('farmers').doc('ג').collection('records').add({ palletNumber: 9 });
 }
 const count = async (ref) => (await ref.get()).size;
@@ -37,10 +40,23 @@ beforeEach(seed);
 afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 
 describe('resetSeason', () => {
+  it('full execute clears the fridge (cells and log)', async () => {
+    await db.collection('backups').add({ timestamp: Timestamp.fromDate(NOW) });
+    await resetSeason(db, C, { execute: true, now: NOW });
+    expect((await center.collection('fridge').doc('main').get()).exists).toBe(false);
+    expect((await center.collection('fridge').doc('main').collection('log').get()).size).toBe(0);
+  });
+  it("--farmer execute removes only that farmer's cells and keeps the log", async () => {
+    await db.collection('backups').add({ timestamp: Timestamp.fromDate(NOW) });
+    await resetSeason(db, C, { execute: true, now: NOW, farmer: 'א' });
+    expect(Object.keys((await center.collection('fridge').doc('main').get()).data().cells)).toEqual(['A2']);
+    expect((await center.collection('fridge').doc('main').collection('log').get()).size).toBe(1);
+  });
+
   it('dry run (default) reports counts and deletes nothing', async () => {
     const out = await resetSeason(db, C, { now: NOW });
     expect(out).toEqual({ executed: false, totalRecords: 3, farmers: { 'א': { records: 2, audit: 1 }, 'ב': { records: 1, audit: 0 } },
-      certificates: 1, certificateVersions: 2, farmerEvents: 1 });
+      certificates: 1, certificateVersions: 2, farmerEvents: 1, fridgeCells: 2, fridgeLog: 1 });
     expect(await count(center.collection('farmers').doc('א').collection('records'))).toBe(2);
     expect(await count(center.collection('certificates'))).toBe(1);
   });
@@ -82,7 +98,7 @@ describe('resetSeason', () => {
   it('farmer scope clears only that farmer (records, audit, its certificates) and leaves events and others', async () => {
     const dry = await resetSeason(db, C, { farmer: 'א', now: NOW });
     expect(dry).toEqual({ executed: false, farmer: 'א', totalRecords: 2, farmers: { 'א': { records: 2, audit: 1 } },
-      certificates: 1, certificateVersions: 2, farmerEvents: 0 });
+      certificates: 1, certificateVersions: 2, farmerEvents: 0, fridgeCells: 1, fridgeLog: 0 });
     await resetSeason(db, C, { farmer: 'א', execute: true, skipBackupCheck: true, now: NOW });
     expect(await count(center.collection('farmers').doc('א').collection('records'))).toBe(0);
     expect(await count(center.collection('farmers').doc('א').collection('audit'))).toBe(0);

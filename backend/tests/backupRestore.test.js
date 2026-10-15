@@ -29,6 +29,8 @@ async function seed() {
   await cert.set({ farmer: 'א', number: 79, currentVersion: 2, recordIds: ['r1'] });
   await cert.collection('versions').doc('1').set({ issuedAt: '2026-10-01T00:00:00Z', rows: [{ palletNumber: 1 }] });
   await cert.collection('versions').doc('2').set({ issuedAt: '2026-10-02T00:00:00Z', rows: [{ palletNumber: 1 }] });
+  await ca.collection('fridge').doc('main').set({ cells: { A1: { farmer: 'א', palletNumber: 1, placedBy: 'a@x', placedAt: '2027-05-01T00:00:00Z' } }, updatedAt: '2027-05-01T00:00:00Z', updatedBy: 'a@x' });
+  await ca.collection('fridge').doc('main').collection('log').doc('l1').set({ op: 'place', farmer: 'א', palletNumber: 1, from: null, to: 'A1', by: 'a@x', at: '2027-05-01T00:00:00Z' });
 }
 // Everything restore must bring back, normalized for comparison
 async function snapshot(center) {
@@ -47,6 +49,36 @@ async function snapshot(center) {
 const asFile = async (center) => JSON.parse(JSON.stringify(await buildBackupPayload(db, center)));
 
 beforeEach(seed);
+
+describe('fridge', () => {
+  it('is skipped unless withFridge', async () => {
+    const payload = await buildBackupPayload(db, A);
+    const out = await restoreBackup(db, B, payload, { execute: true });
+    expect(out.fridge).toBe(null);
+    expect((await cb.collection('fridge').doc('main').get()).exists).toBe(false);
+  });
+  it('withFridge restores the room doc and log with ids', async () => {
+    const payload = await buildBackupPayload(db, A);
+    const dry = await restoreBackup(db, B, payload, { withFridge: true });
+    expect(dry.fridge).toEqual({ rooms: 1, cells: 1, log: 1 });
+    expect(dry.blockers).toEqual([]);
+    await restoreBackup(db, B, payload, { execute: true, withFridge: true });
+    expect((await cb.collection('fridge').doc('main').get()).data().cells.A1.palletNumber).toBe(1);
+    expect((await cb.collection('fridge').doc('main').collection('log').doc('l1').get()).exists).toBe(true);
+  });
+  it('a non-empty target room or log is a blocker', async () => {
+    const payload = await buildBackupPayload(db, A);
+    await cb.collection('fridge').doc('main').set({ cells: { B1: { farmer: 'ב', palletNumber: 3 } } });
+    await cb.collection('fridge').doc('main').collection('log').doc('x').set({ op: 'place' });
+    const dry = await restoreBackup(db, B, payload, { withFridge: true });
+    expect(dry.blockers).toEqual(expect.arrayContaining(['fridge room "main": cells not empty', 'fridge room "main": log not empty']));
+    await expect(restoreBackup(db, B, payload, { execute: true, withFridge: true })).rejects.toThrow(/not empty/);
+  });
+  it('withFridge refuses a --farmer restore', async () => {
+    const payload = await buildBackupPayload(db, A);
+    await expect(restoreBackup(db, B, payload, { farmer: 'א', withFridge: true })).rejects.toThrow(/--with-fridge/);
+  });
+});
 afterAll(async () => { await Promise.all(getApps().map(a => deleteApp(a))); });
 
 describe('restoreBackup', () => {

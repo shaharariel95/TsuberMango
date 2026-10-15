@@ -45,6 +45,13 @@ async function buildBackupPayload(db, centerId) {
         certificates.push({ id: d.id, ...d.data(), versions });
     }
 
+    const fridge = {};
+    for (const ref of await center.collection('fridge').listDocuments()) {
+        const snap = await ref.get();
+        const logSnap = await ref.collection('log').get();
+        fridge[ref.id] = { doc: snap.exists ? snap.data() : null, log: logSnap.docs.map(d => ({ id: d.id, ...d.data() })) };
+    }
+
     return {
         version: 2,
         timestamp: new Date().toISOString(),
@@ -55,6 +62,7 @@ async function buildBackupPayload(db, centerId) {
         farmers,
         audit,
         certificates,
+        fridge,
     };
 }
 

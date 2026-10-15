@@ -1,9 +1,11 @@
 // Season reset: clears one center's operational data — every farmer's records + audit, all
-// certificates (with versions) and realtime farmer_events. Keeps config, users, the farmers/{name}
+// certificates (with versions), realtime farmer_events and the fridge map (rooms + move log;
+// with --farmer only that farmer's cells). Keeps config, users, the farmers/{name}
 // documents (certificateProfile: numbering continues across seasons) and backups.
 // Dry run unless { execute: true }. Executing requires a backup from the last 24 h
 // (top-level `backups` metadata) unless { skipBackupCheck: true }.
 const logger = require('../utils/logger');
+const { FirestoreFridgeRepository } = require('../repositories/FirestoreFridgeRepository');
 
 const BACKUP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -35,8 +37,17 @@ async function resetSeason(db, centerId, { execute = false, skipBackupCheck = fa
   let certificateVersions = 0;
   for (const d of certSnap.docs) certificateVersions += (await d.ref.collection('versions').count().get()).data().count;
   const farmerEvents = farmer ? 0 : (await center.collection('farmer_events').count().get()).data().count;
+  const fridgeRefs = await center.collection('fridge').listDocuments();
+  let fridgeCells = 0;
+  let fridgeLog = 0;
+  for (const ref of fridgeRefs) {
+    const snap = await ref.get();
+    const cells = Object.values(snap.exists ? (snap.data().cells || {}) : {});
+    fridgeCells += farmer ? cells.filter(c => c.farmer === farmer).length : cells.length;
+    if (!farmer) fridgeLog += (await ref.collection('log').count().get()).data().count;
+  }
   const totalRecords = Object.values(farmers).reduce((n, f) => n + f.records, 0);
-  const summary = { executed: false, ...(farmer ? { farmer } : {}), totalRecords, farmers, certificates: certSnap.size, certificateVersions, farmerEvents };
+  const summary = { executed: false, ...(farmer ? { farmer } : {}), totalRecords, farmers, certificates: certSnap.size, certificateVersions, farmerEvents, fridgeCells, fridgeLog };
   logger.info(`[seasonReset] ${centerId} ${execute ? 'EXECUTE' : 'dry run'}: ${JSON.stringify(summary)}`);
   if (!execute) return summary;
 
@@ -49,9 +60,12 @@ async function resetSeason(db, centerId, { execute = false, skipBackupCheck = fa
   }
   if (farmer) {
     for (const d of certSnap.docs) await db.recursiveDelete(d.ref);
+    const fridgeRepo = new FirestoreFridgeRepository(db, centerId);
+    for (const ref of fridgeRefs) await fridgeRepo.clearFarmer(ref.id, farmer);
   } else {
     await db.recursiveDelete(center.collection('certificates'));
     await db.recursiveDelete(center.collection('farmer_events'));
+    await db.recursiveDelete(center.collection('fridge'));
   }
   logger.info(`[seasonReset] ${centerId}: season data cleared`);
   return { ...summary, executed: true };

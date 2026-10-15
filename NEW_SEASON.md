@@ -27,7 +27,7 @@ Google Sheets is only a cold archive of past seasons. There is no per-season spr
    node scripts/clearSeason.js --execute --center tsuberi
    ```
    `--center` must match the resolved `CENTER_ID`, otherwise the script falls back to a dry run.
-5. What it deletes: every farmer's records and audit, all certificates (with their versions), all `farmer_events`.
+5. What it deletes: every farmer's records and audit, all certificates (with their versions), all `farmer_events`, the fridge map (all rooms and their move log; `--farmer` removes only that farmer's slots and keeps the log).
    What it keeps: `config/**` (kinds, sizes, destinations, farmers list), `users/**`, `farmers/{name}` docs including `certificateProfile` (certificate numbering continues across seasons), and backup metadata + GCS backup files.
 6. Then in Settings:
    - **ניהול חקלאים**: hide farmers who left (their data stays; restore them from **חקלאים מוסתרים**), add new farmers.
@@ -51,6 +51,7 @@ Use when data was lost or corrupted. The tool never overwrites records, audit or
    `--center` must match the resolved `CENTER_ID`, otherwise it stays a dry run.
 5. One farmer only: add `--farmer <name>` (records, history, farmer details and that farmer's certificates).
 6. `--with-config` also restores settings (config) and users. Use it only when those were lost too; full restore of a complete backup only.
+   `--with-fridge` also restores the fridge map (rooms and move log; full restores only; refuses a non-empty room or log).
 7. After a restore, clients should reload (no live events are sent). A full restore without `--with-config` brings back farmers' data, but farmers missing from the Settings farmer list stay hidden until added or restored there.
 
 ### Restore drill (rehearse before the April dry run, touches no production data)

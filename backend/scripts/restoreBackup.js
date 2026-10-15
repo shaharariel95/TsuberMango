@@ -1,7 +1,7 @@
 // Restore a backup into the center in CENTER_ID. Dry run by default (prints what would be written
 // and any blockers). Source: --file <path> or --gcs <latest|YYYY-MM-DD|backups/…json> (bucket GCS_BACKUP_BUCKET).
 //   node scripts/restoreBackup.js --gcs latest
-//   node scripts/restoreBackup.js --gcs 2027-06-14 --execute --center <CENTER_ID> [--farmer <name>] [--with-config]
+//   node scripts/restoreBackup.js --gcs 2027-06-14 --execute --center <CENTER_ID> [--farmer <name>] [--with-config] [--with-fridge]
 // Never overwrites records, audit or certificates (clear first with scripts/clearSeason.js [--farmer <name>]); farmer details are merged and nextNumber never goes down.
 // Restore drill (no production writes): run under the Firestore emulator with CENTER_ID=drill — see NEW_SEASON.md.
 require('dotenv').config({ quiet: true });
@@ -59,7 +59,7 @@ async function readSource() {
   }
   const payload = await readSource();
   const out = await restoreBackup(getFirestore(), CENTER_ID, payload,
-    { execute, farmer: value('--farmer') || null, withConfig: flag('--with-config') });
+    { execute, farmer: value('--farmer') || null, withConfig: flag('--with-config'), withFridge: flag('--with-fridge') });
   console.log(JSON.stringify(out, null, 2));
   process.exit(0);
 })().catch((err) => { logger.error(`[restoreBackup] ${err.message}`); process.exit(1); });
