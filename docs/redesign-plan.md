@@ -15,7 +15,7 @@ Rationale, history, shipped task cards and the platform vision: [redesign-refere
 ## ▶ Next up after task 20 (owner-confirmed order, 2026-10-09) — pre-season; season May–July 2027, farmer dry run April 2027
 1. **Pre-season ops:** DONE 2026-10-10 — test data cleared, profiles seeded, keyless Cloud Run cutover, dead env vars removed, seed script + `googleapis` removed. Remaining (owner, in Settings → פרטי תעודה): real Avner/Idan/Kopler profiles and header lines 4–5 of the seeded farmers; printer check via תצוגה מקדימה (never a real issue). Restore drill (`NEW_SEASON.md`): done by the owner, 2026-10.
 2. **Deployed and merged to `main` (2026-10-10, PR #5).** Farmer dry run in April 2027 before the season.
-3. Then P2 nice-to-haves (25 soft-delete shipped), and the fridge layout last.
+3. Then P2 nice-to-haves (25 soft-delete shipped). Fridge layout (37) deployed 2026-10-16; awaiting the on-site tablet test.
 
 ## Ranked board (open tasks; shipped 0, 0.1, 1, 4, 6, 9, 12, 15+16, 20, 23, 25, 26, 31, 34, 36 are in the reference doc / `done.md`)
 Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-08 (`api.test.js` + Playwright e2e); CI half DROPPED. Optional leftover: frontend unit tests for `PalletInput` / `PalletTable` filter+sort.
@@ -31,7 +31,7 @@ Task 14 (session-expiry warning) is obsolete. Task 22: local half DONE 2026-10-0
 | 25–33 | Feature ideas (below) | P2 | 0.5–2d each | — |
 | 35 | Remaining major bumps (maintenance) | P2 | 3–5d spread | anytime |
 | 17–19 | Schema / forms / tenant platform layer | P3 | — | parked, see reference |
-| 37 | Fridge layout | — | — | BUILT on branch `fridge-layout` (2026-10-15), NOT merged or deployed; awaiting owner local testing. Delete this row once shipped. |
+| 37 | Fridge layout — on-site tablet test | P1 | — | DEPLOYED 2026-10-16 (see `done.md`). Remaining: the farmer tests it on the real packhouse tablet; then the deferred review items listed in `done.md`. |
 
 ## Open decisions / blockers
 - **Tasks 20 and 4: shipped** (certificates in Firestore, auto-split into ≤13-row certificates by pallet group) — see `done.md`. Not blockers any more.

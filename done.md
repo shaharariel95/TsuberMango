@@ -5,11 +5,12 @@
 
 ## October 2026 — Pre-season push
 
-### 🟡 Task 37 — Fridge layout (built 2026-10-15, NOT deployed)
-- Fridge map page `/Fridge` ("מקרר"): 5x8 grid + aisle, pick-list side panel, tap to place / move / clear a pallet; sent, deleted or missing pallets turn red and can be cleared with "פנה תא". Live between clients via the room doc (`centers/{c}/fridge/main`) plus `farmer_events` refetch. Backup, restore (`--with-fridge`) and season reset cover the fridge.
-- Spec: `docs/superpowers/specs/2026-10-15-fridge-layout-design.md`; plan and task briefs under `.superpowers/sdd/2026-10-15-fridge-layout/`. Branch `fridge-layout`, not merged.
-- Tests (final runs): backend 229, frontend unit 69, e2e 42/42 (21 tests x desktop + tablet, incl. 3 new fridge specs). Tablet 1280x800 fits without page scroll.
-- **Not deployed.** Awaiting the owner's local test session. Deploy order when asked: rules -> backend -> frontend (via the `deploy` skill); merge to `main` only then.
+### ✅ Task 37 — Fridge layout (deployed 2026-10-16)
+- Fridge map page `/Fridge` ("מקרר"): 5x8 grid + aisle, all-farmers pick list (filter + search), place / move / remove by tap or pointer-event drag and drop (drag to "גרור לכאן להוצאה" removes, with confirm); per-farmer colours with a מקרא legend; sent, deleted or missing pallets turn red and can be cleared with "פנה תא". Live between clients via the room doc (`centers/{c}/fridge/main`) plus `farmer_events` refetch. Backup, restore (`--with-fridge`) and season reset cover the fridge.
+- Spec: `docs/superpowers/specs/2026-10-15-fridge-layout-design.md`; plan: `docs/superpowers/plans/2026-10-15-fridge-layout.md`. Round 2 (owner feedback 2026-10-16): drag and drop, all-farmers list, bigger slot text, colours + legend, fixed banner row.
+- Tests: backend 229, frontend unit 71, e2e 44/44 (incl. 4 fridge specs x desktop + tablet). Tablet 1280x800 fits without page scroll.
+- Deployed 2026-10-16: backend revision `backend-service-00045-h54` → Firestore rules (adds client read of `centers/{c}/fridge/{roomId}`) → hosting. Merged to `main` (fast-forward, `2bebffe`).
+- **Open:** on-site test by the farmer on the real packhouse tablet (touch drag; a fast-flick drop may swallow the next tap within ~300 ms). Deferred review items: move/clear don't verify which pallet they expect (`SLOT_CHANGED` guard); `CLAUDE.md` invariant still lists only config + farmer_events as client reads; no log line for the unknown-farmer rejection; no 404 test for an unknown room.
 
 ### ✅ Task 35b — Frontend dependency majors
 - `firebase` 11 → 13, `vue-router` 4 → 5 (guard already return-value style — no code change), vitest 5. npm `overrides` pins `@grpc/grpc-js` ^1.14.5 (used only by Firestore's Node build, never the browser bundle). Audit: only `xlsx` remains (we only write files; no npm fix).
