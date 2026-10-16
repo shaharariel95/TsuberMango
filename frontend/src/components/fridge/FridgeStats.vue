@@ -17,10 +17,14 @@
         <div class="text-2xl font-extrabold text-slate-800">{{ Math.round(stats.rate) }}%</div>
       </div>
     </div>
-    <div v-if="stats.perFarmer.length" class="flex max-h-20 flex-col gap-1 overflow-auto text-xs">
-      <div v-for="f in stats.perFarmer" :key="f.farmer" class="flex shrink-0 items-center justify-between rounded-lg bg-slate-50 px-2 py-0.5">
-        <span class="truncate font-bold text-slate-700">{{ f.farmer }}</span>
-        <span class="rounded bg-slate-200 px-1.5 font-bold text-slate-800">{{ f.count }}</span>
+    <div v-if="stats.perFarmer.length" class="flex min-h-0 flex-col gap-1">
+      <div class="text-xs font-bold text-slate-400">מקרא</div>
+      <div class="flex max-h-24 flex-col gap-1 overflow-auto text-xs" data-testid="fridge-legend">
+        <div v-for="f in stats.perFarmer" :key="f.farmer" class="flex shrink-0 items-center gap-2 rounded-lg bg-slate-50 px-2 py-0.5">
+          <span :class="['h-3.5 w-3.5 shrink-0 rounded', (colors[f.farmer] || {}).band || 'bg-slate-400']" aria-hidden="true"></span>
+          <span class="min-w-0 flex-1 truncate font-bold text-slate-700">{{ f.farmer }}</span>
+          <span class="rounded bg-slate-200 px-1.5 font-bold text-slate-800">{{ f.count }}</span>
+        </div>
       </div>
     </div>
     <p v-else class="text-center text-sm text-slate-400">המקרר ריק</p>
@@ -33,7 +37,10 @@ import { roomStats } from '../../utils/fridgeView';
 const RING = { low: 'stroke-emerald-500', mid: 'stroke-amber-500', high: 'stroke-red-500' };
 
 export default {
-  props: { cells: { type: Object, required: true } },
+  props: {
+    cells: { type: Object, required: true },
+    colors: { type: Object, required: true },
+  },
   computed: {
     stats() { return roomStats(this.cells); },
     ringClass() { return RING[this.stats.level]; },

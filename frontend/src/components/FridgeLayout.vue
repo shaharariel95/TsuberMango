@@ -1,10 +1,11 @@
 <template>
   <div class="h-full flex flex-col gap-1.5 text-right" dir="rtl">
-    <div class="flex shrink-0 items-center justify-between gap-3">
-      <h1 class="text-lg font-bold leading-7 text-slate-800">מקרר</h1>
-      <div v-if="banner" :class="['flex items-center gap-2 rounded-xl border px-3 py-1 text-sm font-bold', banner.cls]">
-        <span>{{ banner.text }}</span>
-        <button type="button" @click="resetMode" class="rounded border bg-white px-2 py-0.5 text-xs">ביטול</button>
+    <!-- Fixed-height header: the selection banner appears inside it without moving the grid. -->
+    <div class="flex h-9 shrink-0 items-center justify-between gap-3 overflow-hidden">
+      <h1 class="shrink-0 text-lg font-bold leading-7 text-slate-800">מקרר</h1>
+      <div v-if="banner" :class="['flex h-8 min-w-0 items-center gap-2 rounded-xl border px-3 text-sm font-bold', banner.cls]">
+        <span class="min-w-0 truncate">{{ banner.text }}</span>
+        <button type="button" @click="resetMode" class="h-6 shrink-0 rounded border bg-white px-2 text-xs leading-none">ביטול</button>
       </div>
     </div>
 
@@ -12,15 +13,31 @@
     <ErrorState v-else-if="error && !Object.keys(cells).length" title="טעינת המקרר נכשלה" :message="error.message || ''" @retry="retry" />
     <div v-else class="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_18rem] gap-3">
       <div class="min-h-0 rounded-2xl border border-slate-200 bg-slate-50 p-1">
-        <FridgeGrid :cells="cells" :pallets="pallets" :tints="tints" :selected-slot="mode === 'moving' ? moveFrom : null"
-          :targeting="mode !== 'idle'" @select="onSlot" @clear="clearSlot" />
+        <FridgeGrid :cells="cells" :pallets="pallets" :colors="colors" :selected-slot="mode === 'moving' ? moveFrom : null"
+          :targeting="mode !== 'idle' || !!drag" :drop-target="drag && drag.target !== 'remove' ? drag.target : null"
+          :drag-source="drag?.source.type === 'slot' ? drag.source.slot : null"
+          @select="onSlot" @clear="clearSlot" @press="pressSlot" />
       </div>
-      <aside class="min-h-0 flex flex-col gap-3">
+      <aside class="relative min-h-0 flex flex-col gap-3">
         <div class="card p-3! flex-1 min-h-0">
-          <FridgePlacePanel ref="panel" :farmers="farmers" :cells="cells" :picked="picked" :default-farmer="selectedFarmer" @pick="onPick" />
+          <FridgePlacePanel ref="panel" :farmers="farmers" :cells="cells" :colors="colors" :picked="picked" @pick="onPick" @press="pressPallet" />
         </div>
-        <div class="card p-3! shrink-0"><FridgeStats :cells="cells" /></div>
+        <div class="card p-3! shrink-0"><FridgeStats :cells="cells" :colors="colors" /></div>
+        <!-- Remove zone: only while dragging a pallet that came from a slot. -->
+        <div v-if="drag?.source.type === 'slot'" data-drop="remove"
+          :class="['absolute inset-0 z-30 flex items-center justify-center rounded-2xl border-4 border-dashed text-lg font-extrabold transition-colors',
+            drag.target === 'remove' ? 'border-red-600 bg-red-100/95 text-red-800' : 'border-red-400 bg-red-50/90 text-red-700']">
+          גרור לכאן להוצאה
+        </div>
       </aside>
+    </div>
+
+    <!-- Drag ghost: follows the pointer; pointer-events-none so elementFromPoint sees what is under it. -->
+    <div v-if="drag" class="pointer-events-none fixed z-50 flex -translate-x-1/2 -translate-y-[120%] items-center gap-2 rounded-xl border-2 border-blue-500 bg-white px-3 py-1.5 shadow-2xl"
+      :style="{ left: drag.x + 'px', top: drag.y + 'px' }" data-testid="drag-ghost">
+      <span :class="['h-3 w-3 shrink-0 rounded-full', (colors[drag.label.farmer] || {}).dot || 'bg-slate-400']"></span>
+      <span class="text-xl font-extrabold leading-none text-slate-900">{{ drag.label.palletNumber }}</span>
+      <span class="max-w-40 truncate text-sm font-semibold text-slate-700">{{ drag.label.farmer }}</span>
     </div>
 
     <div v-if="detail && detailCell" class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" @click.self="detail = null">
@@ -53,15 +70,15 @@ import FridgeGrid from './fridge/FridgeGrid.vue';
 import FridgePlacePanel from './fridge/FridgePlacePanel.vue';
 import FridgeStats from './fridge/FridgeStats.vue';
 import { useFridgeRoom } from '../composables/useFridgeRoom';
+import { useFridgeDrag } from '../composables/useFridgeDrag';
 import { useNotification } from '../composables/useNotification';
 import { requestConfirm } from '../composables/useDialogs';
-import { ROOM_ID, palletKey, farmerTints, FLAG_LABELS } from '../utils/fridgeView';
+import { ROOM_ID, palletKey, farmerColors, FLAG_LABELS } from '../utils/fridgeView';
 
 export default {
   components: { LoadingState, ErrorState, FridgeGrid, FridgePlacePanel, FridgeStats },
   setup() {
     const config = inject('config');
-    const selectedFarmer = inject('selectedFarmer', ref(''));
     const { notify } = useNotification();
     const { cells, pallets, loading, error, refresh, retry, run } = useFridgeRoom(ROOM_ID);
 
@@ -73,7 +90,7 @@ export default {
     const panel = ref(null);
 
     const farmers = computed(() => config.farmers || []);
-    const tints = computed(() => farmerTints(farmers.value, cells.value));
+    const colors = computed(() => farmerColors(farmers.value, cells.value));
     const detailCell = computed(() => (detail.value ? cells.value[detail.value] : null));
     const detailSummary = computed(() => (detailCell.value ? pallets.value[palletKey(detailCell.value.farmer, detailCell.value.palletNumber)] : null));
     const statusLabel = computed(() => FLAG_LABELS[detailSummary.value?.status] || 'במקרר');
@@ -132,9 +149,32 @@ export default {
       if (ok) send({ op: 'clear', slot }, `תא ${slot} פונה`);
     }
 
+    // Drag and drop: list entry -> empty slot = place; slot -> empty slot = move; slot -> remove zone =
+    // the same confirm as "פנה תא". Anywhere else cancels. Uses the same send() path as taps.
+    const { drag, press } = useFridgeDrag({
+      onStart() { resetMode(); detail.value = null; },
+      onDrop(source, target) {
+        if (!target) return;
+        if (target === 'remove') { if (source.type === 'slot') clearSlot(source.slot); return; }
+        if (cells.value[target]) return; // occupied: not a drop target
+        if (source.type === 'list') {
+          const { farmer, palletNumber } = source;
+          return send({ op: 'place', slot: target, farmer, palletNumber }, `משטח ${palletNumber} שובץ בתא ${target}`);
+        }
+        if (source.slot === target || !cells.value[source.slot]) return;
+        return send({ op: 'move', from: source.slot, to: target }, `המשטח הועבר לתא ${target}`);
+      },
+    });
+    function pressSlot(e, slot) {
+      const c = cells.value[slot];
+      if (c) press(e, { type: 'slot', slot }, { palletNumber: c.palletNumber, farmer: c.farmer });
+    }
+    function pressPallet(e, p) { press(e, { type: 'list', ...p }, p); }
+
     return {
+      drag, pressSlot, pressPallet,
       cells, pallets, loading, error, refresh, retry, mode, picked, moveFrom, detail, panel,
-      farmers, tints, detailCell, detailSummary, statusLabel, placedAtText, banner, selectedFarmer,
+      farmers, colors, detailCell, detailSummary, statusLabel, placedAtText, banner,
       resetMode, onPick, onSlot, startMove, clearSlot,
     };
   },

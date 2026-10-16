@@ -8,9 +8,10 @@
       <div v-for="r in rows" :key="r" class="grid grid-cols-[2rem_repeat(5,minmax(0,1fr))] gap-1.5 min-h-0">
         <div class="flex items-center justify-center text-sm font-bold text-slate-500">{{ r }}</div>
         <FridgeSlot v-for="c in cols" :key="c + r" :slot-id="c + r" :cell="cells[c + r] || null"
-          :summary="summaryFor(cells[c + r])" :tint="cells[c + r] ? tints[cells[c + r].farmer] : undefined"
+          :summary="summaryFor(cells[c + r])" :color="cells[c + r] ? colors[cells[c + r].farmer] : undefined"
           :selected="selectedSlot === c + r" :targeting="targeting"
-          @select="$emit('select', $event)" @clear="$emit('clear', $event)" />
+          :drop-hover="dropTarget === c + r && !cells[c + r]" :dragging="dragSource === c + r"
+          @select="$emit('select', $event)" @clear="$emit('clear', $event)" @press="(e, s) => $emit('press', e, s)" />
       </div>
     </div>
     <div class="rounded-xl bg-slate-200 py-0.5 text-center text-xs font-bold tracking-widest text-slate-500">מעבר</div>
@@ -23,11 +24,13 @@ import { COLS, ROWS, palletKey } from '../../utils/fridgeView';
 
 export default {
   components: { FridgeSlot },
-  emits: ['select', 'clear'],
+  emits: ['select', 'clear', 'press'],
   props: {
     cells: { type: Object, required: true },
     pallets: { type: Object, required: true },
-    tints: { type: Object, required: true },
+    colors: { type: Object, required: true },
+    dropTarget: { type: String, default: null }, // slot under an active drag
+    dragSource: { type: String, default: null }, // slot an active drag started from
     selectedSlot: { type: String, default: null },
     targeting: { type: Boolean, default: false },
   },

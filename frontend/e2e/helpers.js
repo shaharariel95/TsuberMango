@@ -89,12 +89,30 @@ export const slotOf = (page, slot) => page.locator(`[data-slot="${slot}"]`);
 export async function placeOnFirstEmpty(page, palletNumber) {
   await page.getByLabel('חקלאי').selectOption(FARMER);
   await page.getByLabel('חיפוש משטח').fill(String(palletNumber));
-  await page.locator(`button[data-pallet="${palletNumber}"]`).click();
+  await pickButton(page, palletNumber).click();
   const empty = page.locator('[data-slot][data-state="empty"]').first();
   const slot = await empty.getAttribute('data-slot');
   await empty.click();
   await expect(slotOf(page, slot)).toContainText(String(palletNumber));
   return slot;
+}
+
+export const pickButton = (page, palletNumber, farmer = FARMER) =>
+  page.locator(`button[data-pallet="${palletNumber}"][data-farmer="${farmer}"]`);
+
+// Pointer-events drag with the mouse: press on the source centre, move in steps (past the 8px
+// threshold), release on the target centre.
+export async function dragTo(page, source, target) {
+  // hover() waits until the source actually receives pointer events (e.g. the tablet drawer's
+  // backdrop has finished fading out); raw page.mouse calls do not wait.
+  await source.hover();
+  const a = await source.boundingBox();
+  const b = await target.boundingBox();
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(a.x + a.width / 2 + 15, a.y + a.height / 2 + 15, { steps: 4 });
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
+  await page.mouse.up();
 }
 
 export async function clearSlot(page, slot) {

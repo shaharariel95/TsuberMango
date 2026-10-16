@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eligiblePallets, roomStats, CAPACITY } from '../src/utils/fridgeView.js';
+import { eligiblePallets, eligibleByFarmer, farmerColors, FARMER_COLORS, roomStats, CAPACITY } from '../src/utils/fridgeView.js';
 
 const r = (palletNumber, o = {}) => ({ id: `${palletNumber}-${Math.random()}`, palletNumber, kind: 'שלי', size: '15', boxes: 40, weight: 300, sent: false, mark: false, ...o });
 
@@ -19,6 +19,25 @@ describe('eligiblePallets', () => {
   });
   it('placed check compares numbers as strings', () => {
     expect(eligiblePallets([r(9)], 'א', { B1: { farmer: 'א', palletNumber: '9' } })).toEqual([]);
+  });
+});
+
+describe('eligibleByFarmer', () => {
+  it('lists the same pallet number under two farmers, excludes the placed one, drops empty farmers', () => {
+    const out = eligibleByFarmer({ 'א': [r(5), r(6)], 'ב': [r(5)], 'ג': [r(9, { sent: true })] },
+      { A1: { farmer: 'א', palletNumber: 6 } });
+    expect(out.map(g => [g.farmer, g.pallets.map(p => p.palletNumber)])).toEqual([['א', [5]], ['ב', [5]]]);
+    expect(eligibleByFarmer({ 'א': [r(5), r(15)], 'ב': [r(5)] }, {}, '15').map(g => g.farmer)).toEqual(['א']);
+  });
+});
+
+describe('farmerColors', () => {
+  it('stable by list position, covers farmers only seen on the map, no red hues', () => {
+    const c = farmerColors(['א', 'ב'], { A1: { farmer: 'ג' } });
+    expect(c['א']).toBe(FARMER_COLORS[0]);
+    expect(c['ג']).toBe(FARMER_COLORS[2]);
+    expect(FARMER_COLORS.length).toBeGreaterThanOrEqual(8);
+    expect(FARMER_COLORS.some(x => /red|rose/.test(x.band))).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 // fridgeView.js — pure helpers for the fridge (cold-room) page: which pallets can be placed, room
-// stats, status flags and per-farmer tints. No Vue, no I/O. The grid itself is fixed (room 'main', 5×8).
+// stats, status flags and per-farmer colours. No Vue, no I/O. The grid itself is fixed (room 'main', 5×8).
 export const ROOM_ID = 'main';
 export const COLS = ['A', 'B', 'C', 'D', 'E'];
 export const ROWS = 8;
@@ -50,14 +50,30 @@ export function roomStats(cells) {
 export const FLAG_LABELS = { sent: 'נשלח', partly_sent: 'נשלח חלקית', deleted: 'נמחק', missing: 'לא נמצא' };
 export const isFlagged = (summary) => !!summary && summary.status in FLAG_LABELS;
 
-// Literal class strings so Tailwind keeps them.
-const TINTS = [
-  'bg-sky-50 border-sky-300', 'bg-emerald-50 border-emerald-300', 'bg-violet-50 border-violet-300',
-  'bg-orange-50 border-orange-300', 'bg-pink-50 border-pink-300', 'bg-teal-50 border-teal-300',
-  'bg-lime-50 border-lime-300', 'bg-indigo-50 border-indigo-300',
+// Strong per-farmer colours, by position in config.farmers (then farmers only seen on the map).
+// Literal class strings so Tailwind keeps them. No red hues: red is reserved for flagged slots.
+export const FARMER_COLORS = [
+  { band: 'bg-blue-600', tint: 'bg-blue-50', dot: 'bg-blue-600', border: 'border-blue-300' },
+  { band: 'bg-emerald-500', tint: 'bg-emerald-50', dot: 'bg-emerald-500', border: 'border-emerald-300' },
+  { band: 'bg-violet-600', tint: 'bg-violet-50', dot: 'bg-violet-600', border: 'border-violet-300' },
+  { band: 'bg-amber-400', tint: 'bg-amber-50', dot: 'bg-amber-400', border: 'border-amber-300' },
+  { band: 'bg-cyan-500', tint: 'bg-cyan-50', dot: 'bg-cyan-500', border: 'border-cyan-300' },
+  { band: 'bg-fuchsia-500', tint: 'bg-fuchsia-50', dot: 'bg-fuchsia-500', border: 'border-fuchsia-300' },
+  { band: 'bg-lime-500', tint: 'bg-lime-50', dot: 'bg-lime-500', border: 'border-lime-400' },
+  { band: 'bg-orange-500', tint: 'bg-orange-50', dot: 'bg-orange-500', border: 'border-orange-300' },
+  { band: 'bg-slate-700', tint: 'bg-slate-100', dot: 'bg-slate-700', border: 'border-slate-400' },
+  { band: 'bg-teal-700', tint: 'bg-teal-50', dot: 'bg-teal-700', border: 'border-teal-300' },
 ];
-export function farmerTints(farmers, cells) {
+export function farmerColors(farmers, cells) {
   const names = [...farmers];
   Object.values(cells).forEach(c => { if (!names.includes(c.farmer)) names.push(c.farmer); });
-  return Object.fromEntries(names.map((f, i) => [f, TINTS[i % TINTS.length]]));
+  return Object.fromEntries(names.map((f, i) => [f, FARMER_COLORS[i % FARMER_COLORS.length]]));
+}
+
+// Multi-farmer pick list: [{ farmer, pallets }] in the order of recordsByFarmer's keys, farmers with
+// nothing eligible omitted. Two farmers may share a pallet number; each is listed under its own farmer.
+export function eligibleByFarmer(recordsByFarmer, cells, query = '') {
+  return Object.entries(recordsByFarmer)
+    .map(([farmer, records]) => ({ farmer, pallets: eligiblePallets(records || [], farmer, cells, query) }))
+    .filter(g => g.pallets.length);
 }
